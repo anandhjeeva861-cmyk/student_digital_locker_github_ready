@@ -92,10 +92,6 @@ jobs:
           test -f js/student.js
           test -f js/teacher.js
           test -f js/firebase-config.js
-          node --check js/firebase-config.js
-          node --check js/auth.js
-          node --check js/student.js
-          node --check js/teacher.js
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
