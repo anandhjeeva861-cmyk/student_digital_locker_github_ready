@@ -71,17 +71,9 @@ import { auth, db, storage } from "./firebase-config.js";
 
 Normal browser JavaScript cannot directly read `.env` files. The real config must be placed in `static/js/firebase-config.js` for local browser use.
 
-## 8. Optional Vite Setup
+## 8. Flask/Static Setup Note
 
-If you convert the project to Vite, use:
-
-```text
-static/js/firebase-config.vite.example.js
-```
-
-Copy it to your Vite source folder as `firebase-config.js`, create a local `.env`, and use the variables from `.env.example`.
-
-Even with Vite, Firebase web config values are visible in the final browser JavaScript bundle. Real security must come from Firebase Authentication, Firestore Rules, Storage Rules, and App Check.
+This project uses Flask templates and `static/`. Do not use `.env` or `import.meta.env` for browser Firebase config. Keep real Firebase values only in the ignored local file `static/js/firebase-config.js`.
 
 ## 9. Security Reminder
 

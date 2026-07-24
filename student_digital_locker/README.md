@@ -42,7 +42,6 @@ student_digital_locker/
 │   │   └── style.css
 │   └── js/
 │       ├── firebase-config.example.js
-│       ├── firebase-config.vite.example.js
 │       ├── auth.js
 │       ├── student.js
 │       ├── teacher.js
@@ -125,11 +124,47 @@ const firebaseConfig = {
 
 Do not commit `static/js/firebase-config.js`.
 
+### GitHub-Safe Firebase Config Checklist
+
+This project uses Flask templates and `static/`, so it is not Vite. Do not use `.env` or `import.meta.env` for browser Firebase config.
+
+Use this workflow:
+
+```bash
+cp static/js/firebase-config.example.js static/js/firebase-config.js
+```
+
+Windows:
+
+```bat
+copy static\js\firebase-config.example.js static\js\firebase-config.js
+```
+
+Paste your real Firebase Console values only inside:
+
+```text
+static/js/firebase-config.js
+```
+
+Never commit `static/js/firebase-config.js`. Before pushing, run:
+
+```bash
+git status
+```
+
+Confirm `static/js/firebase-config.js` is not listed as a file to commit. Push only the public sample:
+
+```text
+static/js/firebase-config.example.js
+```
+
+More details are in [`docs/FIREBASE_CONFIG_SAFETY.md`](docs/FIREBASE_CONFIG_SAFETY.md).
+
 ## Environment File
 
-`.env.example` contains placeholder Firebase variables for developers who later convert this project to Vite.
+`.env.example` contains placeholder Firebase variables for reference only.
 
-Normal HTML browser JavaScript cannot directly read `.env` files. Vite can read `.env` during development/build, but the Firebase web config will still be visible in the final browser JavaScript bundle.
+Normal Flask/static browser JavaScript cannot directly read `.env` files. Use `static/js/firebase-config.js` for local Firebase browser config.
 
 Firebase web config is not a private password, but real project config should still not be committed in open-source repositories.
 

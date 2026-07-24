@@ -58,7 +58,7 @@
         {% block public_content %}{% endblock %}
     {% endif %}
 
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script type="module" src="{{ url_for('static', filename='js/darkmode.js') }}"></script>
     <script type="module" src="{{ url_for('static', filename='js/auth.js') }}"></script>
     {% block firebase_scripts %}{% endblock %}
