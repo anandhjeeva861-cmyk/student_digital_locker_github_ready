@@ -13,7 +13,7 @@
     {% if session.get('role') == 'student' and student %}
     <div class="app-shell">
         <aside class="sidebar">
-            <div class="brand"><span class="brand-mark">DL</span><div><b>STUDENT</b><small>DIGITAL LOCKER</small></div></div>
+            <div class="brand"><img class="brand-logo" src="{{ url_for('static', filename='images/sankara-logo.png') }}" alt="Sankara Educational Institutions logo"><div><b>STUDENT</b><small>DIGITAL LOCKER</small></div></div>
             <nav>
                 <a href="{{ url_for('student_profile') }}" class="nav-link">PROFILE</a>
                 <a href="{{ url_for('student_certificates', category='online') }}" class="nav-link">ONLINE CERTIFICATE</a>
@@ -34,7 +34,7 @@
     {% elif session.get('role') == 'teacher' and teacher %}
     <div class="app-shell">
         <aside class="sidebar teacher-side">
-            <div class="brand"><span class="brand-mark">DL</span><div><b>TEACHER</b><small>DIGITAL LOCKER</small></div></div>
+            <div class="brand"><img class="brand-logo" src="{{ url_for('static', filename='images/sankara-logo.png') }}" alt="Sankara Educational Institutions logo"><div><b>TEACHER</b><small>DIGITAL LOCKER</small></div></div>
             <nav>
                 <a href="{{ url_for('teacher_profile') }}" class="nav-link">PROFILE</a>
                 <a href="{{ url_for('teacher_students') }}" class="nav-link">STUDENT LIST</a>

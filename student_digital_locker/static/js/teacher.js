@@ -13,8 +13,8 @@ import {
     query,
     serverTimestamp,
     where,
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import { deleteObject, ref } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import { deleteObject, ref } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
 
 protectPage("teacher");
 

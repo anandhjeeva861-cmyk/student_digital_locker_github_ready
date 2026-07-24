@@ -20,13 +20,13 @@ import {
     serverTimestamp,
     updateDoc,
     where,
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 import {
     deleteObject,
     getDownloadURL,
     ref,
     uploadBytes,
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
 
 protectPage("student");
 
