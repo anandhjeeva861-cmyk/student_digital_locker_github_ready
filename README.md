@@ -12,42 +12,45 @@ js/firebase-config.js
 
 ```text
 student_digital_locker_github_ready/
-├── index.html
-├── student-login.html
-├── teacher-login.html
-├── student-register.html
-├── teacher-register.html
-├── student-dashboard.html
-├── teacher-dashboard.html
-├── css/
-│   └── style.css
-├── js/
-│   ├── firebase-config.example.js
-│   ├── firebase-config.vite.example.js
-│   ├── firebase-config.js      # local only, ignored
-│   ├── auth.js
-│   ├── student.js
-│   ├── teacher.js
-│   ├── validation.js
-│   ├── darkmode.js
-│   └── app.js
-├── firestore.rules
-├── storage.rules
-├── .env.example
-├── .env                    # local only, ignored
-├── .gitignore
-├── .nojekyll
-├── README.md
-└── docs/
-    ├── FIREBASE_SETUP.md
-    ├── GITHUB_PAGES_FIX.md
-    ├── GITHUB_PUSH_STEPS.md
-    └── SECURITY_RULES.md
+|-- index.html
+|-- student-login.html
+|-- teacher-login.html
+|-- student-register.html
+|-- teacher-register.html
+|-- student-dashboard.html
+|-- teacher-dashboard.html
+|-- css/
+|   `-- style.css
+|-- js/
+|   |-- firebase-config.example.js
+|   |-- firebase-config.vite.example.js
+|   |-- firebase-config.js      # local only, ignored
+|   |-- auth.js
+|   |-- student.js
+|   |-- teacher.js
+|   |-- validation.js
+|   |-- darkmode.js
+|   `-- app.js
+|-- firestore.rules
+|-- storage.rules
+|-- .env.example
+|-- .env                    # local only, ignored
+|-- .gitignore
+|-- .nojekyll
+|-- README.md
+`-- docs/
+    |-- FIREBASE_SETUP.md
+    |-- GITHUB_SAFE_FIREBASE.md
+    |-- GITHUB_PAGES_FIX.md
+    |-- GITHUB_PUSH_STEPS.md
+    `-- SECURITY_RULES.md
 ```
 
 The original Flask version remains in `student_digital_locker/`, but GitHub Pages serves the root static files.
 
 ## Firebase Config Setup
+
+See [docs/GITHUB_SAFE_FIREBASE.md](docs/GITHUB_SAFE_FIREBASE.md) for the GitHub-safe Firebase rules for this repository.
 
 ### Normal HTML/CSS/JS Setup
 
