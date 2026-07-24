@@ -7,6 +7,7 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  limit,
   query,
   serverTimestamp,
   where
@@ -209,6 +210,17 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
     const title = normalizeTitle(event.currentTarget.elements.title.value);
     if (!title) return showMessage("Enter document title.", "danger");
+    const duplicate = await getDocs(query(
+      collection(db, "academicTitles"),
+      where("departmentKey", "==", teacher.departmentKey),
+      where("year", "==", teacher.year),
+      where("title", "==", title),
+      limit(1)
+    ));
+    if (!duplicate.empty || DEFAULT_ACADEMIC_TITLES.includes(title)) {
+      showMessage("This academic title already exists.", "warning");
+      return;
+    }
     await addDoc(collection(db, "academicTitles"), {
       title,
       department: teacher.department,
@@ -229,10 +241,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const deleteButton = event.target.closest("[data-delete-doc]");
     if (deleteButton && confirm("Remove this academic document?")) {
-      await deleteObject(ref(storage, deleteButton.dataset.path));
-      await deleteDoc(doc(db, "documents", deleteButton.dataset.deleteDoc));
-      if (selectedStudentUid) await renderStudentDetail(selectedStudentUid);
-      showMessage("Academic document removed.", "success");
+      try {
+        await deleteObject(ref(storage, deleteButton.dataset.path));
+        await deleteDoc(doc(db, "documents", deleteButton.dataset.deleteDoc));
+        if (selectedStudentUid) await renderStudentDetail(selectedStudentUid);
+        await renderDashboard();
+        showMessage("Academic document removed.", "success");
+      } catch (error) {
+        showMessage(error.message, "danger");
+      }
     }
   });
 });

@@ -64,4 +64,3 @@ instance/
 .webassets-cache
 *.swp
 *.swo
-/js/firebase-config.js

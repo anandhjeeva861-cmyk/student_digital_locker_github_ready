@@ -13,6 +13,7 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  limit,
   onSnapshot,
   query,
   serverTimestamp,
@@ -59,7 +60,7 @@ function fillProfile() {
   if (photo && profile.photoURL) {
     photo.src = profile.photoURL;
     photo.hidden = false;
-    avatar.hidden = true;
+    if (avatar) avatar.hidden = true;
   }
 }
 
@@ -144,6 +145,16 @@ async function uploadDocument(form, category) {
     ? normalizeTitle(form.elements.title.value)
     : normalizeTitle(form.elements.title.value);
   if (!title) throw new Error("Enter or select a document title.");
+  if (category === "academic") {
+    const duplicate = await getDocs(query(
+      collection(db, "documents"),
+      where("ownerUid", "==", user.uid),
+      where("category", "==", "academic"),
+      where("title", "==", title),
+      limit(1)
+    ));
+    if (!duplicate.empty) throw new Error("This academic certificate is already uploaded.");
+  }
 
   const storagePath = `documents/${user.uid}/${category}/${Date.now()}-${file.name}`;
   const fileRef = ref(storage, storagePath);
@@ -222,8 +233,12 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-delete-doc]");
     if (!button || !confirm("Remove this document?")) return;
-    await deleteObject(ref(storage, button.dataset.path));
-    await deleteDoc(doc(db, "documents", button.dataset.deleteDoc));
-    showMessage("Document removed.", "success");
+    try {
+      await deleteObject(ref(storage, button.dataset.path));
+      await deleteDoc(doc(db, "documents", button.dataset.deleteDoc));
+      showMessage("Document removed.", "success");
+    } catch (error) {
+      showMessage(error.message, "danger");
+    }
   });
 });
