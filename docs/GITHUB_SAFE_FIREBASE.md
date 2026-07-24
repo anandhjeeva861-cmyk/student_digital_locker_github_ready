@@ -20,6 +20,7 @@ student_digital_locker/static/js/firebase-config.js
 
 - `.env.example`
 - `js/firebase-config.example.js`
+- `js/firebase-config.js`
 - `student_digital_locker/static/js/firebase-config.example.js`
 - `README.md`
 - `docs/FIREBASE_SETUP.md`
@@ -32,9 +33,7 @@ student_digital_locker/static/js/firebase-config.js
 - `.env.local`
 - `.env.development`
 - `.env.production`
-- `js/firebase-config.js`
 - `student_digital_locker/static/js/firebase-config.js`
-- real Firebase project config values
 - uploaded files
 - local database files
 - `node_modules/`
@@ -60,6 +59,8 @@ Paste real Firebase Console values only inside:
 ```text
 js/firebase-config.js
 ```
+
+Commit `js/firebase-config.js` so GitHub Pages can load Firebase.
 
 For Flask/static mode:
 
@@ -87,7 +88,7 @@ Normal static browser JavaScript cannot directly read `.env`, and this project i
 
 ## Security Reminder
 
-Firebase web config is visible in browser code. It is not a private password, but it identifies your project, so this repository keeps the real config ignored.
+Firebase web config is visible in browser code. It is not a private password. For GitHub Pages, commit the root `js/firebase-config.js`; keep only the Flask local config ignored.
 
 Real security must be enforced by:
 

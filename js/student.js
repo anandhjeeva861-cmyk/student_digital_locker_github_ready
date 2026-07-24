@@ -1,4 +1,5 @@
-import { getFirebase, protectPage } from "./auth.js";
+import { auth, db, storage } from "./firebase-config.js";
+import { protectPage } from "./auth.js";
 import {
   DEFAULT_ACADEMIC_TITLES,
   normalizeTitle,
@@ -27,8 +28,6 @@ import {
 
 let user = null;
 let profile = null;
-let db = null;
-let storage = null;
 
 function text(id, value) {
   const element = document.getElementById(id);
@@ -183,9 +182,6 @@ async function uploadPhoto(form) {
 
 document.addEventListener("DOMContentLoaded", () => {
   protectPage("student", async (currentUser, currentProfile) => {
-    const firebase = await getFirebase();
-    db = firebase.db;
-    storage = firebase.storage;
     user = currentUser;
     profile = currentProfile;
     fillProfile();

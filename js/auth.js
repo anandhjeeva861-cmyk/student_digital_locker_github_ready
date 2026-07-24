@@ -1,3 +1,4 @@
+import { auth, db, storage } from "./firebase-config.js";
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
@@ -27,23 +28,11 @@ const pages = {
   login: "./index.html"
 };
 
-let firebasePromise = null;
-
-export async function getFirebase() {
-  if (!firebasePromise) {
-    firebasePromise = import("./firebase-config.js").catch(() => {
-      throw new Error("Firebase is not configured. Copy js/firebase-config.example.js to js/firebase-config.js and paste your Firebase Console values.");
-    });
-  }
-  return firebasePromise;
-}
-
 function value(form, name) {
   return form.elements[name]?.value || "";
 }
 
 async function saveProfileWithLocks(uid, profile) {
-  const { db } = await getFirebase();
   await runTransaction(db, async (transaction) => {
     const mobileRef = doc(db, "uniqueMobiles", profile.mobile);
     const mobileSnap = await transaction.get(mobileRef);
@@ -62,7 +51,6 @@ async function saveProfileWithLocks(uid, profile) {
 }
 
 async function registerStudent(form) {
-  const { auth } = await getFirebase();
   const profile = {
     role: "student",
     name: normalizeName(value(form, "name")),
@@ -92,7 +80,6 @@ async function registerStudent(form) {
 }
 
 async function registerTeacher(form) {
-  const { auth } = await getFirebase();
   const profile = {
     role: "teacher",
     name: normalizeName(value(form, "name")),
@@ -120,7 +107,6 @@ async function registerTeacher(form) {
 }
 
 async function login(form, role) {
-  const { auth, db } = await getFirebase();
   const email = value(form, "email").trim().toLowerCase();
   const cred = await signInWithEmailAndPassword(auth, email, value(form, "password"));
   const snap = await getDoc(doc(db, "users", cred.user.uid));
@@ -132,8 +118,7 @@ async function login(form, role) {
 }
 
 export function protectPage(role, callback) {
-  getFirebase().then(({ auth, db }) => {
-    onAuthStateChanged(auth, async (user) => {
+  onAuthStateChanged(auth, async (user) => {
     if (!user) {
       location.href = pages.login;
       return;
@@ -145,7 +130,6 @@ export function protectPage(role, callback) {
     }
     callback?.(user, snap.data());
   });
-  }).catch((error) => showMessage(error.message, "danger"));
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -175,7 +159,6 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-logout]").forEach((button) => {
     button.addEventListener("click", async (event) => {
       event.preventDefault();
-      const { auth } = await getFirebase();
       await signOut(auth);
       location.href = pages.login;
     });

@@ -1,4 +1,5 @@
-import { getFirebase, protectPage } from "./auth.js";
+import { auth, db, storage } from "./firebase-config.js";
+import { protectPage } from "./auth.js";
 import { DEFAULT_ACADEMIC_TITLES, normalizeTitle, showMessage } from "./validation.js";
 import {
   addDoc,
@@ -15,8 +16,6 @@ import { deleteObject, ref } from "https://www.gstatic.com/firebasejs/12.16.0/fi
 let user = null;
 let teacher = null;
 let selectedStudentUid = null;
-let db = null;
-let storage = null;
 
 function text(id, value) {
   const element = document.getElementById(id);
@@ -181,9 +180,6 @@ function nameList(students, className, emptyText) {
 
 document.addEventListener("DOMContentLoaded", () => {
   protectPage("teacher", async (currentUser, currentProfile) => {
-    const firebase = await getFirebase();
-    db = firebase.db;
-    storage = firebase.storage;
     user = currentUser;
     teacher = currentProfile;
     fillProfile();

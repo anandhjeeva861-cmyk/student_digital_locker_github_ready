@@ -2,7 +2,7 @@
 
 Static HTML/CSS/JavaScript version of the Student Digital Locker website for GitHub Pages, using Firebase Authentication, Cloud Firestore, and Firebase Storage.
 
-This deployable root project is **not Vite**. It has no `package.json` or `vite.config.*`, so browser JavaScript cannot read `.env` directly. Firebase is loaded through an ignored local file:
+This deployable root project is **not Vite**. It has no `package.json` or `vite.config.*`, so browser JavaScript cannot read `.env` directly. Firebase is loaded through the committed GitHub Pages config file:
 
 ```text
 js/firebase-config.js
@@ -23,7 +23,7 @@ student_digital_locker_github_ready/
 |   `-- style.css
 |-- js/
 |   |-- firebase-config.example.js
-|   |-- firebase-config.js      # local only, ignored
+|   |-- firebase-config.js      # committed for GitHub Pages
 |   |-- auth.js
 |   |-- student.js
 |   |-- teacher.js
@@ -65,7 +65,7 @@ The Flask local website inside `student_digital_locker/` uses:
 student_digital_locker/static/js/firebase-config.js
 ```
 
-Copy the safe example:
+Copy the safe example if `js/firebase-config.js` is missing:
 
 ```bash
 cp js/firebase-config.example.js js/firebase-config.js
@@ -77,13 +77,13 @@ Windows:
 copy js\firebase-config.example.js js\firebase-config.js
 ```
 
-Paste your real Firebase Console values only into:
+Paste your real Firebase Console values into:
 
 ```text
 js/firebase-config.js
 ```
 
-Do not commit `js/firebase-config.js`.
+For the live GitHub Pages website, commit and push `js/firebase-config.js` after you paste your Firebase values. Firebase web config is visible in browser JavaScript; real security must come from Firebase Auth, Firestore Rules, Storage Rules, and App Check.
 
 For the Flask local app, copy:
 
@@ -91,7 +91,7 @@ For the Flask local app, copy:
 copy student_digital_locker\static\js\firebase-config.example.js student_digital_locker\static\js\firebase-config.js
 ```
 
-Paste real Firebase Console values only inside the copied local config file for the website mode you are running.
+Paste real Firebase Console values inside the copied config file for the website mode you are running.
 
 Do not paste real Firebase values in:
 
@@ -107,10 +107,9 @@ Before pushing, run:
 git status
 ```
 
-Confirm these files are not listed:
+For GitHub Pages, `js/firebase-config.js` should be listed and committed. Confirm these files are not listed:
 
 ```text
-js/firebase-config.js
 student_digital_locker/static/js/firebase-config.js
 .env
 ```
@@ -118,7 +117,7 @@ student_digital_locker/static/js/firebase-config.js
 The project imports Firebase with:
 
 ```js
-import("./firebase-config.js")
+import { auth, db, storage } from "./firebase-config.js";
 ```
 
 The import path is relative, so it works on GitHub Pages under:
@@ -185,9 +184,7 @@ If 404 still appears, check the repository **Actions** tab and Pages deployment 
 - `.env.local`
 - `.env.development`
 - `.env.production`
-- `js/firebase-config.js`
 - `student_digital_locker/static/js/firebase-config.js`
-- real Firebase config values
 - uploaded certificate/profile photo files
 - `*.db`, `*.sqlite`, `*.sqlite3`
 - `node_modules/`

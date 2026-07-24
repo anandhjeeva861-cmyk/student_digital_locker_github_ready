@@ -5,7 +5,7 @@ This repository has two non-Vite modes:
 - GitHub Pages/static mode at the repository root.
 - Flask/static mode inside `student_digital_locker/`.
 
-Browser JavaScript cannot read `.env` directly in either mode. Use the ignored Firebase config file for the mode you are running.
+Browser JavaScript cannot read `.env` directly in either mode.
 
 ## Where To Paste Firebase Config
 
@@ -14,6 +14,8 @@ For the GitHub Pages/static website, paste real Firebase values in:
 ```text
 js/firebase-config.js
 ```
+
+Commit this file for the live GitHub Pages website.
 
 For the Flask local website, paste real Firebase values in:
 
@@ -25,6 +27,7 @@ student_digital_locker/static/js/firebase-config.js
 
 - `.env.example`
 - `js/firebase-config.example.js`
+- `js/firebase-config.js`
 - `student_digital_locker/static/js/firebase-config.example.js`
 - `README.md`
 - `docs/FIREBASE_SETUP.md`
@@ -37,9 +40,7 @@ student_digital_locker/static/js/firebase-config.js
 - `.env.local`
 - `.env.development`
 - `.env.production`
-- `js/firebase-config.js`
 - `student_digital_locker/static/js/firebase-config.js`
-- real Firebase project config values
 - uploaded files
 - local database files
 - `node_modules/`
@@ -66,7 +67,7 @@ For Flask/static mode:
 copy student_digital_locker\static\js\firebase-config.example.js student_digital_locker\static\js\firebase-config.js
 ```
 
-Paste real Firebase Console values only inside the copied local file for the mode you use.
+Paste real Firebase Console values inside `js/firebase-config.js` for GitHub Pages, or inside `student_digital_locker/static/js/firebase-config.js` for local Flask.
 
 Do not paste real values into:
 
@@ -78,7 +79,9 @@ student_digital_locker/static/js/firebase-config.example.js
 
 ## Security Reminder
 
-Firebase web API keys are not passwords, but real Firebase project config identifies your project. This project avoids committing real config to prevent accidental public exposure and GitHub push warnings.
+Firebase web API keys are not passwords. For GitHub Pages, the Firebase web config is visible in browser code and must be committed for the live site to work.
+
+This project still avoids committing the Flask local config and avoids putting real values in example files.
 
 Real protection must come from:
 
