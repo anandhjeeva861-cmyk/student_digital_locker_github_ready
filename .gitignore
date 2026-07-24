@@ -10,6 +10,7 @@
 js/firebase-config.js
 firebase-config.js
 static/js/firebase-config.js
+student_digital_locker/static/js/firebase-config.js
 
 # Dependencies
 node_modules/

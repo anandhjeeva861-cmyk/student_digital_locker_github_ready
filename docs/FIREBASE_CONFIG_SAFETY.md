@@ -1,22 +1,27 @@
-# GitHub-Safe Firebase Setup
+# Firebase Config Safety
 
-This project is a normal HTML/CSS/JavaScript static project, not Vite. The repository also contains a Flask/static version inside `student_digital_locker/`.
+This repository has two non-Vite modes:
 
-That means `.env` is useful only as a local reference file. Browser JavaScript cannot read `.env` directly.
+- GitHub Pages/static mode at the repository root.
+- Flask/static mode inside `student_digital_locker/`.
 
-The GitHub Pages/static website uses:
+Browser JavaScript cannot read `.env` directly in either mode. Use the ignored Firebase config file for the mode you are running.
+
+## Where To Paste Firebase Config
+
+For the GitHub Pages/static website, paste real Firebase values in:
 
 ```text
 js/firebase-config.js
 ```
 
-The Flask/static website uses:
+For the Flask local website, paste real Firebase values in:
 
 ```text
 student_digital_locker/static/js/firebase-config.js
 ```
 
-## Files That Are Safe To Commit
+## Files That Are Safe To Push
 
 - `.env.example`
 - `js/firebase-config.example.js`
@@ -26,7 +31,7 @@ student_digital_locker/static/js/firebase-config.js
 - `firestore.rules`
 - `storage.rules`
 
-## Files That Must Not Be Committed
+## Files That Must Never Be Pushed
 
 - `.env`
 - `.env.local`
@@ -41,7 +46,7 @@ student_digital_locker/static/js/firebase-config.js
 - `dist/`
 - `build/`
 
-## Local Firebase Setup
+## Local Setup
 
 For GitHub Pages/static mode:
 
@@ -55,23 +60,13 @@ Windows:
 copy js\firebase-config.example.js js\firebase-config.js
 ```
 
-Paste real Firebase Console values only inside:
-
-```text
-js/firebase-config.js
-```
-
 For Flask/static mode:
 
 ```bat
 copy student_digital_locker\static\js\firebase-config.example.js student_digital_locker\static\js\firebase-config.js
 ```
 
-Paste real Firebase Console values only inside:
-
-```text
-student_digital_locker/static/js/firebase-config.js
-```
+Paste real Firebase Console values only inside the copied local file for the mode you use.
 
 Do not paste real values into:
 
@@ -81,15 +76,11 @@ student_digital_locker/static/js/firebase-config.example.js
 .env.example
 ```
 
-## Why Not `.env`?
-
-Normal static browser JavaScript cannot directly read `.env`, and this project is not Vite.
-
 ## Security Reminder
 
-Firebase web config is visible in browser code. It is not a private password, but it identifies your project, so this repository keeps the real config ignored.
+Firebase web API keys are not passwords, but real Firebase project config identifies your project. This project avoids committing real config to prevent accidental public exposure and GitHub push warnings.
 
-Real security must be enforced by:
+Real protection must come from:
 
 - Firebase Authentication
 - Firestore Security Rules

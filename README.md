@@ -23,7 +23,6 @@ student_digital_locker_github_ready/
 |   `-- style.css
 |-- js/
 |   |-- firebase-config.example.js
-|   |-- firebase-config.vite.example.js
 |   |-- firebase-config.js      # local only, ignored
 |   |-- auth.js
 |   |-- student.js
@@ -50,9 +49,21 @@ The original Flask version remains in `student_digital_locker/`, but GitHub Page
 
 ## Firebase Config Setup
 
-See [docs/GITHUB_SAFE_FIREBASE.md](docs/GITHUB_SAFE_FIREBASE.md) for the GitHub-safe Firebase rules for this repository.
+See [docs/FIREBASE_CONFIG_SAFETY.md](docs/FIREBASE_CONFIG_SAFETY.md) for the GitHub-safe Firebase config rules for this repository.
 
 ### Normal HTML/CSS/JS Setup
+
+The active GitHub Pages/static website uses:
+
+```text
+js/firebase-config.js
+```
+
+The Flask local website inside `student_digital_locker/` uses:
+
+```text
+student_digital_locker/static/js/firebase-config.js
+```
 
 Copy the safe example:
 
@@ -74,6 +85,36 @@ js/firebase-config.js
 
 Do not commit `js/firebase-config.js`.
 
+For the Flask local app, copy:
+
+```bat
+copy student_digital_locker\static\js\firebase-config.example.js student_digital_locker\static\js\firebase-config.js
+```
+
+Paste real Firebase Console values only inside the copied local config file for the website mode you are running.
+
+Do not paste real Firebase values in:
+
+```text
+.env.example
+js/firebase-config.example.js
+student_digital_locker/static/js/firebase-config.example.js
+```
+
+Before pushing, run:
+
+```bash
+git status
+```
+
+Confirm these files are not listed:
+
+```text
+js/firebase-config.js
+student_digital_locker/static/js/firebase-config.js
+.env
+```
+
 The project imports Firebase with:
 
 ```js
@@ -86,16 +127,9 @@ The import path is relative, so it works on GitHub Pages under:
 https://anandhjeeva861-cmyk.github.io/student_digital_locker_github_ready/
 ```
 
-### Vite Note
+### `.env` Note
 
-If you convert this project to Vite later:
-
-1. Copy `.env.example` to `.env`.
-2. Paste real Firebase values only inside `.env`.
-3. Use `js/firebase-config.vite.example.js` as your Vite `firebase-config.js`.
-4. Restart the Vite dev server after changing `.env`.
-
-Even with Vite, Firebase web config is visible in the final browser bundle. Real security must come from Firebase Authentication, Firestore Rules, Storage Rules, and App Check.
+This repository includes `.env.example` only as a safe placeholder reference. The active website is not Vite, so `.env` is not read by browser JavaScript.
 
 ## Correct `.env.example`
 
@@ -152,6 +186,7 @@ If 404 still appears, check the repository **Actions** tab and Pages deployment 
 - `.env.development`
 - `.env.production`
 - `js/firebase-config.js`
+- `student_digital_locker/static/js/firebase-config.js`
 - real Firebase config values
 - uploaded certificate/profile photo files
 - `*.db`, `*.sqlite`, `*.sqlite3`
