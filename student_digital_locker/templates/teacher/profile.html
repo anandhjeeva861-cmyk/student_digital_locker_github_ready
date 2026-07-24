@@ -10,10 +10,13 @@
 </section>
 
 <div class="detail-card animate-rise delay-1">
-    <div class="detail-row"><span>Name</span><b>{{ teacher.name }}</b></div>
-    <div class="detail-row"><span>Email</span><b>{{ teacher.email }}</b></div>
-    <div class="detail-row"><span>Department</span><b>{{ teacher.department }}</b></div>
-    <div class="detail-row"><span>Year</span><b>{{ teacher.year }}</b></div>
-    <div class="detail-row"><span>Mobile</span><b>{{ teacher.mobile }}</b></div>
+    <div class="detail-row"><span>Name</span><b id="teacherName">{{ teacher.name }}</b></div>
+    <div class="detail-row"><span>Email</span><b id="teacherEmail">{{ teacher.email }}</b></div>
+    <div class="detail-row"><span>Department</span><b id="teacherDepartment">{{ teacher.department }}</b></div>
+    <div class="detail-row"><span>Year</span><b id="teacherYear">{{ teacher.year }}</b></div>
+    <div class="detail-row"><span>Mobile</span><b id="teacherMobile">{{ teacher.mobile }}</b></div>
 </div>
+{% endblock %}
+{% block firebase_scripts %}
+<script type="module" src="{{ url_for('static', filename='js/teacher.js') }}"></script>
 {% endblock %}

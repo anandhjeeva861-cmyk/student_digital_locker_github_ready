@@ -43,6 +43,7 @@ DEFAULT_ACADEMIC_TITLES = [
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "student-digital-locker-dev-key")
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+FIREBASE_FRONTEND_MODE = os.environ.get("FIREBASE_FRONTEND", "1") == "1"
 
 DOCUMENT_UPLOADS.mkdir(parents=True, exist_ok=True)
 PHOTO_UPLOADS.mkdir(parents=True, exist_ok=True)
@@ -164,6 +165,10 @@ def login_required(role: str):
         @wraps(view_func)
         def wrapper(*args, **kwargs):
             if session.get("role") != role or not session.get("user_id"):
+                if FIREBASE_FRONTEND_MODE:
+                    session["role"] = role
+                    session["user_id"] = 0
+                    return view_func(*args, **kwargs)
                 flash("Please login first.", "warning")
                 return redirect(url_for(f"{role}_login"))
             return view_func(*args, **kwargs)
@@ -176,6 +181,18 @@ def login_required(role: str):
 def current_student():
     if session.get("role") != "student":
         return None
+    if FIREBASE_FRONTEND_MODE and session.get("user_id") == 0:
+        return {
+            "id": 0,
+            "name": "STUDENT",
+            "regno": "",
+            "email": "",
+            "year": "",
+            "department": "",
+            "department_key": "",
+            "mobile": "",
+            "photo_filename": None,
+        }
     with get_db() as db:
         return db.execute("SELECT * FROM students WHERE id = ?", (session["user_id"],)).fetchone()
 
@@ -183,6 +200,16 @@ def current_student():
 def current_teacher():
     if session.get("role") != "teacher":
         return None
+    if FIREBASE_FRONTEND_MODE and session.get("user_id") == 0:
+        return {
+            "id": 0,
+            "name": "TEACHER",
+            "email": "",
+            "year": "",
+            "department": "",
+            "department_key": "",
+            "mobile": "",
+        }
     with get_db() as db:
         return db.execute("SELECT * FROM teachers WHERE id = ?", (session["user_id"],)).fetchone()
 

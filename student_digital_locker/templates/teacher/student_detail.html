@@ -4,18 +4,18 @@
 <section class="page-head animate-rise">
     <div>
         <p class="eyebrow">STUDENT DATA</p>
-        <h1>{{ student.name }}</h1>
+        <h1 id="detailStudentName">{{ student.name }}</h1>
         <p class="muted">Academic certificates only. Online and personal certificates are private to student.</p>
     </div>
 </section>
 
 <div class="detail-card animate-rise delay-1">
     <div class="detail-row"><span>Name</span><b>{{ student.name }}</b></div>
-    <div class="detail-row"><span>Register No</span><b>{{ student.regno }}</b></div>
-    <div class="detail-row"><span>Email</span><b>{{ student.email }}</b></div>
-    <div class="detail-row"><span>Department</span><b>{{ student.department }}</b></div>
-    <div class="detail-row"><span>Year</span><b>{{ student.year }}</b></div>
-    <div class="detail-row"><span>Mobile</span><b>{{ student.mobile }}</b></div>
+    <div class="detail-row"><span>Register No</span><b id="detailStudentRegNo">{{ student.regno }}</b></div>
+    <div class="detail-row"><span>Email</span><b id="detailStudentEmail">{{ student.email }}</b></div>
+    <div class="detail-row"><span>Department</span><b id="detailStudentDepartment">{{ student.department }}</b></div>
+    <div class="detail-row"><span>Year</span><b id="detailStudentYear">{{ student.year }}</b></div>
+    <div class="detail-row"><span>Mobile</span><b id="detailStudentMobile">{{ student.mobile }}</b></div>
 </div>
 
 <div class="table-card animate-rise delay-2">
@@ -29,7 +29,7 @@
             <thead>
                 <tr><th>Document Title</th><th>File</th><th>Uploaded</th><th>Actions</th></tr>
             </thead>
-            <tbody>
+            <tbody id="teacherAcademicDocsBody">
                 {% for doc in documents %}
                 <tr>
                     <td><b>{{ doc.title }}</b></td>
@@ -62,4 +62,7 @@
         <div class="empty-state">All required academic titles uploaded.</div>
     {% endif %}
 </div>
+{% endblock %}
+{% block firebase_scripts %}
+<script type="module" src="{{ url_for('static', filename='js/teacher.js') }}"></script>
 {% endblock %}

@@ -10,7 +10,7 @@
 </section>
 
 <div class="search-card animate-rise delay-1">
-    <form method="GET" action="{{ url_for('teacher_search') }}" class="search-form">
+    <form method="GET" action="{{ url_for('teacher_search') }}" class="search-form" id="teacherSearchForm">
         <input id="studentSearch" name="q" value="{{ query or '' }}" placeholder="Search by student name or reg no">
         <button class="primary-btn" type="submit">SEARCH</button>
     </form>
@@ -19,7 +19,7 @@
 <div class="table-card animate-rise delay-2">
     <div class="card-title-row">
         <h2>Students</h2>
-        <span>{{ students|length }} found</span>
+        <span id="teacherStudentsCount">{{ students|length }} found</span>
     </div>
     {% if students %}
     <div class="responsive-table">
@@ -27,7 +27,7 @@
             <thead>
                 <tr><th>Name</th><th>Reg No</th><th>Department</th><th>Year</th><th>Academic Files</th><th>Action</th></tr>
             </thead>
-            <tbody>
+            <tbody id="teacherStudentsBody">
                 {% for s in students %}
                 <tr>
                     <td><b>{{ s.name }}</b></td>
@@ -42,7 +42,26 @@
         </table>
     </div>
     {% else %}
-        <div class="empty-state">No matching student found.</div>
+        <div class="empty-state" id="teacherStudentsEmpty">No matching student found.</div>
     {% endif %}
 </div>
+
+<div class="table-card animate-rise delay-2" id="teacherStudentDetail" hidden>
+    <div class="card-title-row"><h2 id="detailStudentName">Student</h2><span id="detailStudentRegNo"></span></div>
+    <div class="detail-card">
+        <div class="detail-row"><span>Email</span><b id="detailStudentEmail"></b></div>
+        <div class="detail-row"><span>Department</span><b id="detailStudentDepartment"></b></div>
+        <div class="detail-row"><span>Year</span><b id="detailStudentYear"></b></div>
+        <div class="detail-row"><span>Mobile</span><b id="detailStudentMobile"></b></div>
+    </div>
+    <div class="responsive-table">
+        <table>
+            <thead><tr><th>Document Title</th><th>File</th><th>Uploaded</th><th>Actions</th></tr></thead>
+            <tbody id="teacherAcademicDocsBody"></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block firebase_scripts %}
+<script type="module" src="{{ url_for('static', filename='js/teacher.js') }}"></script>
 {% endblock %}

@@ -9,7 +9,7 @@
     </div>
 </section>
 
-<div class="status-grid animate-rise delay-1">
+<div class="status-grid animate-rise delay-1" id="teacherStatusGrid">
     {% for row in status_rows %}
     <div class="status-card">
         <h2>{{ row.title }}</h2>
@@ -40,4 +40,7 @@
         <div class="empty-state">No document titles found.</div>
     {% endfor %}
 </div>
+{% endblock %}
+{% block firebase_scripts %}
+<script type="module" src="{{ url_for('static', filename='js/teacher.js') }}"></script>
 {% endblock %}

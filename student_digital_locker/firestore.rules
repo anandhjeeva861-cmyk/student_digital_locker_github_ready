@@ -1,0 +1,112 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function myProfile() {
+      return userDoc(request.auth.uid);
+    }
+
+    function isStudent() {
+      return signedIn() && myProfile().data.role == "student";
+    }
+
+    function isTeacher() {
+      return signedIn() && myProfile().data.role == "teacher";
+    }
+
+    function sameClass(data) {
+      return myProfile().data.departmentKey == data.departmentKey
+        && myProfile().data.year == data.year;
+    }
+
+    match /users/{uid} {
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.role in ["student", "teacher"];
+
+      allow read: if signedIn()
+        && (
+          request.auth.uid == uid
+          || (
+            isTeacher()
+            && resource.data.role == "student"
+            && sameClass(resource.data)
+          )
+        );
+
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && resource.data.role == request.resource.data.role
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(["photoURL", "photoStoragePath"]);
+
+      allow delete: if false;
+    }
+
+    match /academicTitles/{titleId} {
+      allow read: if isStudent() || isTeacher();
+
+      allow create: if isTeacher()
+        && request.resource.data.departmentKey == myProfile().data.departmentKey
+        && request.resource.data.department == myProfile().data.department
+        && request.resource.data.year == myProfile().data.year
+        && request.resource.data.createdByTeacherUid == request.auth.uid;
+
+      allow update, delete: if false;
+    }
+
+    match /documents/{documentId} {
+      allow create: if isStudent()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.departmentKey == myProfile().data.departmentKey
+        && request.resource.data.department == myProfile().data.department
+        && request.resource.data.year == myProfile().data.year
+        && request.resource.data.category in ["online", "personal", "academic"];
+
+      allow read: if signedIn()
+        && (
+          resource.data.ownerUid == request.auth.uid
+          || (
+            isTeacher()
+            && resource.data.category == "academic"
+            && sameClass(resource.data)
+          )
+        );
+
+      allow delete: if signedIn()
+        && (
+          resource.data.ownerUid == request.auth.uid
+          || (
+            isTeacher()
+            && resource.data.category == "academic"
+            && sameClass(resource.data)
+          )
+        );
+
+      allow update: if false;
+    }
+
+    match /uniqueMobiles/{mobile} {
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.role in ["student", "teacher"];
+      allow read: if signedIn();
+      allow update, delete: if false;
+    }
+
+    match /uniqueRegNos/{regNo} {
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.role == "student";
+      allow read: if signedIn();
+      allow update, delete: if false;
+    }
+  }
+}
