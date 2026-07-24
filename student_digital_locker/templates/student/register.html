@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}Student Registration{% endblock %}
+{% block public_content %}
+<section class="auth-wrap">
+    <form class="auth-card wide-card animate-pop" method="POST">
+        <a href="{{ url_for('student_login') }}" class="back-link">← Student login</a>
+        <h1>REGISTER AS A STUDENT</h1>
+        <div class="form-grid">
+            <div>
+                <label>Name (Caps only)</label>
+                <input class="caps-input" name="name" placeholder="RAJA S" required pattern="[A-Z ]{2,60}">
+            </div>
+            <div>
+                <label>Register Number</label>
+                <input class="caps-input" name="regno" placeholder="25BSC003" required pattern="\d{2}[A-Z]{3}\d{3}">
+            </div>
+            <div>
+                <label>Email</label>
+                <input type="email" name="email" placeholder="student@example.com" required>
+            </div>
+            <div>
+                <label>Year</label>
+                <input class="caps-input" name="year" placeholder="I" required>
+            </div>
+            <div>
+                <label>Department</label>
+                <input class="caps-input" name="department" placeholder="BSC CS" required>
+            </div>
+            <div>
+                <label>Mobile Number</label>
+                <input name="mobile" placeholder="9876543210" required pattern="[6-9]\d{9}">
+            </div>
+            <div class="full-span">
+                <label>Create Password</label>
+                <input type="password" name="password" placeholder="Minimum 6 characters" required minlength="6">
+            </div>
+        </div>
+        <button class="primary-btn" type="submit">CREATE STUDENT ACCOUNT</button>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}Add Student Document Title{% endblock %}
+{% block teacher_content %}
+<section class="page-head animate-rise">
+    <div>
+        <p class="eyebrow">ADD STUDENT DOCUMENT TITLE</p>
+        <h1>Add Academic Requirement</h1>
+        <p class="muted">Saved title will appear inside student academic certificate upload options for {{ teacher.department }} - Year {{ teacher.year }}.</p>
+    </div>
+</section>
+
+<div class="workspace-grid animate-rise delay-1">
+    <div class="upload-card">
+        <h2>New Academic Certificate Title</h2>
+        <form method="POST" class="stack-form">
+            <label>Document Title</label>
+            <input name="title" placeholder="Example: TRANSFER CERTIFICATE" required>
+            <button class="primary-btn" type="submit">SAVE TITLE</button>
+        </form>
+    </div>
+
+    <div class="upload-card soft-card">
+        <h2>Teacher Added Titles</h2>
+        {% if custom_titles %}
+            <div class="pill-wrap">
+            {% for title in custom_titles %}<span class="pill">{{ title.title }}</span>{% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">No custom titles added yet.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

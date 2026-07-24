@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+.eggs/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Flask / environment
+.env
+.env.*
+!.env.example
+instance/
+.webassets-cache
+
+# SQLite / local database
+*.db
+*.sqlite
+*.sqlite3
+locker.db
+
+# User uploaded files - keep folders only
+uploads/documents/*
+uploads/profile_photos/*
+!uploads/documents/.gitkeep
+!uploads/profile_photos/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/

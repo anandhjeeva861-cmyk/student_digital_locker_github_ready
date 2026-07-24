@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Login | Student Digital Locker{% endblock %}
+{% block public_content %}
+<section class="public-hero">
+    <div class="hero-card animate-pop">
+        <div class="mini-badge">REFERENCE STYLE: DIGILOCKER</div>
+        <h1>STUDENT DIGITAL LOCKER</h1>
+        <p>Store certificates safely. Students manage their documents, and teachers can access only academic certificates from their own department and year.</p>
+        <div class="login-choice-grid">
+            <a href="{{ url_for('student_login') }}" class="choice-card">
+                <span class="choice-icon">🎓</span>
+                <h2>STUDENT LOGIN</h2>
+                <p>Upload online, personal, and academic certificates.</p>
+            </a>
+            <a href="{{ url_for('teacher_login') }}" class="choice-card teacher-card">
+                <span class="choice-icon">📘</span>
+                <h2>TEACHER LOGIN</h2>
+                <p>View academic documents for matching students only.</p>
+            </a>
+        </div>
+    </div>
+</section>
+{% endblock %}

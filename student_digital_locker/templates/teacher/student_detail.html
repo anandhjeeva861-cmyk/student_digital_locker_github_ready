@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block title %}Student Details{% endblock %}
+{% block teacher_content %}
+<section class="page-head animate-rise">
+    <div>
+        <p class="eyebrow">STUDENT DATA</p>
+        <h1>{{ student.name }}</h1>
+        <p class="muted">Academic certificates only. Online and personal certificates are private to student.</p>
+    </div>
+</section>
+
+<div class="detail-card animate-rise delay-1">
+    <div class="detail-row"><span>Name</span><b>{{ student.name }}</b></div>
+    <div class="detail-row"><span>Register No</span><b>{{ student.regno }}</b></div>
+    <div class="detail-row"><span>Email</span><b>{{ student.email }}</b></div>
+    <div class="detail-row"><span>Department</span><b>{{ student.department }}</b></div>
+    <div class="detail-row"><span>Year</span><b>{{ student.year }}</b></div>
+    <div class="detail-row"><span>Mobile</span><b>{{ student.mobile }}</b></div>
+</div>
+
+<div class="table-card animate-rise delay-2">
+    <div class="card-title-row">
+        <h2>Academic Certificates</h2>
+        <span>{{ documents|length }} uploaded</span>
+    </div>
+    {% if documents %}
+    <div class="responsive-table">
+        <table>
+            <thead>
+                <tr><th>Document Title</th><th>File</th><th>Uploaded</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for doc in documents %}
+                <tr>
+                    <td><b>{{ doc.title }}</b></td>
+                    <td>{{ doc.original_filename }}</td>
+                    <td>{{ doc.uploaded_at.replace('T', ' ') }}</td>
+                    <td class="action-cell">
+                        <a class="small-btn" href="{{ url_for('view_document', doc_id=doc.id) }}" target="_blank">VIEW</a>
+                        <a class="small-btn" href="{{ url_for('download_document', doc_id=doc.id) }}">DOWNLOAD</a>
+                        <form method="POST" action="{{ url_for('remove_document', doc_id=doc.id) }}" onsubmit="return confirm('Remove this document?')">
+                            <button class="small-btn danger" type="submit">REMOVE</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <div class="empty-state">No academic certificate uploaded yet.</div>
+    {% endif %}
+</div>
+
+<div class="table-card animate-rise delay-2">
+    <div class="card-title-row"><h2>Pending Certificates</h2><span>{{ pending_titles|length }} pending</span></div>
+    {% if pending_titles %}
+        <div class="pill-wrap">
+            {% for title in pending_titles %}<span class="pill pending-pill">{{ title.title }}</span>{% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">All required academic titles uploaded.</div>
+    {% endif %}
+</div>
+{% endblock %}

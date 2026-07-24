@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Teacher Login{% endblock %}
+{% block public_content %}
+<section class="auth-wrap">
+    <form class="auth-card animate-pop" method="POST">
+        <a href="{{ url_for('login') }}" class="back-link">← Back</a>
+        <h1>TEACHER LOGIN</h1>
+        <label>Email</label>
+        <input type="email" name="email" placeholder="teacher@example.com" required>
+        <label>Password</label>
+        <input type="password" name="password" placeholder="Enter password" required>
+        <button class="primary-btn" type="submit">LOGIN</button>
+        <p class="auth-note">New teacher? <a href="{{ url_for('teacher_register') }}">Register as a Teacher</a></p>
+    </form>
+</section>
+{% endblock %}

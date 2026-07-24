@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}Student Dashboard{% endblock %}
+{% block content %}
+<section class="page-head animate-rise">
+    <div>
+        <p class="eyebrow">STUDENT PORTAL</p>
+        <h1>Dashboard</h1>
+        <p class="muted">Manage your certificates in one secure locker.</p>
+    </div>
+</section>
+
+<div class="stats-grid animate-rise delay-1">
+    <a class="stat-card" href="{{ url_for('student_certificates', category='online') }}">
+        <span>ONLINE CERTIFICATE</span>
+        <strong>{{ counts.online }}</strong>
+        <small>Student private documents</small>
+    </a>
+    <a class="stat-card" href="{{ url_for('student_certificates', category='personal') }}">
+        <span>PERSONAL CERTIFICATE</span>
+        <strong>{{ counts.personal }}</strong>
+        <small>Student private documents</small>
+    </a>
+    <a class="stat-card important" href="{{ url_for('student_certificates', category='academic') }}">
+        <span>ACADEMIC CERTIFICATE</span>
+        <strong>{{ counts.academic }}</strong>
+        <small>Teacher can access this section</small>
+    </a>
+</div>
+
+<div class="info-strip animate-rise delay-2">
+    <b>Academic access rule:</b> Teachers can view, download, and remove only your academic certificates when their department and year match yours.
+</div>
+{% endblock %}

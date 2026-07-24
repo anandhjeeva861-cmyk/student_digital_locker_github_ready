@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Student List{% endblock %}
+{% block teacher_content %}
+<section class="page-head animate-rise">
+    <div>
+        <p class="eyebrow">{% if query is not none %}SEARCH STUDENT{% else %}STUDENT LIST{% endif %}</p>
+        <h1>{% if query is not none %}Search Student{% else %}Students{% endif %}</h1>
+        <p class="muted">Showing only {{ teacher.department }} - Year {{ teacher.year }} students.</p>
+    </div>
+</section>
+
+<div class="search-card animate-rise delay-1">
+    <form method="GET" action="{{ url_for('teacher_search') }}" class="search-form">
+        <input id="studentSearch" name="q" value="{{ query or '' }}" placeholder="Search by student name or reg no">
+        <button class="primary-btn" type="submit">SEARCH</button>
+    </form>
+</div>
+
+<div class="table-card animate-rise delay-2">
+    <div class="card-title-row">
+        <h2>Students</h2>
+        <span>{{ students|length }} found</span>
+    </div>
+    {% if students %}
+    <div class="responsive-table">
+        <table id="studentTable">
+            <thead>
+                <tr><th>Name</th><th>Reg No</th><th>Department</th><th>Year</th><th>Academic Files</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+                {% for s in students %}
+                <tr>
+                    <td><b>{{ s.name }}</b></td>
+                    <td>{{ s.regno }}</td>
+                    <td>{{ s.department }}</td>
+                    <td>{{ s.year }}</td>
+                    <td>{{ s.academic_count }}</td>
+                    <td><a class="small-btn" href="{{ url_for('teacher_student_detail', student_id=s.id) }}">VIEW DATA</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <div class="empty-state">No matching student found.</div>
+    {% endif %}
+</div>
+{% endblock %}

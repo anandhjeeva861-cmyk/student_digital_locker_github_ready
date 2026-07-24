@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Student Profile{% endblock %}
+{% block content %}
+<section class="page-head animate-rise">
+    <div>
+        <p class="eyebrow">PROFILE</p>
+        <h1>Student Details</h1>
+        <p class="muted">Only profile photo can be edited.</p>
+    </div>
+</section>
+
+<div class="profile-layout animate-rise delay-1">
+    <div class="profile-photo-card">
+        {% if student.photo_filename %}
+            <img src="{{ url_for('profile_photo', filename=student.photo_filename) }}" alt="Student profile photo">
+        {% else %}
+            <div class="avatar-placeholder">{{ student.name[:1] }}</div>
+        {% endif %}
+        <form method="POST" enctype="multipart/form-data" class="mini-form">
+            <label>Edit Student Profile Photo</label>
+            <input type="file" name="photo" accept="image/png,image/jpeg,image/webp" required>
+            <button class="secondary-btn" type="submit">UPDATE PHOTO</button>
+        </form>
+    </div>
+
+    <div class="detail-card">
+        <div class="detail-row"><span>Name</span><b>{{ student.name }}</b></div>
+        <div class="detail-row"><span>Register No</span><b>{{ student.regno }}</b></div>
+        <div class="detail-row"><span>Email</span><b>{{ student.email }}</b></div>
+        <div class="detail-row"><span>Year</span><b>{{ student.year }}</b></div>
+        <div class="detail-row"><span>Department</span><b>{{ student.department }}</b></div>
+        <div class="detail-row"><span>Mobile</span><b>{{ student.mobile }}</b></div>
+    </div>
+</div>
+{% endblock %}
