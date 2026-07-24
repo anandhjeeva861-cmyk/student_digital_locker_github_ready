@@ -9,7 +9,8 @@ const firebaseConfig = {
   projectId: "PASTE_YOUR_PROJECT_ID",
   storageBucket: "PASTE_YOUR_PROJECT.firebasestorage.app",
   messagingSenderId: "PASTE_YOUR_MESSAGING_SENDER_ID",
-  appId: "PASTE_YOUR_FIREBASE_APP_ID"
+  appId: "PASTE_YOUR_FIREBASE_APP_ID",
+  measurementId: "PASTE_YOUR_MEASUREMENT_ID"
 };
 
 const app = initializeApp(firebaseConfig);
