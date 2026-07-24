@@ -26,10 +26,16 @@ That Flask file is ignored and is not used by GitHub Pages.
 
 ## Paste Firebase Values
 
-Paste your Firebase Console web config values into:
+Paste your Firebase Console web config values into GitHub Repository Secrets:
 
 ```text
-js/firebase-config.js
+VITE_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_STORAGE_BUCKET
+VITE_FIREBASE_MESSAGING_SENDER_ID
+VITE_FIREBASE_APP_ID
+VITE_FIREBASE_MEASUREMENT_ID
 ```
 
 Do not paste real values into:
@@ -42,12 +48,11 @@ student_digital_locker/static/js/firebase-config.example.js
 
 ## Commit And Push
 
-After pasting real values for the live site:
+After updating secrets and workflow files:
 
 ```bash
-git add js/firebase-config.js
-git add README.md docs/GITHUB_PAGES_FIREBASE_SETUP.md .gitignore
-git commit -m "Configure Firebase for GitHub Pages"
+git add .github/workflows/pages.yml .gitignore README.md docs/GITHUB_ACTIONS_FIREBASE_DEPLOY.md docs/GITHUB_PAGES_FIREBASE_SETUP.md
+git commit -m "Deploy GitHub Pages with Firebase secrets"
 git push
 ```
 

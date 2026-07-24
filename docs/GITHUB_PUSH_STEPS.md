@@ -26,7 +26,6 @@ git diff --cached --name-only
 Never commit:
 
 - `.env`
-- `js/firebase-config.js`
 - uploaded documents
 - local database files
 - `node_modules/`

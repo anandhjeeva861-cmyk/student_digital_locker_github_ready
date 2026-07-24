@@ -6,9 +6,9 @@
 4. Create Cloud Firestore in production mode.
 5. Enable Firebase Storage in production mode.
 6. Copy the Firebase web config object from Project Settings.
-7. Copy `js/firebase-config.example.js` to `js/firebase-config.js`.
-8. Paste your real Firebase values into `js/firebase-config.js`.
-9. Do not push `js/firebase-config.js` to GitHub.
+7. Add Firebase values to GitHub Repository Secrets.
+8. GitHub Actions generates `js/firebase-config.js` during Pages deployment.
+9. Do not commit real Firebase values to GitHub.
 10. Publish `firestore.rules` in Firestore Rules.
 11. Publish `storage.rules` in Storage Rules.
 12. Enable App Check before real production use.

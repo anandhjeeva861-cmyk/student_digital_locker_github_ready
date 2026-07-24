@@ -7,6 +7,7 @@
 !.env.example
 
 # Firebase real config file
+js/firebase-config.js
 student_digital_locker/static/js/firebase-config.js
 
 # Dependencies

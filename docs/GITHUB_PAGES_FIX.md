@@ -18,10 +18,8 @@ The repository was originally Flask-based and nested under `student_digital_lock
 1. Open the GitHub repository.
 2. Go to **Settings**.
 3. Open **Pages**.
-4. Set **Source** to **Deploy from a branch**.
-5. Set **Branch** to `main`.
-6. Set **Folder** to `/root`.
-7. Click **Save**.
+4. Set **Source** to **GitHub Actions**.
+5. Click **Save**.
 
 Open:
 
