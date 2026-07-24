@@ -23,10 +23,14 @@ build/
 
 # Logs
 *.log
+firebase-debug.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 logs/
+
+# Firebase CLI local cache
+.firebase/
 
 # OS files
 .DS_Store

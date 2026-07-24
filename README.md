@@ -2,7 +2,7 @@
 
 Static HTML/CSS/JavaScript version of the Student Digital Locker website for GitHub Pages, using Firebase Authentication, Cloud Firestore, and Firebase Storage.
 
-This deployable root project is **not Vite**. It has no `package.json` or `vite.config.*`, so browser JavaScript cannot read `.env` directly. For GitHub Pages, Firebase config is generated during deployment by GitHub Actions from Repository Secrets:
+This deployable root project is **not Vite**. It uses `package.json` only for local static serving and verification; browser JavaScript still cannot read `.env` directly. For GitHub Pages, Firebase config is generated during deployment by GitHub Actions from Repository Secrets:
 
 ```text
 js/firebase-config.js
@@ -32,6 +32,8 @@ student_digital_locker_github_ready/
 |   `-- app.js
 |-- firestore.rules
 |-- storage.rules
+|-- firebase.json
+|-- package.json
 |-- .env.example
 |-- .env                    # local only, ignored
 |-- .gitignore
@@ -146,7 +148,33 @@ VITE_FIREBASE_APP_ID=PASTE_YOUR_FIREBASE_APP_ID
 
 ## Local Run Commands
 
-Because this is a normal static browser project, run it with any local static server.
+Because this is a normal static browser project, run it with the included npm scripts.
+
+Install dependencies:
+
+```bash
+npm.cmd install
+```
+
+Verify static files:
+
+```bash
+npm.cmd run build
+```
+
+Start local server:
+
+```bash
+npm.cmd run dev
+```
+
+Open:
+
+```text
+http://127.0.0.1:5173/
+```
+
+You can also run it with any local static server.
 
 Python:
 
@@ -203,3 +231,19 @@ For real security, configure:
 - Firestore Security Rules from `firestore.rules`
 - Storage Rules from `storage.rules`
 - Firebase App Check
+
+## Firebase Rules Deploy
+
+This repository includes `firebase.json`, so Firebase CLI can deploy the database rules:
+
+```bash
+firebase login
+firebase deploy --project YOUR_FIREBASE_PROJECT_ID --only firestore:rules,storage
+```
+
+In Firebase Console, also confirm:
+
+- Authentication → Sign-in method → Email/Password is enabled
+- Firestore Database is created
+- Storage bucket is created
+- Firestore Rules and Storage Rules are deployed
