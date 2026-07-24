@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Registration</title>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <section class="auth-wrap">
+    <form class="auth-card wide-card animate-pop" id="studentRegisterForm">
+      <a href="./student-login.html" class="back-link">← Student login</a>
+      <h1>REGISTER AS A STUDENT</h1>
+      <div class="form-grid">
+        <div><label>Name (Caps only)</label><input class="caps-input" name="name" placeholder="RAJA S" required></div>
+        <div><label>Register Number</label><input class="caps-input" name="regNo" placeholder="25BSC003" required></div>
+        <div><label>Email</label><input type="email" name="email" placeholder="student@example.com" required></div>
+        <div><label>Year</label><input class="caps-input" name="year" placeholder="I" required></div>
+        <div><label>Department</label><input class="caps-input" name="department" placeholder="BSC CS" required></div>
+        <div><label>Mobile Number</label><input name="mobile" placeholder="9876543210" required></div>
+        <div class="full-span"><label>Create Password</label><input type="password" name="password" placeholder="Minimum 6 characters" required minlength="6"></div>
+      </div>
+      <button class="primary-btn" type="submit">CREATE STUDENT ACCOUNT</button>
+    </form>
+  </section>
+  <script src="./js/app.js"></script>
+  <script type="module" src="./js/darkmode.js"></script>
+  <script type="module" src="./js/auth.js"></script>
+</body>
+</html>

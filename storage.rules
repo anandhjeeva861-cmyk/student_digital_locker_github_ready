@@ -1,0 +1,74 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function myProfile() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid));
+    }
+
+    function userProfile(uid) {
+      return firestore.get(/databases/(default)/documents/users/$(uid));
+    }
+
+    function isStudent() {
+      return signedIn() && myProfile().data.role == "student";
+    }
+
+    function isTeacher() {
+      return signedIn() && myProfile().data.role == "teacher";
+    }
+
+    function teacherCanAccessStudent(uid) {
+      return isTeacher()
+        && userProfile(uid).data.role == "student"
+        && userProfile(uid).data.departmentKey == myProfile().data.departmentKey
+        && userProfile(uid).data.year == myProfile().data.year;
+    }
+
+    match /profilePhotos/{uid}/{fileName} {
+      allow read, delete: if isStudent() && request.auth.uid == uid;
+      allow create, update: if isStudent()
+        && request.auth.uid == uid
+        && request.resource.size < 4 * 1024 * 1024;
+    }
+
+    match /documents/{uid}/online/{fileName} {
+      allow read, delete: if isStudent() && request.auth.uid == uid;
+      allow create: if isStudent()
+        && request.auth.uid == uid
+        && request.resource.size < 16 * 1024 * 1024;
+      allow update: if false;
+    }
+
+    match /documents/{uid}/personal/{fileName} {
+      allow read, delete: if isStudent() && request.auth.uid == uid;
+      allow create: if isStudent()
+        && request.auth.uid == uid
+        && request.resource.size < 16 * 1024 * 1024;
+      allow update: if false;
+    }
+
+    match /documents/{uid}/academic/{fileName} {
+      allow create: if isStudent()
+        && request.auth.uid == uid
+        && request.resource.size < 16 * 1024 * 1024
+        && request.resource.metadata.ownerUid == uid
+        && request.resource.metadata.category == "academic";
+
+      allow read, delete: if signedIn()
+        && (
+          request.auth.uid == uid
+          || teacherCanAccessStudent(uid)
+        );
+
+      allow update: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

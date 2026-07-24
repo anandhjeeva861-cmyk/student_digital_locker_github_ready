@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Dashboard</title>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">DL</span><div><b>STUDENT</b><small>DIGITAL LOCKER</small></div></div>
+      <nav>
+        <a href="#" class="nav-link" data-open-view="profile">PROFILE</a>
+        <a href="#" class="nav-link" data-open-view="online">ONLINE CERTIFICATE</a>
+        <a href="#" class="nav-link" data-open-view="personal">PERSONAL CERTIFICATE</a>
+        <a href="#" class="nav-link" data-open-view="academic">ACADEMIC CERTIFICATE</a>
+        <a href="#" class="nav-link danger-link" data-logout>LOGOUT</a>
+      </nav>
+    </aside>
+    <main class="main-panel">
+      <header class="topbar">
+        <a href="#" class="welcome" data-open-view="dashboard">WELCOME, <span id="welcomeName">STUDENT</span></a>
+        <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
+      </header>
+
+      <section data-view="dashboard" class="animate-rise">
+        <div class="page-head">
+          <div><p class="eyebrow">STUDENT PORTAL</p><h1>Dashboard</h1><p class="muted">Manage your certificates in one secure locker.</p></div>
+        </div>
+        <div class="stats-grid">
+          <a href="#" class="stat-card" data-open-view="online"><span>ONLINE CERTIFICATE</span><strong id="onlineCount">0</strong><small>Student private documents</small></a>
+          <a href="#" class="stat-card" data-open-view="personal"><span>PERSONAL CERTIFICATE</span><strong id="personalCount">0</strong><small>Student private documents</small></a>
+          <a href="#" class="stat-card important" data-open-view="academic"><span>ACADEMIC CERTIFICATE</span><strong id="academicCount">0</strong><small>Teacher can access this section</small></a>
+        </div>
+        <div class="info-strip"><b>Academic access rule:</b> Teachers can view, download, and remove only your academic certificates when their department and year match yours.</div>
+      </section>
+
+      <section data-view="profile" hidden>
+        <div class="page-head"><div><p class="eyebrow">PROFILE</p><h1>Student Details</h1><p class="muted">Only profile photo can be edited.</p></div></div>
+        <div class="profile-layout">
+          <div class="profile-photo-card">
+            <img id="studentPhoto" alt="Student profile photo" hidden>
+            <div class="avatar-placeholder" id="studentAvatar">S</div>
+            <form class="mini-form" id="studentPhotoForm">
+              <label>Edit Student Profile Photo</label>
+              <input type="file" name="photo" accept="image/png,image/jpeg,image/webp" required>
+              <button class="secondary-btn" type="submit">UPDATE PHOTO</button>
+            </form>
+          </div>
+          <div class="detail-card">
+            <div class="detail-row"><span>Name</span><b id="studentName"></b></div>
+            <div class="detail-row"><span>Register No</span><b id="studentRegNo"></b></div>
+            <div class="detail-row"><span>Email</span><b id="studentEmail"></b></div>
+            <div class="detail-row"><span>Year</span><b id="studentYear"></b></div>
+            <div class="detail-row"><span>Department</span><b id="studentDepartment"></b></div>
+            <div class="detail-row"><span>Mobile</span><b id="studentMobile"></b></div>
+          </div>
+        </div>
+      </section>
+
+      <section data-view="online" hidden>
+        <div class="page-head"><div><p class="eyebrow">ONLINE CERTIFICATE</p><h1>Online Certificate Locker</h1><p class="muted">This section is private to the student.</p></div></div>
+        <div class="workspace-grid"><div class="upload-card"><h2>Add Certificate</h2><form class="stack-form" data-upload-category="online"><label>Add Document Title</label><input name="title" required><label>Add Document</label><input type="file" name="document" required><button class="primary-btn" type="submit">SAVE</button></form></div></div>
+        <div class="table-card"><div class="card-title-row"><h2>Stored Documents</h2></div><div class="responsive-table"><table><thead><tr><th>Document Name</th><th>File</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody id="onlineDocuments"></tbody></table></div><div class="empty-state" id="onlineEmpty">No documents stored yet.</div></div>
+      </section>
+
+      <section data-view="personal" hidden>
+        <div class="page-head"><div><p class="eyebrow">PERSONAL CERTIFICATE</p><h1>Personal Certificate Locker</h1><p class="muted">This section is private to the student.</p></div></div>
+        <div class="workspace-grid"><div class="upload-card"><h2>Add Certificate</h2><form class="stack-form" data-upload-category="personal"><label>Add Document Title</label><input name="title" required><label>Add Document</label><input type="file" name="document" required><button class="primary-btn" type="submit">SAVE</button></form></div></div>
+        <div class="table-card"><div class="card-title-row"><h2>Stored Documents</h2></div><div class="responsive-table"><table><thead><tr><th>Document Name</th><th>File</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody id="personalDocuments"></tbody></table></div><div class="empty-state" id="personalEmpty">No documents stored yet.</div></div>
+      </section>
+
+      <section data-view="academic" hidden>
+        <div class="page-head"><div><p class="eyebrow">ACADEMIC CERTIFICATE</p><h1>Academic Certificate Locker</h1><p class="muted">Academic certificates are accessible by matching teachers.</p></div></div>
+        <div class="workspace-grid">
+          <div class="upload-card"><h2>Upload Academic Certificate</h2><form class="stack-form" data-upload-category="academic"><label>Select Document Title</label><select name="title" id="academicTitleSelect" required></select><label>Add Document</label><input type="file" name="document" required><button class="primary-btn" type="submit">SAVE</button></form></div>
+          <div class="upload-card soft-card"><h2>Required Academic Titles</h2><div class="pill-wrap" id="academicTitleList"></div></div>
+        </div>
+        <div class="table-card"><div class="card-title-row"><h2>Stored Documents</h2></div><div class="responsive-table"><table><thead><tr><th>Document Name</th><th>File</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody id="academicDocuments"></tbody></table></div><div class="empty-state" id="academicEmpty">No documents stored yet.</div></div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="./js/darkmode.js"></script>
+  <script type="module" src="./js/auth.js"></script>
+  <script type="module" src="./js/student.js"></script>
+</body>
+</html>

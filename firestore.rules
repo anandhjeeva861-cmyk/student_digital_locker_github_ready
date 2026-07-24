@@ -1,0 +1,139 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profile(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function myProfile() {
+      return profile(request.auth.uid);
+    }
+
+    function isStudent() {
+      return signedIn() && myProfile().data.role == "student";
+    }
+
+    function isTeacher() {
+      return signedIn() && myProfile().data.role == "teacher";
+    }
+
+    function sameDepartmentAndYear(data) {
+      return myProfile().data.departmentKey == data.departmentKey
+        && myProfile().data.year == data.year;
+    }
+
+    function isDefaultAcademicTitle(data) {
+      return data.isDefault == true || data.is_default == true;
+    }
+
+    match /users/{uid} {
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.role in ["student", "teacher"];
+
+      allow read: if signedIn()
+        && (
+          request.auth.uid == uid
+          || (
+            isTeacher()
+            && resource.data.role == "student"
+            && sameDepartmentAndYear(resource.data)
+          )
+        );
+
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["photoURL", "photoStoragePath"])
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.name == resource.data.name
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.mobile == resource.data.mobile
+        && request.resource.data.department == resource.data.department
+        && request.resource.data.departmentKey == resource.data.departmentKey
+        && request.resource.data.year == resource.data.year
+        && (
+          resource.data.role != "student"
+          || request.resource.data.regNo == resource.data.regNo
+        );
+
+      allow delete: if false;
+    }
+
+    match /academicTitles/{titleId} {
+      allow read: if signedIn()
+        && (
+          isDefaultAcademicTitle(resource.data)
+          || sameDepartmentAndYear(resource.data)
+        );
+
+      allow create: if isTeacher()
+        && request.resource.data.title is string
+        && request.resource.data.department == myProfile().data.department
+        && request.resource.data.departmentKey == myProfile().data.departmentKey
+        && request.resource.data.year == myProfile().data.year
+        && request.resource.data.createdByTeacherUid == request.auth.uid;
+
+      allow update, delete: if false;
+    }
+
+    match /documents/{documentId} {
+      allow create: if isStudent()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerName == myProfile().data.name
+        && request.resource.data.ownerRegNo == myProfile().data.regNo
+        && request.resource.data.department == myProfile().data.department
+        && request.resource.data.departmentKey == myProfile().data.departmentKey
+        && request.resource.data.year == myProfile().data.year
+        && request.resource.data.category in ["online", "personal", "academic"];
+
+      allow read: if signedIn()
+        && (
+          resource.data.ownerUid == request.auth.uid
+          || (
+            isTeacher()
+            && resource.data.category == "academic"
+            && sameDepartmentAndYear(resource.data)
+          )
+        );
+
+      allow delete: if signedIn()
+        && (
+          resource.data.ownerUid == request.auth.uid
+          || (
+            isTeacher()
+            && resource.data.category == "academic"
+            && sameDepartmentAndYear(resource.data)
+          )
+        );
+
+      allow update: if false;
+    }
+
+    match /uniqueMobiles/{mobile} {
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.role in ["student", "teacher"];
+
+      allow read: if signedIn();
+      allow update, delete: if false;
+    }
+
+    match /uniqueRegNos/{regNo} {
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.role == "student";
+
+      allow read: if signedIn();
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

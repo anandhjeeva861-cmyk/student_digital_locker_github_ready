@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teacher Dashboard</title>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar teacher-side">
+      <div class="brand"><span class="brand-mark">DL</span><div><b>TEACHER</b><small>DIGITAL LOCKER</small></div></div>
+      <nav>
+        <a href="#" class="nav-link" data-open-view="profile">PROFILE</a>
+        <a href="#" class="nav-link" data-open-view="students">STUDENT LIST</a>
+        <a href="#" class="nav-link" data-open-view="students">SEARCH STUDENT</a>
+        <a href="#" class="nav-link" data-open-view="status">DOCUMENT SUBMISSION STATUS</a>
+        <a href="#" class="nav-link" data-open-view="add-title">ADD STUDENT DOCUMENT TITLE</a>
+        <a href="#" class="nav-link danger-link" data-logout>LOGOUT</a>
+      </nav>
+    </aside>
+    <main class="main-panel">
+      <header class="topbar">
+        <a href="#" class="welcome" data-open-view="dashboard">WELCOME, <span id="welcomeName">TEACHER</span></a>
+        <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
+      </header>
+
+      <section data-view="dashboard">
+        <div class="page-head"><div><p class="eyebrow">TEACHER PORTAL</p><h1>Dashboard</h1><p class="muted">Access is limited to <span id="teacherScope"></span> students.</p></div></div>
+        <div class="stats-grid">
+          <a href="#" class="stat-card" data-open-view="students"><span>STUDENT LIST</span><strong id="studentCount">0</strong><small>Same department and year</small></a>
+          <a href="#" class="stat-card important" data-open-view="status"><span>ACADEMIC DOCUMENTS</span><strong id="academicCount">0</strong><small>Uploaded certificates</small></a>
+          <a href="#" class="stat-card" data-open-view="add-title"><span>DOCUMENT TITLES</span><strong id="titleCount">0</strong><small>Default + teacher-added</small></a>
+        </div>
+      </section>
+
+      <section data-view="profile" hidden>
+        <div class="page-head"><div><p class="eyebrow">PROFILE</p><h1>Teacher Details</h1><p class="muted">Teacher academic access is based on department and year.</p></div></div>
+        <div class="detail-card">
+          <div class="detail-row"><span>Name</span><b id="teacherName"></b></div>
+          <div class="detail-row"><span>Email</span><b id="teacherEmail"></b></div>
+          <div class="detail-row"><span>Department</span><b id="teacherDepartment"></b></div>
+          <div class="detail-row"><span>Year</span><b id="teacherYear"></b></div>
+          <div class="detail-row"><span>Mobile</span><b id="teacherMobile"></b></div>
+        </div>
+      </section>
+
+      <section data-view="students" hidden>
+        <div class="page-head"><div><p class="eyebrow">STUDENT LIST</p><h1>Students</h1><p class="muted">Showing only same department and same year students.</p></div></div>
+        <div class="search-card"><form class="search-form" id="searchForm"><input id="studentSearch" name="q" placeholder="Search by student name or reg no"><button class="primary-btn" type="submit">SEARCH</button></form></div>
+        <div class="table-card"><div class="card-title-row"><h2>Students</h2></div><div class="responsive-table"><table><thead><tr><th>Name</th><th>Reg No</th><th>Department</th><th>Year</th><th>Academic Files</th><th>Action</th></tr></thead><tbody id="studentRows"></tbody></table></div><div class="empty-state" id="studentEmpty">No matching student found.</div></div>
+      </section>
+
+      <section data-view="student-detail" hidden>
+        <div class="page-head"><div><p class="eyebrow">STUDENT DATA</p><h1 id="detailName"></h1><p class="muted">Academic certificates only. Online and personal certificates are private to student.</p></div></div>
+        <div class="detail-card">
+          <div class="detail-row"><span>Register No</span><b id="detailRegNo"></b></div>
+          <div class="detail-row"><span>Email</span><b id="detailEmail"></b></div>
+          <div class="detail-row"><span>Department</span><b id="detailDepartment"></b></div>
+          <div class="detail-row"><span>Year</span><b id="detailYear"></b></div>
+          <div class="detail-row"><span>Mobile</span><b id="detailMobile"></b></div>
+        </div>
+        <div class="table-card"><div class="card-title-row"><h2>Academic Certificates</h2></div><div class="responsive-table"><table><thead><tr><th>Document Title</th><th>File</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody id="academicRows"></tbody></table></div></div>
+      </section>
+
+      <section data-view="status" hidden>
+        <div class="page-head"><div><p class="eyebrow">DOCUMENT SUBMISSION STATUS</p><h1>Academic Status</h1><p class="muted">Uploaded and pending student names are shown title-wise.</p></div></div>
+        <div class="status-grid" id="statusGrid"></div>
+      </section>
+
+      <section data-view="add-title" hidden>
+        <div class="page-head"><div><p class="eyebrow">ADD STUDENT DOCUMENT TITLE</p><h1>Add Academic Requirement</h1><p class="muted">Saved title will appear inside matching student academic upload options.</p></div></div>
+        <div class="workspace-grid">
+          <div class="upload-card"><h2>New Academic Certificate Title</h2><form class="stack-form" id="addTitleForm"><label>Document Title</label><input name="title" placeholder="Example: TRANSFER CERTIFICATE" required><button class="primary-btn" type="submit">SAVE TITLE</button></form></div>
+          <div class="upload-card soft-card"><h2>Teacher Added Titles</h2><div class="pill-wrap" id="customTitles"></div></div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="./js/darkmode.js"></script>
+  <script type="module" src="./js/auth.js"></script>
+  <script type="module" src="./js/teacher.js"></script>
+</body>
+</html>
