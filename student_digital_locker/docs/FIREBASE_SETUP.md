@@ -1,83 +1,96 @@
-# Firebase Backend Setup
+# Firebase Setup
 
-## 1. Firebase Console
+Use this guide to connect the Student Digital Locker frontend to Firebase without committing real project values to GitHub.
 
-1. Create a Firebase project.
-2. Add a Web App and copy the Firebase config.
-3. Enable Authentication > Sign-in method > Email/Password.
-4. Create Cloud Firestore in production mode.
-5. Create Firebase Storage.
-6. Paste your config into `static/js/firebase-config.js`.
-7. Publish `firestore.rules` in Firestore Rules.
-8. Publish `storage.rules` in Storage Rules.
+## 1. Create Firebase Project
 
-## 2. Required Script Tags
+1. Open the Firebase Console.
+2. Click **Add project**.
+3. Enter a project name, for example `student-digital-locker`.
+4. Complete the project creation steps.
 
-`templates/base.html` already loads:
+## 2. Add Web App
 
-```html
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/darkmode.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/auth.js') }}"></script>
-{% block firebase_scripts %}{% endblock %}
+1. In Project Overview, click the Web icon.
+2. Register the app.
+3. Firebase will show a `firebaseConfig` object.
+4. Copy the values from that object.
+
+## 3. Enable Authentication
+
+1. Go to **Authentication**.
+2. Open **Sign-in method**.
+3. Enable **Email/Password**.
+
+## 4. Create Firestore Database
+
+1. Go to **Firestore Database**.
+2. Click **Create database**.
+3. Start in production mode.
+4. Choose a region.
+5. Publish the rules from `firestore.rules`.
+
+## 5. Enable Firebase Storage
+
+1. Go to **Storage**.
+2. Click **Get started**.
+3. Start in production mode.
+4. Publish the rules from `storage.rules`.
+
+## 6. Create Local Firebase Config
+
+This project keeps the real Firebase browser config out of GitHub.
+
+Copy:
+
+```bash
+cp static/js/firebase-config.example.js static/js/firebase-config.js
 ```
 
-Student pages load:
+Windows:
 
-```html
-{% block firebase_scripts %}
-<script type="module" src="{{ url_for('static', filename='js/student.js') }}"></script>
-{% endblock %}
+```bat
+copy static\js\firebase-config.example.js static\js\firebase-config.js
 ```
 
-Teacher pages load:
+Then paste your real Firebase Console values into:
 
-```html
-{% block firebase_scripts %}
-<script type="module" src="{{ url_for('static', filename='js/teacher.js') }}"></script>
-{% endblock %}
+```text
+static/js/firebase-config.js
 ```
 
-## 3. Page to JavaScript Mapping
+Do not push `static/js/firebase-config.js` to GitHub. It is ignored by `.gitignore`.
 
-- `templates/student/login.html`: `auth.js`
-- `templates/student/register.html`: `auth.js`
-- `templates/student/dashboard.html`: `auth.js`, `student.js`, `darkmode.js`
-- `templates/student/profile.html`: `auth.js`, `student.js`, `darkmode.js`
-- `templates/student/certificates.html`: `auth.js`, `student.js`, `darkmode.js`
-- `templates/teacher/login.html`: `auth.js`
-- `templates/teacher/register.html`: `auth.js`
-- `templates/teacher/dashboard.html`: `auth.js`, `teacher.js`, `darkmode.js`
-- `templates/teacher/profile.html`: `auth.js`, `teacher.js`, `darkmode.js`
-- `templates/teacher/students.html`: `auth.js`, `teacher.js`, `darkmode.js`
-- `templates/teacher/status.html`: `auth.js`, `teacher.js`, `darkmode.js`
-- `templates/teacher/add_title.html`: `auth.js`, `teacher.js`, `darkmode.js`
+## 7. Browser JavaScript Import
 
-## 4. IDs Added for Firebase Wiring
+For this normal HTML/browser project, JavaScript files should import Firebase like this:
 
-- Student auth: `studentLoginForm`, `studentRegisterForm`
-- Teacher auth: `teacherLoginForm`, `teacherRegisterForm`
-- Layout: `studentWelcomeName`, `teacherWelcomeName`, `themeToggle`, `data-firebase-logout`
-- Student dashboard: `onlineCount`, `personalCount`, `academicCount`
-- Student profile: `studentPhotoForm`, `studentPhoto`, `studentPhotoPlaceholder`, `studentName`, `studentRegNo`, `studentEmail`, `studentYear`, `studentDepartment`, `studentMobile`
-- Student certificates: `certificateUploadForm`, `academicTitleSelect`, `academicUploadEmpty`, `academicTitleList`, `studentDocumentsCount`, `studentDocumentsBody`, `studentDocumentsEmpty`, `data-certificate-category`
-- Teacher dashboard/profile: `teacherScope`, `teacherStudentCount`, `teacherAcademicCount`, `teacherTitleCount`, `teacherName`, `teacherEmail`, `teacherDepartment`, `teacherYear`, `teacherMobile`
-- Teacher student list/search: `teacherSearchForm`, `teacherStudentsCount`, `teacherStudentsBody`, `teacherStudentsEmpty`, `teacherStudentDetail`, `teacherAcademicDocsBody`
-- Teacher student detail: `detailStudentName`, `detailStudentRegNo`, `detailStudentEmail`, `detailStudentDepartment`, `detailStudentYear`, `detailStudentMobile`
-- Teacher status/add title: `teacherStatusGrid`, `teacherAddTitleForm`, `customAcademicTitles`
+```js
+import { auth, db, storage } from "./firebase-config.js";
+```
 
-## 5. Firestore Collections
+Normal browser JavaScript cannot directly read `.env` files. The real config must be placed in `static/js/firebase-config.js` for local browser use.
 
-- `users`
-- `academicTitles`
-- `documents`
-- `uniqueMobiles`
-- `uniqueRegNos`
+## 8. Optional Vite Setup
 
-`uniqueMobiles` and `uniqueRegNos` are small lock collections used during registration so duplicate mobile numbers and student register numbers cannot be created concurrently.
+If you convert the project to Vite, use:
 
-## 6. Important Flask Note
+```text
+static/js/firebase-config.vite.example.js
+```
 
-This project currently uses Flask templates. `app.py` now defaults to Firebase frontend mode with `FIREBASE_FRONTEND=1`, so protected templates render with placeholder server data and Firebase fills the real data in the browser. To use the old SQLite/session demo instead, set `FIREBASE_FRONTEND=0` before running Flask.
+Copy it to your Vite source folder as `firebase-config.js`, create a local `.env`, and use the variables from `.env.example`.
 
-For production Firebase-only behavior, deploy the HTML/CSS/JS to Firebase Hosting and use the Firestore/Storage rules as the access boundary.
+Even with Vite, Firebase web config values are visible in the final browser JavaScript bundle. Real security must come from Firebase Authentication, Firestore Rules, Storage Rules, and App Check.
+
+## 9. Security Reminder
+
+Firebase web config is not a private password, but real project config should still not be committed in open-source repositories because it identifies your Firebase project.
+
+For real security, enable and maintain:
+
+- Firebase Authentication
+- Firestore Security Rules
+- Firebase Storage Rules
+- Firebase App Check
+- Firebase Console usage quotas and monitoring

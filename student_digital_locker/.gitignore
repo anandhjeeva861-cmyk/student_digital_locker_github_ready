@@ -1,52 +1,68 @@
-# Python
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+.env.*
+!.env.example
+
+# Firebase real config file
+js/firebase-config.js
+firebase-config.js
+static/js/firebase-config.js
+
+# Dependencies
+node_modules/
+venv/
+.venv/
+env/
+ENV/
+
+# Build output
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Uploaded files
+uploads/
+profile_photos/
+documents/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+locker.db
+
+# Cache
+.cache/
+.vscode/
+.idea/
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
-build/
-dist/
-.eggs/
-*.egg-info/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
 htmlcov/
 
-# Virtual environments
-venv/
-.venv/
-env/
-ENV/
-
-# Flask / environment
-.env
-.env.*
-!.env.example
+# Python package/build metadata
+*.so
+.Python
+.eggs/
+*.egg-info/
 instance/
 .webassets-cache
-
-# SQLite / local database
-*.db
-*.sqlite
-*.sqlite3
-locker.db
-
-# User uploaded files - keep folders only
-uploads/documents/*
-uploads/profile_photos/*
-!uploads/documents/.gitkeep
-!uploads/profile_photos/.gitkeep
-
-# OS / editor
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
 *.swp
 *.swo
-
-# Logs
-*.log
-logs/

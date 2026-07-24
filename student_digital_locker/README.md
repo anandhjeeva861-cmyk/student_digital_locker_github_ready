@@ -1,207 +1,180 @@
 # Student Digital Locker
 
-A DigiLocker-inspired certificate management web application for students and teachers.
+A DigiLocker-inspired certificate management website for students and teachers.
 
 Students can store online, personal, and academic certificates. Teachers can access only academic certificates of students from the same department and same year.
 
 ## Features
 
-### Student Portal
-
-- Student email/password login
-- Student registration with:
-  - Name in uppercase
-  - Register number, for example `25BSC003`
-  - Year, for example `I`
-  - Department, for example `BSCCS`
-  - Mobile number
-  - Email
-  - Password
-- Duplicate account prevention using email, mobile number, and register number
-- Dashboard with welcome message and dark mode toggle
-- Profile page with read-only student details
-- Profile photo update only
-- Online certificate upload, view, download, and remove
-- Personal certificate upload, view, download, and remove
-- Academic certificate upload, view, download, and remove
-- Already uploaded academic title is hidden from upload select list
-
-### Teacher Portal
-
-- Teacher email/password login
-- Teacher registration with:
-  - Name in uppercase
-  - Department
-  - Year
-  - Mobile number
-  - Email
-  - Password
-- Duplicate account prevention using email and mobile number
-- Dashboard with welcome message and dark mode toggle
-- Teacher can view only same department/year students
-- Student list page
-- Student search by name
-- Academic document view/download/remove for eligible students
-- Document submission status page
-- Add academic document title for matching department/year students
-
-### Academic Certificate Titles
-
-Default academic titles:
-
-- AADHAR CARD
-- INCOME CERTIFICATE
-- COMMUNITY CERTIFICATE
-- 10TH MARKSHEET
-- 12TH MARKSHEET
-- BANK PASS BOOK
-
-Teachers can add extra academic document titles. Those titles appear in the Academic Certificate section of matching students.
+- Student and teacher email/password login with Firebase Authentication
+- Student profile storage in Cloud Firestore
+- Teacher profile storage in Cloud Firestore
+- Certificate metadata in Cloud Firestore
+- Certificate files and profile photos in Firebase Storage
+- Student-only access for online and personal certificates
+- Same department/year teacher access for academic certificates only
+- Dark mode preference saved in browser localStorage
 
 ## Tech Stack
 
-- Frontend: HTML, CSS, JavaScript
-- Backend: Python Flask
-- Database: SQLite
-- File storage: Local `uploads` folder
-- Template engine: Jinja2
+- HTML
+- CSS
+- JavaScript browser modules
+- Firebase Authentication
+- Cloud Firestore
+- Firebase Storage
+- Flask templates for the current local app shell
 
-## Project Structure
+## Project Tree
 
 ```text
 student_digital_locker/
 ├── app.py
-├── requirements.txt
 ├── README.md
 ├── LICENSE
-├── .env.example
 ├── .gitignore
-├── .gitattributes
-├── run_windows.bat
-├── run_mac_linux.sh
+├── .env.example
+├── firestore.rules
+├── storage.rules
+├── requirements.txt
 ├── static/
 │   ├── css/
 │   │   └── style.css
 │   └── js/
+│       ├── firebase-config.example.js
+│       ├── firebase-config.vite.example.js
+│       ├── auth.js
+│       ├── student.js
+│       ├── teacher.js
+│       ├── validation.js
+│       ├── darkmode.js
 │       └── app.js
 ├── templates/
 │   ├── base.html
 │   ├── login.html
-│   ├── error.html
-│   ├── partials/
-│   │   └── flash.html
 │   ├── student/
-│   │   ├── login.html
-│   │   ├── register.html
-│   │   ├── dashboard.html
-│   │   ├── profile.html
-│   │   └── certificates.html
 │   └── teacher/
-│       ├── login.html
-│       ├── register.html
-│       ├── dashboard.html
-│       ├── profile.html
-│       ├── students.html
-│       ├── student_detail.html
-│       ├── status.html
-│       └── add_title.html
 ├── uploads/
-│   ├── documents/
-│   │   └── .gitkeep
-│   └── profile_photos/
-│       └── .gitkeep
 └── docs/
-    ├── GITHUB_PUSH_STEPS.md
-    └── FIREBASE_BACKEND_PROMPT.md
+    ├── FIREBASE_SETUP.md
+    ├── SECURITY_RULES.md
+    └── GITHUB_PUSH_STEPS.md
 ```
 
-## Local Setup
+For a fully static HTML version, the equivalent frontend structure is:
 
-### 1. Clone or extract the project
-
-```bash
-git clone https://github.com/YOUR_USERNAME/student-digital-locker.git
-cd student-digital-locker
+```text
+student-digital-locker/
+├── index.html
+├── student-login.html
+├── teacher-login.html
+├── student-dashboard.html
+├── teacher-dashboard.html
+├── css/
+│   └── style.css
+├── js/
+│   ├── firebase-config.example.js
+│   ├── auth.js
+│   ├── student.js
+│   ├── teacher.js
+│   ├── validation.js
+│   └── darkmode.js
+├── .gitignore
+├── .env.example
+├── README.md
+└── docs/
+    ├── FIREBASE_SETUP.md
+    ├── SECURITY_RULES.md
+    └── GITHUB_PUSH_STEPS.md
 ```
 
-Or extract the ZIP and open the extracted folder in VS Code.
+## Firebase Config Setup
 
-### 2. Create a virtual environment
+The real Firebase config file is intentionally ignored by GitHub.
+
+Copy the example file:
 
 ```bash
-python -m venv venv
+cp static/js/firebase-config.example.js static/js/firebase-config.js
 ```
 
 Windows:
 
-```bash
-venv\Scripts\activate
+```bat
+copy static\js\firebase-config.example.js static\js\firebase-config.js
 ```
 
-macOS/Linux:
+Then open:
 
-```bash
-source venv/bin/activate
+```text
+static/js/firebase-config.js
 ```
 
-### 3. Install dependencies
+Paste your Firebase Console values into:
+
+```js
+const firebaseConfig = {
+  apiKey: "PASTE_YOUR_FIREBASE_API_KEY",
+  authDomain: "PASTE_YOUR_PROJECT.firebaseapp.com",
+  projectId: "PASTE_YOUR_PROJECT_ID",
+  storageBucket: "PASTE_YOUR_PROJECT.firebasestorage.app",
+  messagingSenderId: "PASTE_YOUR_MESSAGING_SENDER_ID",
+  appId: "PASTE_YOUR_APP_ID"
+};
+```
+
+Do not commit `static/js/firebase-config.js`.
+
+## Environment File
+
+`.env.example` contains placeholder Firebase variables for developers who later convert this project to Vite.
+
+Normal HTML browser JavaScript cannot directly read `.env` files. Vite can read `.env` during development/build, but the Firebase web config will still be visible in the final browser JavaScript bundle.
+
+Firebase web config is not a private password, but real project config should still not be committed in open-source repositories.
+
+## Firebase Setup
+
+See [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md).
+
+Short version:
+
+1. Create Firebase project.
+2. Add Web App.
+3. Enable Email/Password Authentication.
+4. Create Firestore Database.
+5. Enable Firebase Storage.
+6. Copy `static/js/firebase-config.example.js` to `static/js/firebase-config.js`.
+7. Paste Firebase Console config values.
+8. Publish `firestore.rules`.
+9. Publish `storage.rules`.
+10. Enable App Check before real production use.
+
+## Local Run
+
+Install Python dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Create environment file
-
-Copy `.env.example` to `.env`.
-
-Windows:
-
-```bash
-copy .env.example .env
-```
-
-macOS/Linux:
-
-```bash
-cp .env.example .env
-```
-
-Then change the `SECRET_KEY` value inside `.env`.
-
-> Note: The current `app.py` reads `SECRET_KEY` from environment variables. The `.env` file is ignored by GitHub for safety.
-
-### 5. Run the project
+Run:
 
 ```bash
 python app.py
 ```
 
-Open this URL in your browser:
+Open:
 
 ```text
 http://127.0.0.1:5000
 ```
 
-## Quick Run Scripts
+## GitHub Push
 
-Windows:
+See [docs/GITHUB_PUSH_STEPS.md](docs/GITHUB_PUSH_STEPS.md).
 
-```bash
-run_windows.bat
-```
-
-macOS/Linux:
-
-```bash
-chmod +x run_mac_linux.sh
-./run_mac_linux.sh
-```
-
-## GitHub Upload Steps
-
-Full steps are available in [`docs/GITHUB_PUSH_STEPS.md`](docs/GITHUB_PUSH_STEPS.md).
-
-Basic commands:
+Commands:
 
 ```bash
 git init
@@ -212,44 +185,23 @@ git remote add origin https://github.com/YOUR_USERNAME/student-digital-locker.gi
 git push -u origin main
 ```
 
-## Important GitHub Notes
-
-Do not commit:
+## Never Commit
 
 - `.env`
-- `locker.db`
-- uploaded student documents
+- `.env.local`
+- `static/js/firebase-config.js`
+- real Firebase project config values
+- uploaded certificate files
 - uploaded profile photos
-- `venv` folder
-
-These are already protected by `.gitignore`.
-
-## Firebase Migration
-
-The current version uses Flask + SQLite. If you want to migrate the database and file storage to Firebase, use the prompt in:
-
-[`docs/FIREBASE_BACKEND_PROMPT.md`](docs/FIREBASE_BACKEND_PROMPT.md)
-
-Recommended Firebase services:
-
-- Firebase Authentication for login/register
-- Cloud Firestore for student, teacher, title, and document metadata
-- Firebase Storage for certificate files
-- Firebase Security Rules for role-based access
+- local database files like `locker.db`
+- `node_modules/`
 
 ## Security Notes
 
-This is an academic/demo project. Before production use, add:
+Firestore Rules, Storage Rules, Firebase Authentication, and App Check are mandatory for real security.
 
-- HTTPS deployment
-- Strong secret key through environment variable
-- Email verification
-- Password reset
-- Teacher approval by admin
-- File virus scanning
-- Cloud storage security rules
-- Audit logs for document access and deletion
+The frontend can validate forms and hide buttons, but frontend code is not a security boundary. Firebase rules must enforce the actual access rules.
 
 ## License
 
-This project is licensed under the MIT License. See [`LICENSE`](LICENSE).
+This project is licensed under the MIT License. See [LICENSE](LICENSE).

@@ -13,11 +13,15 @@ service firebase.storage {
       return firestore.get(/databases/(default)/documents/users/$(uid));
     }
 
+    function isStudent() {
+      return signedIn() && myProfile().data.role == "student";
+    }
+
     function isTeacher() {
       return signedIn() && myProfile().data.role == "teacher";
     }
 
-    function teacherCanAccessOwner(uid) {
+    function teacherCanAccessStudent(uid) {
       return isTeacher()
         && userProfile(uid).data.role == "student"
         && userProfile(uid).data.departmentKey == myProfile().data.departmentKey
@@ -25,25 +29,48 @@ service firebase.storage {
     }
 
     match /profilePhotos/{uid}/{fileName} {
-      allow read, write: if signedIn() && request.auth.uid == uid;
+      allow read, create, update, delete: if isStudent()
+        && request.auth.uid == uid
+        && (
+          request.method == "delete"
+          || request.resource.size < 4 * 1024 * 1024
+        );
     }
 
-    match /documents/{uid}/{category}/{fileName} {
-      allow create: if signedIn()
+    match /documents/{uid}/online/{fileName} {
+      allow read, create, delete: if isStudent()
         && request.auth.uid == uid
-        && category in ["online", "personal", "academic"]
-        && request.resource.size < 16 * 1024 * 1024;
+        && (
+          request.method != "create"
+          || request.resource.size < 16 * 1024 * 1024
+        );
+      allow update: if false;
+    }
+
+    match /documents/{uid}/personal/{fileName} {
+      allow read, create, delete: if isStudent()
+        && request.auth.uid == uid
+        && (
+          request.method != "create"
+          || request.resource.size < 16 * 1024 * 1024
+        );
+      allow update: if false;
+    }
+
+    match /documents/{uid}/academic/{fileName} {
+      allow create: if isStudent()
+        && request.auth.uid == uid
+        && request.resource.size < 16 * 1024 * 1024
+        && request.resource.metadata.ownerUid == uid
+        && request.resource.metadata.category == "academic";
 
       allow read, delete: if signedIn()
         && (
           request.auth.uid == uid
-          || (
-            category == "academic"
-            && resource.metadata.category == "academic"
-            && resource.metadata.ownerUid == uid
-            && teacherCanAccessOwner(uid)
-          )
+          || teacherCanAccessStudent(uid)
         );
+
+      allow update: if false;
     }
 
     match /{allPaths=**} {
