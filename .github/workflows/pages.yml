@@ -28,26 +28,13 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
-      - name: Validate Firebase secrets
+      - name: Validate Supabase secrets
         shell: bash
         env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          required=(
-            VITE_FIREBASE_API_KEY
-            VITE_FIREBASE_AUTH_DOMAIN
-            VITE_FIREBASE_PROJECT_ID
-            VITE_FIREBASE_STORAGE_BUCKET
-            VITE_FIREBASE_MESSAGING_SENDER_ID
-            VITE_FIREBASE_APP_ID
-            VITE_FIREBASE_MEASUREMENT_ID
-          )
+          required=(SUPABASE_URL SUPABASE_ANON_KEY)
           for name in "${required[@]}"; do
             if [ -z "${!name}" ]; then
               echo "::error::$name repository secret is missing"
@@ -55,41 +42,20 @@ jobs:
             fi
           done
 
-      - name: Generate Firebase config
+      - name: Generate Supabase config
         shell: bash
         env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           mkdir -p js
-          cat > js/firebase-config.js <<EOF
-          import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-          import { getAuth } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-          import { getFirestore } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
-          import { getStorage } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
+          cat > js/supabase-config.js <<EOF
+          import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-          const firebaseConfig = {
-            apiKey: "$VITE_FIREBASE_API_KEY",
-            authDomain: "$VITE_FIREBASE_AUTH_DOMAIN",
-            projectId: "$VITE_FIREBASE_PROJECT_ID",
-            storageBucket: "$VITE_FIREBASE_STORAGE_BUCKET",
-            messagingSenderId: "$VITE_FIREBASE_MESSAGING_SENDER_ID",
-            appId: "$VITE_FIREBASE_APP_ID",
-            measurementId: "$VITE_FIREBASE_MEASUREMENT_ID"
-          };
+          const SUPABASE_URL = "$SUPABASE_URL";
+          const SUPABASE_ANON_KEY = "$SUPABASE_ANON_KEY";
 
-          const app = initializeApp(firebaseConfig);
-
-          const auth = getAuth(app);
-          const db = getFirestore(app);
-          const storage = getStorage(app);
-
-          export { app, auth, db, storage };
+          export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
           EOF
 
       - name: Verify static site files
@@ -102,7 +68,7 @@ jobs:
           test -f js/auth.js
           test -f js/student.js
           test -f js/teacher.js
-          test -f js/firebase-config.js
+          test -f js/supabase-config.js
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

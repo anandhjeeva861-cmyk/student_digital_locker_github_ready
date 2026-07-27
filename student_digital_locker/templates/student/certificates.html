@@ -86,6 +86,6 @@
     <div class="empty-state" id="studentDocumentsEmpty" {% if documents %}hidden{% endif %}>No documents stored yet.</div>
 </div>
 {% endblock %}
-{% block firebase_scripts %}
+{% block backend_scripts %}
 <script type="module" src="{{ url_for('static', filename='js/student.js') }}"></script>
 {% endblock %}

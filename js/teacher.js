@@ -1,18 +1,6 @@
-import { auth, db, storage } from "./firebase-config.js";
+import { supabase } from "./supabase-config.js";
 import { protectPage } from "./auth.js";
 import { DEFAULT_ACADEMIC_TITLES, normalizeTitle, showMessage } from "./validation.js";
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-  limit,
-  query,
-  serverTimestamp,
-  where
-} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
-import { deleteObject, ref } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
 
 let user = null;
 let teacher = null;
@@ -24,13 +12,23 @@ function text(id, value) {
 }
 
 function dateText(value) {
-  return value?.toDate ? value.toDate().toLocaleString() : "";
+  return value ? new Date(value).toLocaleString() : "";
 }
 
 function showView(name) {
   document.querySelectorAll("[data-view]").forEach((view) => {
     view.hidden = view.dataset.view !== name;
   });
+}
+
+async function signedUrl(path) {
+  const { data, error } = await supabase.storage.from("certificates").createSignedUrl(path, 60 * 60);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
+async function withSignedUrls(rows) {
+  return Promise.all(rows.map(async (item) => ({ ...item, signedUrl: await signedUrl(item.file_path) })));
 }
 
 function fillProfile() {
@@ -44,24 +42,29 @@ function fillProfile() {
 }
 
 async function matchingStudents() {
-  const snap = await getDocs(query(
-    collection(db, "users"),
-    where("role", "==", "student"),
-    where("departmentKey", "==", teacher.departmentKey),
-    where("year", "==", teacher.year)
-  ));
-  return snap.docs.map((item) => ({ id: item.id, ...item.data() })).sort((a, b) => a.name.localeCompare(b.name));
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("role", "student")
+    .eq("department_key", teacher.department_key)
+    .eq("year", teacher.year)
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return data || [];
 }
 
 async function academicDocs(studentUid = null) {
-  const filters = [
-    where("category", "==", "academic"),
-    where("departmentKey", "==", teacher.departmentKey),
-    where("year", "==", teacher.year)
-  ];
-  if (studentUid) filters.push(where("ownerUid", "==", studentUid));
-  const snap = await getDocs(query(collection(db, "documents"), ...filters));
-  return snap.docs.map((item) => ({ id: item.id, ...item.data() })).sort((a, b) => a.title.localeCompare(b.title));
+  let query = supabase
+    .from("documents")
+    .select("*")
+    .eq("category", "academic")
+    .eq("department_key", teacher.department_key)
+    .eq("year", teacher.year)
+    .order("title", { ascending: true });
+  if (studentUid) query = query.eq("owner_id", studentUid);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
 }
 
 async function renderDashboard() {
@@ -78,18 +81,18 @@ async function renderStudents(filter = "") {
   const empty = document.getElementById("studentEmpty");
   if (!body) return;
   const needle = filter.trim().toUpperCase();
-  const students = (await matchingStudents()).filter((item) => !needle || item.name.includes(needle) || item.regNo.includes(needle));
+  const students = (await matchingStudents()).filter((item) => !needle || item.name.includes(needle) || item.reg_no.includes(needle));
   body.innerHTML = "";
   for (const student of students) {
-    const docs = await academicDocs(student.uid);
+    const docs = await academicDocs(student.id);
     body.insertAdjacentHTML("beforeend", `
       <tr>
         <td><b>${student.name}</b></td>
-        <td>${student.regNo}</td>
+        <td>${student.reg_no}</td>
         <td>${student.department}</td>
         <td>${student.year}</td>
         <td>${docs.length}</td>
-        <td><button class="small-btn" data-student-id="${student.uid}">VIEW DATA</button></td>
+        <td><button class="small-btn" data-student-id="${student.id}">VIEW DATA</button></td>
       </tr>`);
   }
   if (empty) empty.hidden = students.length > 0;
@@ -97,53 +100,57 @@ async function renderStudents(filter = "") {
 
 async function renderStudentDetail(studentUid) {
   selectedStudentUid = studentUid;
-  const student = (await matchingStudents()).find((item) => item.uid === studentUid);
+  const student = (await matchingStudents()).find((item) => item.id === studentUid);
   if (!student) return showMessage("Access denied for this student.", "danger");
   text("detailName", student.name);
-  text("detailRegNo", student.regNo);
+  text("detailRegNo", student.reg_no);
   text("detailEmail", student.email);
   text("detailDepartment", student.department);
   text("detailYear", student.year);
   text("detailMobile", student.mobile);
   const body = document.getElementById("academicRows");
-  const docs = await academicDocs(studentUid);
+  const docs = await withSignedUrls(await academicDocs(studentUid));
   body.innerHTML = docs.map((item) => `
     <tr>
       <td><b>${item.title}</b></td>
-      <td>${item.fileName}</td>
-      <td>${dateText(item.uploadedAt)}</td>
+      <td>${item.file_name}</td>
+      <td>${dateText(item.uploaded_at)}</td>
       <td class="action-cell">
-        <a class="small-btn" href="${item.fileURL}" target="_blank" rel="noopener">VIEW</a>
-        <a class="small-btn" href="${item.fileURL}" download="${item.fileName}">DOWNLOAD</a>
-        <button class="small-btn danger" data-delete-doc="${item.id}" data-path="${item.storagePath}">REMOVE</button>
+        <a class="small-btn" href="${item.signedUrl}" target="_blank" rel="noopener">VIEW</a>
+        <a class="small-btn" href="${item.signedUrl}" download="${item.file_name}">DOWNLOAD</a>
+        <button class="small-btn danger" data-delete-doc="${item.id}" data-path="${item.file_path}">REMOVE</button>
       </td>
     </tr>`).join("");
   showView("student-detail");
 }
 
 async function academicTitles() {
-  const snap = await getDocs(query(
-    collection(db, "academicTitles"),
-    where("departmentKey", "==", teacher.departmentKey),
-    where("year", "==", teacher.year)
-  ));
+  const { data, error } = await supabase
+    .from("academic_titles")
+    .select("title")
+    .eq("department_key", teacher.department_key)
+    .eq("year", teacher.year)
+    .order("title", { ascending: true });
+  if (error) throw error;
   return [
     ...DEFAULT_ACADEMIC_TITLES.map((title) => ({ title })),
-    ...snap.docs.map((item) => item.data())
+    ...(data || [])
   ].sort((a, b) => a.title.localeCompare(b.title));
 }
 
 async function renderTitles() {
   const wrap = document.getElementById("customTitles");
   if (!wrap) return;
-  const snap = await getDocs(query(
-    collection(db, "academicTitles"),
-    where("departmentKey", "==", teacher.departmentKey),
-    where("year", "==", teacher.year)
-  ));
-  wrap.innerHTML = snap.empty
+  const { data, error } = await supabase
+    .from("academic_titles")
+    .select("title")
+    .eq("department_key", teacher.department_key)
+    .eq("year", teacher.year)
+    .order("title", { ascending: true });
+  if (error) throw error;
+  wrap.innerHTML = !data?.length
     ? '<div class="empty-state">No custom titles added yet.</div>'
-    : snap.docs.map((item) => `<span class="pill">${item.data().title}</span>`).join("");
+    : data.map((item) => `<span class="pill">${item.title}</span>`).join("");
 }
 
 async function renderStatus() {
@@ -153,16 +160,17 @@ async function renderStatus() {
   const titles = await academicTitles();
   grid.innerHTML = "";
   for (const title of titles) {
-    const docs = await getDocs(query(
-      collection(db, "documents"),
-      where("category", "==", "academic"),
-      where("departmentKey", "==", teacher.departmentKey),
-      where("year", "==", teacher.year),
-      where("title", "==", title.title)
-    ));
-    const uploadedIds = new Set(docs.docs.map((item) => item.data().ownerUid));
-    const uploaded = students.filter((item) => uploadedIds.has(item.uid));
-    const pending = students.filter((item) => !uploadedIds.has(item.uid));
+    const { data, error } = await supabase
+      .from("documents")
+      .select("owner_id")
+      .eq("category", "academic")
+      .eq("department_key", teacher.department_key)
+      .eq("year", teacher.year)
+      .eq("title", title.title);
+    if (error) throw error;
+    const uploadedIds = new Set((data || []).map((item) => item.owner_id));
+    const uploaded = students.filter((item) => uploadedIds.has(item.id));
+    const pending = students.filter((item) => !uploadedIds.has(item.id));
     grid.insertAdjacentHTML("beforeend", `
       <div class="status-card">
         <h2>${title.title}</h2>
@@ -176,7 +184,7 @@ async function renderStatus() {
 
 function nameList(students, className, emptyText) {
   if (!students.length) return `<p class="muted">${emptyText}</p>`;
-  return `<ul class="name-list ${className}">${students.map((item) => `<li>${item.name} <small>${item.regNo}</small></li>`).join("")}</ul>`;
+  return `<ul class="name-list ${className}">${students.map((item) => `<li>${item.name} <small>${item.reg_no}</small></li>`).join("")}</ul>`;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -210,25 +218,28 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
     const title = normalizeTitle(event.currentTarget.elements.title.value);
     if (!title) return showMessage("Enter document title.", "danger");
-    const duplicate = await getDocs(query(
-      collection(db, "academicTitles"),
-      where("departmentKey", "==", teacher.departmentKey),
-      where("year", "==", teacher.year),
-      where("title", "==", title),
-      limit(1)
-    ));
-    if (!duplicate.empty || DEFAULT_ACADEMIC_TITLES.includes(title)) {
+    const { data, error } = await supabase
+      .from("academic_titles")
+      .select("id")
+      .eq("department_key", teacher.department_key)
+      .eq("year", teacher.year)
+      .eq("title", title)
+      .maybeSingle();
+    if (error) return showMessage(error.message, "danger");
+    if (data || DEFAULT_ACADEMIC_TITLES.includes(title)) {
       showMessage("This academic title already exists.", "warning");
       return;
     }
-    await addDoc(collection(db, "academicTitles"), {
+
+    const { error: insertError } = await supabase.from("academic_titles").insert({
       title,
       department: teacher.department,
-      departmentKey: teacher.departmentKey,
+      department_key: teacher.department_key,
       year: teacher.year,
-      createdByTeacherUid: user.uid,
-      createdAt: serverTimestamp()
+      created_by_teacher_id: user.id
     });
+    if (insertError) return showMessage(insertError.message, "danger");
+
     event.currentTarget.reset();
     await renderTitles();
     await renderDashboard();
@@ -242,8 +253,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const deleteButton = event.target.closest("[data-delete-doc]");
     if (deleteButton && confirm("Remove this academic document?")) {
       try {
-        await deleteObject(ref(storage, deleteButton.dataset.path));
-        await deleteDoc(doc(db, "documents", deleteButton.dataset.deleteDoc));
+        const { error: storageError } = await supabase.storage.from("certificates").remove([deleteButton.dataset.path]);
+        if (storageError) throw storageError;
+        const { error: deleteError } = await supabase.from("documents").delete().eq("id", deleteButton.dataset.deleteDoc);
+        if (deleteError) throw deleteError;
         if (selectedStudentUid) await renderStudentDetail(selectedStudentUid);
         await renderDashboard();
         showMessage("Academic document removed.", "success");

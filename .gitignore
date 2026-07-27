@@ -6,9 +6,10 @@
 .env.*
 !.env.example
 
-# Firebase real config file
-js/firebase-config.js
+# Supabase runtime config generated from local values or GitHub Actions secrets
+js/supabase-config.js
 student_digital_locker/static/js/firebase-config.js
+student_digital_locker/static/js/supabase-config.js
 
 # Dependencies
 node_modules/
@@ -23,14 +24,10 @@ build/
 
 # Logs
 *.log
-firebase-debug.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 logs/
-
-# Firebase CLI local cache
-.firebase/
 
 # OS files
 .DS_Store

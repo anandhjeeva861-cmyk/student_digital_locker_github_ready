@@ -1,31 +1,17 @@
 # GitHub Push Steps
 
+Before pushing, verify the static site:
+
 ```bash
-git init
+npm run build
+```
+
+Then commit and push:
+
+```bash
 git add .
-git commit -m "Fix GitHub Pages static Firebase deployment"
-git branch -M main
-git remote add origin https://github.com/anandhjeeva861-cmyk/student_digital_locker_github_ready.git
-git push -u origin main
+git commit -m "Migrate backend from Firebase to Supabase"
+git push
 ```
 
-If the remote already exists:
-
-```bash
-git remote set-url origin https://github.com/anandhjeeva861-cmyk/student_digital_locker_github_ready.git
-git push -u origin main
-```
-
-Before committing, check:
-
-```bash
-git status --short
-git diff --cached --name-only
-```
-
-Never commit:
-
-- `.env`
-- uploaded documents
-- local database files
-- `node_modules/`
+Confirm `js/supabase-config.js`, `.env`, and `.env.local` are not committed.

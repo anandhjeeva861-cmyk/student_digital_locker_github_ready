@@ -5,13 +5,12 @@ const requiredFiles = [
   "index.html",
   "css/style.css",
   "images/sankara-logo.png",
-  "firebase.json",
-  "firestore.rules",
-  "storage.rules",
   "js/auth.js",
   "js/student.js",
   "js/teacher.js",
-  "js/firebase-config.example.js",
+  "js/supabase-config.example.js",
+  "supabase/schema.sql",
+  "supabase/rls-policies.sql",
   "student-login.html",
   "student-register.html",
   "teacher-login.html",
@@ -53,14 +52,21 @@ for (const file of htmlFiles) {
 
 for (const file of jsFiles) {
   const content = fs.readFileSync(path.join(process.cwd(), file), "utf8");
-  if (!content.includes('from "./firebase-config.js"')) {
-    failures.push(`${file} does not import ./firebase-config.js.`);
+  if (!content.includes('from "./supabase-config.js"')) {
+    failures.push(`${file} does not import ./supabase-config.js.`);
   }
 }
 
-const publicConfig = fs.readFileSync(path.join(process.cwd(), "js/firebase-config.example.js"), "utf8");
-if (/AIza[0-9A-Za-z_-]+/.test(publicConfig)) {
-  failures.push("js/firebase-config.example.js contains a real-looking Firebase API key.");
+const publicConfig = fs.readFileSync(path.join(process.cwd(), "js/supabase-config.example.js"), "utf8");
+if (/https:\/\/[a-z0-9]{20}\.supabase\.co/.test(publicConfig) || /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/.test(publicConfig)) {
+  failures.push("js/supabase-config.example.js contains real-looking Supabase values.");
+}
+
+for (const file of [...jsFiles, ".github/workflows/pages.yml"]) {
+  const content = fs.readFileSync(path.join(process.cwd(), file), "utf8");
+  if (/firebase|getAuth|getFirestore|getStorage|firestore|uploadBytes|getDownloadURL|deleteObject/i.test(content)) {
+    failures.push(`${file} still contains Firebase-era backend references.`);
+  }
 }
 
 if (failures.length) {

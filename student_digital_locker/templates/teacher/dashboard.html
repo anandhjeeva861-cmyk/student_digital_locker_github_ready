@@ -33,6 +33,6 @@
     <a href="{{ url_for('teacher_status') }}" class="feature-card"><h2>DOCUMENT SUBMISSION STATUS</h2><p>Check uploaded and pending students for each title.</p></a>
 </div>
 {% endblock %}
-{% block firebase_scripts %}
+{% block backend_scripts %}
 <script type="module" src="{{ url_for('static', filename='js/teacher.js') }}"></script>
 {% endblock %}

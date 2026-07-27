@@ -1,4 +1,4 @@
-import { auth, db, storage } from "./firebase-config.js";
+import { supabase } from "./supabase-config.js";
 import { protectPage } from "./auth.js";
 import {
   DEFAULT_ACADEMIC_TITLES,
@@ -7,25 +7,6 @@ import {
   validateDocumentFile,
   validatePhotoFile
 } from "./validation.js";
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-  limit,
-  onSnapshot,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where
-} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
-import {
-  deleteObject,
-  getDownloadURL,
-  ref,
-  uploadBytes
-} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
 
 let user = null;
 let profile = null;
@@ -36,7 +17,7 @@ function text(id, value) {
 }
 
 function dateText(value) {
-  return value?.toDate ? value.toDate().toLocaleString() : "";
+  return value ? new Date(value).toLocaleString() : "";
 }
 
 function showView(name) {
@@ -46,10 +27,20 @@ function showView(name) {
   if (name === "academic") refreshAcademicTitles();
 }
 
-function fillProfile() {
+async function signedUrl(path) {
+  const { data, error } = await supabase.storage.from("certificates").createSignedUrl(path, 60 * 60);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
+async function signedRows(rows) {
+  return Promise.all(rows.map(async (item) => ({ ...item, signedUrl: await signedUrl(item.file_path) })));
+}
+
+async function fillProfile() {
   text("welcomeName", profile.name);
   text("studentName", profile.name);
-  text("studentRegNo", profile.regNo);
+  text("studentRegNo", profile.reg_no);
   text("studentEmail", profile.email);
   text("studentYear", profile.year);
   text("studentDepartment", profile.department);
@@ -57,59 +48,72 @@ function fillProfile() {
   const avatar = document.getElementById("studentAvatar");
   if (avatar) avatar.textContent = profile.name?.slice(0, 1) || "S";
   const photo = document.getElementById("studentPhoto");
-  if (photo && profile.photoURL) {
-    photo.src = profile.photoURL;
+  if (photo && profile.photo_url) {
+    photo.src = profile.photo_url.startsWith("http") ? profile.photo_url : await signedUrl(profile.photo_url);
     photo.hidden = false;
     if (avatar) avatar.hidden = true;
   }
 }
 
-function watchCounts() {
-  ["online", "personal", "academic"].forEach((category) => {
-    onSnapshot(query(collection(db, "documents"), where("ownerUid", "==", user.uid), where("category", "==", category)), (snap) => {
-      text(`${category}Count`, String(snap.size));
-    });
-  });
+async function loadDocuments(category) {
+  const { data, error } = await supabase
+    .from("documents")
+    .select("*")
+    .eq("owner_id", user.id)
+    .eq("category", category)
+    .order("uploaded_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
 }
 
-function watchDocuments(category) {
+async function refreshCounts() {
+  for (const category of ["online", "personal", "academic"]) {
+    const { count, error } = await supabase
+      .from("documents")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", user.id)
+      .eq("category", category);
+    if (error) throw error;
+    text(`${category}Count`, String(count || 0));
+  }
+}
+
+async function refreshDocuments(category) {
   const body = document.getElementById(`${category}Documents`);
   const empty = document.getElementById(`${category}Empty`);
   if (!body) return;
 
-  onSnapshot(query(collection(db, "documents"), where("ownerUid", "==", user.uid), where("category", "==", category)), (snap) => {
-    const rows = snap.docs
-      .map((item) => ({ id: item.id, ...item.data() }))
-      .sort((a, b) => (b.uploadedAt?.seconds || 0) - (a.uploadedAt?.seconds || 0));
-    body.innerHTML = rows.map((item) => documentRow(item)).join("");
-    if (empty) empty.hidden = rows.length > 0;
-    if (category === "academic") refreshAcademicTitles();
-  });
+  const rows = await signedRows(await loadDocuments(category));
+  body.innerHTML = rows.map((item) => documentRow(item)).join("");
+  if (empty) empty.hidden = rows.length > 0;
+  if (category === "academic") await refreshAcademicTitles();
 }
 
 function documentRow(item) {
   return `
     <tr>
       <td><b>${item.title}</b></td>
-      <td>${item.fileName}</td>
-      <td>${dateText(item.uploadedAt)}</td>
+      <td>${item.file_name}</td>
+      <td>${dateText(item.uploaded_at)}</td>
       <td class="action-cell">
-        <a class="small-btn" href="${item.fileURL}" target="_blank" rel="noopener">VIEW</a>
-        <a class="small-btn" href="${item.fileURL}" download="${item.fileName}">DOWNLOAD</a>
-        <button class="small-btn danger" data-delete-doc="${item.id}" data-path="${item.storagePath}">REMOVE</button>
+        <a class="small-btn" href="${item.signedUrl}" target="_blank" rel="noopener">VIEW</a>
+        <a class="small-btn" href="${item.signedUrl}" download="${item.file_name}">DOWNLOAD</a>
+        <button class="small-btn danger" data-delete-doc="${item.id}" data-path="${item.file_path}">REMOVE</button>
       </td>
     </tr>`;
 }
 
 async function getAcademicTitles() {
-  const snap = await getDocs(query(
-    collection(db, "academicTitles"),
-    where("departmentKey", "==", profile.departmentKey),
-    where("year", "==", profile.year)
-  ));
+  const { data, error } = await supabase
+    .from("academic_titles")
+    .select("title")
+    .eq("department_key", profile.department_key)
+    .eq("year", profile.year)
+    .order("title", { ascending: true });
+  if (error) throw error;
   return [
     ...DEFAULT_ACADEMIC_TITLES.map((title) => ({ title })),
-    ...snap.docs.map((item) => item.data())
+    ...(data || [])
   ].sort((a, b) => a.title.localeCompare(b.title));
 }
 
@@ -118,8 +122,7 @@ async function refreshAcademicTitles() {
   const list = document.getElementById("academicTitleList");
   if (!select && !list) return;
 
-  const uploadedSnap = await getDocs(query(collection(db, "documents"), where("ownerUid", "==", user.uid), where("category", "==", "academic")));
-  const uploaded = new Set(uploadedSnap.docs.map((item) => item.data().title));
+  const uploaded = new Set((await loadDocuments("academic")).map((item) => item.title));
   const titles = await getAcademicTitles();
 
   if (select) {
@@ -141,53 +144,61 @@ async function uploadDocument(form, category) {
   const result = validateDocumentFile(file);
   if (!result.ok) throw new Error(result.message);
 
-  const title = category === "academic"
-    ? normalizeTitle(form.elements.title.value)
-    : normalizeTitle(form.elements.title.value);
+  const title = normalizeTitle(form.elements.title.value);
   if (!title) throw new Error("Enter or select a document title.");
+
   if (category === "academic") {
-    const duplicate = await getDocs(query(
-      collection(db, "documents"),
-      where("ownerUid", "==", user.uid),
-      where("category", "==", "academic"),
-      where("title", "==", title),
-      limit(1)
-    ));
-    if (!duplicate.empty) throw new Error("This academic certificate is already uploaded.");
+    const { data, error } = await supabase
+      .from("documents")
+      .select("id")
+      .eq("owner_id", user.id)
+      .eq("category", "academic")
+      .eq("title", title)
+      .maybeSingle();
+    if (error) throw error;
+    if (data) throw new Error("This academic certificate is already uploaded.");
   }
 
-  const storagePath = `documents/${user.uid}/${category}/${Date.now()}-${file.name}`;
-  const fileRef = ref(storage, storagePath);
-  await uploadBytes(fileRef, file, { customMetadata: { ownerUid: user.uid, category } });
-  const fileURL = await getDownloadURL(fileRef);
-  await addDoc(collection(db, "documents"), {
-    ownerUid: user.uid,
-    ownerName: profile.name,
-    ownerRegNo: profile.regNo,
+  const filePath = `documents/${user.id}/${category}/${Date.now()}-${file.name}`;
+  const { error: uploadError } = await supabase.storage.from("certificates").upload(filePath, file);
+  if (uploadError) throw uploadError;
+
+  const { error: insertError } = await supabase.from("documents").insert({
+    owner_id: user.id,
+    owner_name: profile.name,
+    owner_reg_no: profile.reg_no,
     department: profile.department,
-    departmentKey: profile.departmentKey,
+    department_key: profile.department_key,
     year: profile.year,
     category,
     title,
-    fileName: file.name,
-    fileURL,
-    storagePath,
-    uploadedAt: serverTimestamp()
+    file_name: file.name,
+    file_path: filePath,
+    file_url: ""
   });
+  if (insertError) throw insertError;
+
   form.reset();
+  await refreshCounts();
+  await refreshDocuments(category);
 }
 
 async function uploadPhoto(form) {
   const file = form.elements.photo.files[0];
   const result = validatePhotoFile(file);
   if (!result.ok) throw new Error(result.message);
-  const storagePath = `profilePhotos/${user.uid}/${Date.now()}-${file.name}`;
-  const fileRef = ref(storage, storagePath);
-  await uploadBytes(fileRef, file, { customMetadata: { ownerUid: user.uid } });
-  const photoURL = await getDownloadURL(fileRef);
-  await updateDoc(doc(db, "users", user.uid), { photoURL, photoStoragePath: storagePath });
-  profile.photoURL = photoURL;
-  fillProfile();
+
+  const filePath = `profilePhotos/${user.id}/${Date.now()}-${file.name}`;
+  const { error: uploadError } = await supabase.storage.from("certificates").upload(filePath, file);
+  if (uploadError) throw uploadError;
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({ photo_url: filePath, updated_at: new Date().toISOString() })
+    .eq("id", user.id);
+  if (updateError) throw updateError;
+
+  profile.photo_url = filePath;
+  await fillProfile();
   form.reset();
 }
 
@@ -195,10 +206,10 @@ document.addEventListener("DOMContentLoaded", () => {
   protectPage("student", async (currentUser, currentProfile) => {
     user = currentUser;
     profile = currentProfile;
-    fillProfile();
-    watchCounts();
-    ["online", "personal", "academic"].forEach(watchDocuments);
-    refreshAcademicTitles();
+    await fillProfile();
+    await refreshCounts();
+    for (const category of ["online", "personal", "academic"]) await refreshDocuments(category);
+    await refreshAcademicTitles();
   });
 
   document.querySelectorAll("[data-open-view]").forEach((link) => {
@@ -234,8 +245,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const button = event.target.closest("[data-delete-doc]");
     if (!button || !confirm("Remove this document?")) return;
     try {
-      await deleteObject(ref(storage, button.dataset.path));
-      await deleteDoc(doc(db, "documents", button.dataset.deleteDoc));
+      const { error: storageError } = await supabase.storage.from("certificates").remove([button.dataset.path]);
+      if (storageError) throw storageError;
+      const { error: deleteError } = await supabase.from("documents").delete().eq("id", button.dataset.deleteDoc);
+      if (deleteError) throw deleteError;
+      await refreshCounts();
+      await refreshDocuments(button.dataset.path.split("/")[2]);
       showMessage("Document removed.", "success");
     } catch (error) {
       showMessage(error.message, "danger");

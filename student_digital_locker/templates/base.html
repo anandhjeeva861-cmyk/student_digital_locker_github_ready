@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -19,7 +19,7 @@
                 <a href="{{ url_for('student_certificates', category='online') }}" class="nav-link">ONLINE CERTIFICATE</a>
                 <a href="{{ url_for('student_certificates', category='personal') }}" class="nav-link">PERSONAL CERTIFICATE</a>
                 <a href="{{ url_for('student_certificates', category='academic') }}" class="nav-link">ACADEMIC CERTIFICATE</a>
-                <a href="{{ url_for('logout') }}" class="nav-link danger-link" data-firebase-logout>LOGOUT</a>
+                <a href="{{ url_for('logout') }}" class="nav-link danger-link" data-logout>LOGOUT</a>
             </nav>
         </aside>
         <main class="main-panel">
@@ -41,7 +41,7 @@
                 <a href="{{ url_for('teacher_search') }}" class="nav-link">SEARCH STUDENT</a>
                 <a href="{{ url_for('teacher_status') }}" class="nav-link">DOCUMENT SUBMISSION STATUS</a>
                 <a href="{{ url_for('teacher_add_title') }}" class="nav-link">ADD STUDENT DOCUMENT TITLE</a>
-                <a href="{{ url_for('logout') }}" class="nav-link danger-link" data-firebase-logout>LOGOUT</a>
+                <a href="{{ url_for('logout') }}" class="nav-link danger-link" data-logout>LOGOUT</a>
             </nav>
         </aside>
         <main class="main-panel">
@@ -61,6 +61,6 @@
     <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script type="module" src="{{ url_for('static', filename='js/darkmode.js') }}"></script>
     <script type="module" src="{{ url_for('static', filename='js/auth.js') }}"></script>
-    {% block firebase_scripts %}{% endblock %}
+    {% block backend_scripts %}{% endblock %}
 </body>
 </html>

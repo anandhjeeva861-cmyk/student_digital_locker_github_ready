@@ -1,16 +1,4 @@
-import { auth, db, storage } from "./firebase-config.js";
-import {
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut
-} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-import {
-  doc,
-  getDoc,
-  runTransaction,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import { supabase } from "./supabase-config.js";
 import {
   departmentKey,
   isCapsName,
@@ -32,22 +20,51 @@ function value(form, name) {
   return form.elements[name]?.value || "";
 }
 
-async function saveProfileWithLocks(uid, profile) {
-  await runTransaction(db, async (transaction) => {
-    const mobileRef = doc(db, "uniqueMobiles", profile.mobile);
-    const mobileSnap = await transaction.get(mobileRef);
-    if (mobileSnap.exists()) throw new Error("Account already exists with this mobile number.");
+function profileColumns(profile) {
+  return {
+    id: profile.id,
+    role: profile.role,
+    name: profile.name,
+    email: profile.email,
+    mobile: profile.mobile,
+    department: profile.department,
+    department_key: profile.departmentKey,
+    year: profile.year,
+    reg_no: profile.regNo || null,
+    photo_url: profile.photoURL || ""
+  };
+}
 
-    if (profile.role === "student") {
-      const regRef = doc(db, "uniqueRegNos", profile.regNo);
-      const regSnap = await transaction.get(regRef);
-      if (regSnap.exists()) throw new Error("Account already exists with this register number.");
-      transaction.set(regRef, { ownerUid: uid, role: "student", createdAt: serverTimestamp() });
-    }
+async function assertNoDuplicate({ mobile, regNo, email }) {
+  const checks = [
+    ["mobile", mobile, "Account already exists with this mobile number."],
+    ["email", email, "Account already exists with this email address."]
+  ];
+  if (regNo) checks.push(["reg_no", regNo, "Account already exists with this register number."]);
 
-    transaction.set(doc(db, "users", uid), profile);
-    transaction.set(mobileRef, { ownerUid: uid, role: profile.role, createdAt: serverTimestamp() });
+  for (const [column, valueToCheck, message] of checks) {
+    const { data, error } = await supabase.rpc("profile_value_exists", {
+      check_column: column,
+      check_value: valueToCheck
+    });
+    if (error) throw error;
+    if (data) throw new Error(message);
+  }
+}
+
+async function registerProfile(profile, password) {
+  await assertNoDuplicate(profile);
+
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email: profile.email,
+    password
   });
+  if (authError) throw authError;
+  if (!authData.user) throw new Error("Account was not created. Please try again.");
+
+  const row = profileColumns({ ...profile, id: authData.user.id });
+  const { error: profileError } = await supabase.from("profiles").insert(row);
+  if (profileError) throw profileError;
 }
 
 async function registerStudent(form) {
@@ -59,8 +76,7 @@ async function registerStudent(form) {
     department: normalizeDepartment(value(form, "department")),
     mobile: value(form, "mobile").trim(),
     email: value(form, "email").trim().toLowerCase(),
-    photoURL: "",
-    createdAt: serverTimestamp()
+    photoURL: ""
   };
   profile.departmentKey = departmentKey(profile.department);
 
@@ -68,15 +84,8 @@ async function registerStudent(form) {
   if (!isRegisterNumber(profile.regNo)) throw new Error("Register number must be like 25BSC003.");
   if (!isMobile(profile.mobile)) throw new Error("Enter a valid 10 digit mobile number.");
 
-  const cred = await createUserWithEmailAndPassword(auth, profile.email, value(form, "password"));
-  profile.uid = cred.user.uid;
-  try {
-    await saveProfileWithLocks(cred.user.uid, profile);
-    location.href = pages.student;
-  } catch (error) {
-    await cred.user.delete();
-    throw error;
-  }
+  await registerProfile(profile, value(form, "password"));
+  location.href = pages.student;
 }
 
 async function registerTeacher(form) {
@@ -87,49 +96,58 @@ async function registerTeacher(form) {
     department: normalizeDepartment(value(form, "department")),
     mobile: value(form, "mobile").trim(),
     email: value(form, "email").trim().toLowerCase(),
-    photoURL: "",
-    createdAt: serverTimestamp()
+    photoURL: ""
   };
   profile.departmentKey = departmentKey(profile.department);
 
   if (!isCapsName(profile.name)) throw new Error("Name must be uppercase letters only.");
   if (!isMobile(profile.mobile)) throw new Error("Enter a valid 10 digit mobile number.");
 
-  const cred = await createUserWithEmailAndPassword(auth, profile.email, value(form, "password"));
-  profile.uid = cred.user.uid;
-  try {
-    await saveProfileWithLocks(cred.user.uid, profile);
-    location.href = pages.teacher;
-  } catch (error) {
-    await cred.user.delete();
-    throw error;
-  }
+  await registerProfile(profile, value(form, "password"));
+  location.href = pages.teacher;
+}
+
+export async function fetchProfile(userId) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
 }
 
 async function login(form, role) {
   const email = value(form, "email").trim().toLowerCase();
-  const cred = await signInWithEmailAndPassword(auth, email, value(form, "password"));
-  const snap = await getDoc(doc(db, "users", cred.user.uid));
-  if (!snap.exists() || snap.data().role !== role) {
-    await signOut(auth);
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password: value(form, "password")
+  });
+  if (error) throw error;
+
+  const profile = await fetchProfile(data.user.id);
+  if (!profile || profile.role !== role) {
+    await supabase.auth.signOut();
     throw new Error(`This is not a ${role} account.`);
   }
   location.href = pages[role];
 }
 
-export function protectPage(role, callback) {
-  onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      location.href = pages.login;
-      return;
-    }
-    const snap = await getDoc(doc(db, "users", user.uid));
-    if (!snap.exists() || snap.data().role !== role) {
-      location.href = pages.login;
-      return;
-    }
-    callback?.(user, snap.data());
-  });
+export async function protectPage(role, callback) {
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session?.user) {
+    location.href = pages.login;
+    return;
+  }
+
+  const profile = await fetchProfile(data.session.user.id);
+  if (!profile || profile.role !== role) {
+    await supabase.auth.signOut();
+    location.href = pages.login;
+    return;
+  }
+
+  callback?.(data.session.user, profile);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -159,7 +177,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-logout]").forEach((button) => {
     button.addEventListener("click", async (event) => {
       event.preventDefault();
-      await signOut(auth);
+      await supabase.auth.signOut();
       location.href = pages.login;
     });
   });
