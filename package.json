@@ -2,18 +2,13 @@
   "name": "student-digital-locker-github-ready",
   "version": "1.0.0",
   "private": true,
-  "description": "Student Digital Locker static GitHub Pages site.",
+  "description": "Student Digital Locker frontend-only static GitHub Pages site.",
   "scripts": {
-    "config:supabase": "node scripts/generate-supabase-config.js",
-    "check:supabase": "node scripts/check-supabase-connection.js",
     "dev": "http-server . -p 5173 -c-1",
     "build": "node scripts/verify-static-site.js",
     "start": "npm run dev"
   },
   "devDependencies": {
     "http-server": "^14.1.1"
-  },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.110.9"
   }
 }

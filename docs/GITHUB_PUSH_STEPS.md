@@ -10,8 +10,8 @@ Then commit and push:
 
 ```bash
 git add .
-git commit -m "Fix Supabase student and teacher login"
+git commit -m "Convert app to frontend only"
 git push
 ```
 
-Confirm `js/supabase-config.js`, `.env`, and `.env.local` are not committed.
+No backend config or secret files are required.

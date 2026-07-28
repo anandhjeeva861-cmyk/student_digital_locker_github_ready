@@ -28,37 +28,7 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
-      - name: Validate Supabase secrets
-        shell: bash
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        run: |
-          required=(SUPABASE_URL SUPABASE_ANON_KEY)
-          for name in "${required[@]}"; do
-            if [ -z "${!name}" ]; then
-              echo "::error::$name repository secret is missing"
-              exit 1
-            fi
-          done
-
-      - name: Generate Supabase config
-        shell: bash
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        run: |
-          mkdir -p js
-          cat > js/supabase-config.js <<EOF
-          import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-
-          const SUPABASE_URL = "$SUPABASE_URL";
-          const SUPABASE_ANON_KEY = "$SUPABASE_ANON_KEY";
-
-          export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-          EOF
-
-      - name: Verify static site files
+      - name: Verify static frontend
         shell: bash
         run: |
           test -f index.html
@@ -66,9 +36,9 @@ jobs:
           test -f css/style.css
           test -f images/sankara-logo.png
           test -f js/auth.js
+          test -f js/local-db.js
           test -f js/student.js
           test -f js/teacher.js
-          test -f js/supabase-config.js
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

@@ -6,11 +6,6 @@
 .env.*
 !.env.example
 
-# Supabase runtime config generated from local values or GitHub Actions secrets
-js/supabase-config.js
-student_digital_locker/static/js/firebase-config.js
-student_digital_locker/static/js/supabase-config.js
-
 # Dependencies
 node_modules/
 venv/
