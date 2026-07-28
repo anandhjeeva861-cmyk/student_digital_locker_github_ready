@@ -35,6 +35,7 @@ import {
 const profileCollection = "profiles";
 const documentsCollection = "documents";
 const titlesCollection = "academicTitles";
+const documentCategories = ["online", "personal", "academic"];
 
 function nowId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -99,6 +100,14 @@ function uploadWithProgress(fileRef, file, metadata, onProgress) {
       () => resolve(task.snapshot)
     );
   });
+}
+
+async function requireCurrentUser(expectedUid) {
+  await authReady;
+  const user = auth.currentUser || await waitForUser();
+  if (!user) throw new Error("You must be logged in to continue.");
+  if (expectedUid && user.uid !== expectedUid) throw new Error("You can manage only your own files.");
+  return user;
 }
 
 async function removeStorageObject(storagePath) {
@@ -241,6 +250,7 @@ export async function getCurrentProfile() {
 }
 
 export async function uploadProfilePhoto(profile, file) {
+  await requireCurrentUser(profile.uid);
   const safeName = safeSegment(file.name);
   const path = `users/${profile.uid}/profile/${nowId()}-${safeName}`;
   const fileRef = ref(storage, path);
@@ -280,6 +290,9 @@ export async function listStudentDocuments(profile, category) {
 }
 
 export async function uploadStudentDocument(profile, category, title, file) {
+  await requireCurrentUser(profile.uid);
+  if (!documentCategories.includes(category)) throw new Error("Invalid document category.");
+  if (!file) throw new Error("Please select a file.");
   const id = documentId(profile.uid, category, title);
   const safeName = `${nowId()}-${safeSegment(file.name)}`;
   const path = `users/${profile.uid}/documents/${id}/${safeName}`;
@@ -327,9 +340,14 @@ export async function uploadStudentDocument(profile, category, title, file) {
       updatedAt: serverTimestamp()
     });
   } catch (error) {
+    let cleanupFailed = false;
     await removeStorageObject(path).catch((cleanupError) => {
+      cleanupFailed = true;
       console.error("Document upload rollback failed", cleanupError);
     });
+    if (cleanupFailed) {
+      throw new Error("Document upload failed and cleanup could not be completed. Please try again.");
+    }
     throw error;
   }
   if (existing.exists() && existing.data().storagePath) {
@@ -340,6 +358,7 @@ export async function uploadStudentDocument(profile, category, title, file) {
 }
 
 export async function deleteStudentDocument(profile, documentIdValue) {
+  await requireCurrentUser(profile.uid);
   const docRef = doc(db, documentsCollection, documentIdValue);
   const snapshot = await getDoc(docRef);
   if (!snapshot.exists()) throw new Error("Document not found.");
@@ -413,6 +432,7 @@ export async function listTeacherAcademicDocuments(profile) {
 }
 
 export async function deleteTeacherAcademicDocument(profile, documentIdValue) {
+  await requireCurrentUser(profile.uid);
   const docRef = doc(db, documentsCollection, documentIdValue);
   const snapshot = await getDoc(docRef);
   if (!snapshot.exists()) throw new Error("Document not found.");

@@ -66,11 +66,26 @@ export function isMobile(value) {
 }
 
 export function validateDocumentFile(file) {
-  return validateFile(file, ["pdf", "png", "jpg", "jpeg", "webp", "doc", "docx"], 16);
+  return validateFile(file, {
+    extensions: ["pdf", "png", "jpg", "jpeg", "webp", "doc", "docx"],
+    mimeTypes: [
+      "application/pdf",
+      "image/png",
+      "image/jpeg",
+      "image/webp",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ],
+    maxMb: 16
+  });
 }
 
 export function validatePhotoFile(file) {
-  return validateFile(file, ["png", "jpg", "jpeg", "webp"], 4);
+  return validateFile(file, {
+    extensions: ["png", "jpg", "jpeg", "webp"],
+    mimeTypes: ["image/png", "image/jpeg", "image/webp"],
+    maxMb: 4
+  });
 }
 
 export function escapeHtml(value) {
@@ -83,10 +98,14 @@ export function escapeHtml(value) {
   }[char]));
 }
 
-function validateFile(file, extensions, maxMb) {
+function validateFile(file, { extensions, mimeTypes, maxMb }) {
   if (!file) return { ok: false, message: "Choose a file." };
-  const ext = file.name.split(".").pop().toLowerCase();
+  const ext = file.name.includes(".") ? file.name.split(".").pop().toLowerCase() : "";
+  const type = String(file.type || "").toLowerCase();
+  if (!file.name || !ext) return { ok: false, message: "File must have a valid name and extension." };
   if (!extensions.includes(ext)) return { ok: false, message: `Allowed file types: ${extensions.join(", ").toUpperCase()}.` };
+  if (!type || !mimeTypes.includes(type)) return { ok: false, message: "This file type is not supported." };
+  if (file.size <= 0) return { ok: false, message: "The selected file is empty." };
   if (file.size > maxMb * 1024 * 1024) return { ok: false, message: `File size must be ${maxMb} MB or less.` };
   return { ok: true };
 }

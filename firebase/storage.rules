@@ -61,7 +61,7 @@ service firebase.storage {
       allow read, delete: if signedIn() && request.auth.uid == uid;
       allow create, update: if signedIn()
         && request.auth.uid == uid
-        && request.resource.size < 4 * 1024 * 1024
+        && request.resource.size <= 4 * 1024 * 1024
         && allowedPhotoType()
         && request.resource.metadata.ownerId == request.auth.uid
         && request.resource.metadata.category == "profile";
@@ -71,7 +71,7 @@ service firebase.storage {
       allow create, update: if signedIn()
         && request.auth.uid == uid
         && currentProfile().role == "student"
-        && request.resource.size < 16 * 1024 * 1024
+        && request.resource.size <= 16 * 1024 * 1024
         && allowedDocumentType()
         && request.resource.metadata.ownerId == request.auth.uid
         && request.resource.metadata.documentId == documentId

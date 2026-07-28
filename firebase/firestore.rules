@@ -65,6 +65,70 @@ service cloud.firestore {
             && request.resource.data.keys().hasOnly(["uid", "role", "name", "email", "year", "department", "departmentKey", "mobile", "createdAt", "updatedAt"])));
     }
 
+    function allowedDocumentMimeType(value) {
+      return value in [
+        "application/pdf",
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ];
+    }
+
+    function validDocumentMetadata(documentId) {
+      return request.resource.data.keys().hasOnly([
+          "id",
+          "ownerId",
+          "userId",
+          "uploadedUserId",
+          "uploadedUserEmail",
+          "ownerName",
+          "ownerRegNo",
+          "department",
+          "departmentKey",
+          "year",
+          "category",
+          "title",
+          "originalName",
+          "fileName",
+          "storagePath",
+          "downloadURL",
+          "downloadUrl",
+          "fileType",
+          "mimeType",
+          "size",
+          "description",
+          "accessLevel",
+          "status",
+          "uploadedAt",
+          "createdAt",
+          "updatedAt"
+        ])
+        && request.resource.data.id == documentId
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.uploadedUserId == request.auth.uid
+        && request.resource.data.uploadedUserEmail is string
+        && request.resource.data.ownerName is string
+        && request.resource.data.ownerRegNo is string
+        && request.resource.data.title is string
+        && request.resource.data.originalName is string
+        && request.resource.data.fileName is string
+        && request.resource.data.downloadURL is string
+        && request.resource.data.downloadUrl == request.resource.data.downloadURL
+        && request.resource.data.fileType is string
+        && request.resource.data.mimeType is string
+        && allowedDocumentMimeType(request.resource.data.mimeType)
+        && request.resource.data.description is string
+        && request.resource.data.size is number
+        && request.resource.data.size > 0
+        && request.resource.data.size <= 16 * 1024 * 1024
+        && request.resource.data.storagePath.matches("^users/" + request.auth.uid + "/documents/" + documentId + "/[^/]+$")
+        && request.resource.data.uploadedAt == request.time
+        && request.resource.data.updatedAt == request.time;
+    }
+
     function isTeacherFor(data) {
       return signedIn()
         && currentProfile().role == "teacher"
@@ -93,10 +157,7 @@ service cloud.firestore {
     match /documents/{documentId} {
       allow create, update: if signedIn()
         && currentProfile().role == "student"
-        && request.resource.data.id == documentId
-        && request.resource.data.ownerId == request.auth.uid
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.uploadedUserId == request.auth.uid
+        && validDocumentMetadata(documentId)
         && request.resource.data.department == currentProfile().department
         && request.resource.data.departmentKey == currentProfile().departmentKey
         && request.resource.data.year == currentProfile().year
@@ -105,10 +166,7 @@ service cloud.firestore {
         && validDepartmentKey(request.resource.data)
         && request.resource.data.category in ["online", "personal", "academic"]
         && request.resource.data.status == "active"
-        && request.resource.data.accessLevel in ["private", "teacher-visible"]
-        && request.resource.data.size is number
-        && request.resource.data.size < 16 * 1024 * 1024
-        && request.resource.data.storagePath.matches("^users/" + request.auth.uid + "/documents/" + documentId + "/[^/]+$");
+        && request.resource.data.accessLevel in ["private", "teacher-visible"];
       allow read: if signedIn()
         && (resource.data.ownerId == request.auth.uid
           || (resource.data.category == "academic" && isTeacherFor(resource.data)));
