@@ -39,6 +39,8 @@ jobs:
         run: npm ci
 
       - name: Generate Firebase browser config
+        env:
+          FIREBASE_API_KEY: "${{ vars.FIREBASE_API_KEY }}"
         run: npm run config:firebase
 
       - name: Verify static frontend

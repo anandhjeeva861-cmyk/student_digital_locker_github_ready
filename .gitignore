@@ -6,6 +6,9 @@
 .env.*
 !.env.example
 
+# Generated Firebase browser config
+js/firebase-config.js
+
 # Firebase Admin/service-account credentials
 *service-account*.json
 *firebase-admin*.json
