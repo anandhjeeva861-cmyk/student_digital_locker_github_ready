@@ -129,6 +129,11 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time;
     }
 
+    function documentIdOwnedBySignedInUser(documentId) {
+      return signedIn()
+        && documentId.matches("^" + request.auth.uid + "_(online|personal|academic)_.+$");
+    }
+
     function isTeacherFor(data) {
       return signedIn()
         && currentProfile().role == "teacher"
@@ -168,7 +173,8 @@ service cloud.firestore {
         && request.resource.data.status == "active"
         && request.resource.data.accessLevel in ["private", "teacher-visible"];
       allow read: if signedIn()
-        && (resource.data.ownerId == request.auth.uid
+        && (documentIdOwnedBySignedInUser(documentId)
+          || resource.data.ownerId == request.auth.uid
           || (resource.data.category == "academic" && isTeacherFor(resource.data)));
       allow delete: if signedIn()
         && (resource.data.ownerId == request.auth.uid

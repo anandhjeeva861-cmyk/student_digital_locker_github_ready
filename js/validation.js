@@ -9,6 +9,23 @@ export const DEFAULT_ACADEMIC_TITLES = [
   "BANK PASS BOOK"
 ];
 
+const DOCUMENT_MIME_BY_EXTENSION = {
+  pdf: "application/pdf",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+};
+
+const PHOTO_MIME_BY_EXTENSION = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp"
+};
+
 export function normalizeName(value) {
   return String(value || "").trim().replace(/\s+/g, " ").toUpperCase();
 }
@@ -67,25 +84,24 @@ export function isMobile(value) {
 
 export function validateDocumentFile(file) {
   return validateFile(file, {
-    extensions: ["pdf", "png", "jpg", "jpeg", "webp", "doc", "docx"],
-    mimeTypes: [
-      "application/pdf",
-      "image/png",
-      "image/jpeg",
-      "image/webp",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    ],
+    mimeByExtension: DOCUMENT_MIME_BY_EXTENSION,
     maxMb: 16
   });
 }
 
 export function validatePhotoFile(file) {
   return validateFile(file, {
-    extensions: ["png", "jpg", "jpeg", "webp"],
-    mimeTypes: ["image/png", "image/jpeg", "image/webp"],
+    mimeByExtension: PHOTO_MIME_BY_EXTENSION,
     maxMb: 4
   });
+}
+
+export function documentMimeType(file) {
+  return allowedMimeType(file, DOCUMENT_MIME_BY_EXTENSION);
+}
+
+export function photoMimeType(file) {
+  return allowedMimeType(file, PHOTO_MIME_BY_EXTENSION);
 }
 
 export function escapeHtml(value) {
@@ -98,16 +114,32 @@ export function escapeHtml(value) {
   }[char]));
 }
 
-function validateFile(file, { extensions, mimeTypes, maxMb }) {
+function validateFile(file, { mimeByExtension, maxMb }) {
   if (!file) return { ok: false, message: "Choose a file." };
-  const ext = file.name.includes(".") ? file.name.split(".").pop().toLowerCase() : "";
-  const type = String(file.type || "").toLowerCase();
+  const extensions = Object.keys(mimeByExtension);
+  const ext = fileExtension(file);
+  const type = allowedMimeType(file, mimeByExtension);
   if (!file.name || !ext) return { ok: false, message: "File must have a valid name and extension." };
   if (!extensions.includes(ext)) return { ok: false, message: `Allowed file types: ${extensions.join(", ").toUpperCase()}.` };
-  if (!type || !mimeTypes.includes(type)) return { ok: false, message: "This file type is not supported." };
+  if (!type) return { ok: false, message: "This file type is not supported." };
   if (file.size <= 0) return { ok: false, message: "The selected file is empty." };
   if (file.size > maxMb * 1024 * 1024) return { ok: false, message: `File size must be ${maxMb} MB or less.` };
   return { ok: true };
+}
+
+function fileExtension(file) {
+  return String(file?.name || "").includes(".")
+    ? String(file.name).split(".").pop().toLowerCase()
+    : "";
+}
+
+function allowedMimeType(file, mimeByExtension) {
+  const ext = fileExtension(file);
+  const expected = mimeByExtension[ext] || "";
+  const actual = String(file?.type || "").toLowerCase();
+  if (!expected) return "";
+  if (!actual || actual === "application/octet-stream") return expected;
+  return actual === expected ? expected : "";
 }
 
 export function showMessage(message, type = "info") {

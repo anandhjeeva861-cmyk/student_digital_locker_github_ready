@@ -28,8 +28,10 @@ import {
 import { auth, authReady, db, storage } from "./firebase.js";
 import {
   DEFAULT_ACADEMIC_TITLES,
+  documentMimeType,
   isAcademicYear,
-  isDepartment
+  isDepartment,
+  photoMimeType
 } from "./validation.js";
 
 const profileCollection = "profiles";
@@ -251,11 +253,13 @@ export async function getCurrentProfile() {
 
 export async function uploadProfilePhoto(profile, file) {
   await requireCurrentUser(profile.uid);
+  const mimeType = photoMimeType(file);
+  if (!mimeType) throw new Error("This file type is not supported.");
   const safeName = safeSegment(file.name);
   const path = `users/${profile.uid}/profile/${nowId()}-${safeName}`;
   const fileRef = ref(storage, path);
   await uploadWithProgress(fileRef, file, {
-    contentType: file.type,
+    contentType: mimeType,
     customMetadata: { ownerId: profile.uid, category: "profile" }
   });
   const downloadUrl = await getDownloadURL(fileRef);
@@ -293,12 +297,16 @@ export async function uploadStudentDocument(profile, category, title, file) {
   await requireCurrentUser(profile.uid);
   if (!documentCategories.includes(category)) throw new Error("Invalid document category.");
   if (!file) throw new Error("Please select a file.");
+  const mimeType = documentMimeType(file);
+  if (!mimeType) throw new Error("This file type is not supported.");
   const id = documentId(profile.uid, category, title);
+  const docRef = doc(db, documentsCollection, id);
+  const existing = await getDoc(docRef);
   const safeName = `${nowId()}-${safeSegment(file.name)}`;
   const path = `users/${profile.uid}/documents/${id}/${safeName}`;
   const fileRef = ref(storage, path);
   await uploadWithProgress(fileRef, file, {
-    contentType: file.type,
+    contentType: mimeType,
     customMetadata: {
       ownerId: profile.uid,
       category,
@@ -308,8 +316,6 @@ export async function uploadStudentDocument(profile, category, title, file) {
     }
   });
   const downloadUrl = await getDownloadURL(fileRef);
-  const docRef = doc(db, documentsCollection, id);
-  const existing = await getDoc(docRef);
   try {
     await setDoc(docRef, {
       id,
@@ -330,13 +336,13 @@ export async function uploadStudentDocument(profile, category, title, file) {
       downloadURL: downloadUrl,
       downloadUrl,
       fileType: file.name.includes(".") ? file.name.split(".").pop().toLowerCase() : "",
-      mimeType: file.type || "application/octet-stream",
+      mimeType,
       size: file.size,
       description: "",
       accessLevel: category === "academic" ? "teacher-visible" : "private",
       status: "active",
       uploadedAt: serverTimestamp(),
-      createdAt: existing.exists() ? existing.data().createdAt : serverTimestamp(),
+      createdAt: existing.exists() && existing.data().createdAt ? existing.data().createdAt : serverTimestamp(),
       updatedAt: serverTimestamp()
     });
   } catch (error) {
