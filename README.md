@@ -50,7 +50,7 @@ FIREBASE_APP_ID
 FIREBASE_MEASUREMENT_ID
 ```
 
-In GitHub, add the API key as an Actions repository variable named `FIREBASE_API_KEY`. Do not paste the API key into source files, docs, or workflow YAML.
+In GitHub, add the API key as an Actions repository variable or secret named `FIREBASE_API_KEY`. Do not paste the API key into source files, docs, or workflow YAML.
 
 ## Firebase Setup
 

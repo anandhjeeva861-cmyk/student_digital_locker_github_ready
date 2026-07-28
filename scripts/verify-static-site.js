@@ -106,8 +106,14 @@ for (const expected of [
   if (!workflow.includes(expected)) failures.push(`GitHub Pages workflow is missing: ${expected}`);
 }
 
-if (/\$\{\{\s*secrets\./.test(workflow)) {
-  failures.push("GitHub Pages workflow should not contain direct secrets expressions.");
+const secretExpressions = [...workflow.matchAll(/\$\{\{\s*secrets\.([A-Z0-9_]+)\s*\}\}/g)].map((match) => match[1]);
+const unsafeSecretExpressions = secretExpressions.filter((name) => name !== "FIREBASE_API_KEY");
+if (unsafeSecretExpressions.length) {
+  failures.push(`GitHub Pages workflow contains unexpected secret references: ${unsafeSecretExpressions.join(", ")}`);
+}
+
+if (!/\$\{\{\s*vars\.FIREBASE_API_KEY\s*\|\|\s*secrets\.FIREBASE_API_KEY\s*\}\}/.test(workflow)) {
+  failures.push("GitHub Pages workflow must read FIREBASE_API_KEY from a repository variable or secret.");
 }
 
 if (/path:\s*\./.test(workflow)) {

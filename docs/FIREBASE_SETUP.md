@@ -42,7 +42,7 @@ FIREBASE_APP_ID
 FIREBASE_MEASUREMENT_ID
 ```
 
-The GitHub Actions workflow requires the API key from an Actions repository variable named `FIREBASE_API_KEY`. Without that variable, config generation fails instead of deploying a broken or placeholder config.
+The GitHub Actions workflow requires the API key from an Actions repository variable or secret named `FIREBASE_API_KEY`. Without that value, config generation fails instead of deploying a broken or placeholder config.
 
 ## Firebase Console
 

@@ -37,7 +37,7 @@ https://anandhjeeva861-cmyk.github.io/student_digital_locker_github_ready/
 - Confirm `index.html` exists at repository root.
 - Confirm Pages is set to **GitHub Actions**.
 - Confirm the URL includes the repository name.
-- Confirm the repository variable `FIREBASE_API_KEY` exists under Actions variables.
+- Confirm `FIREBASE_API_KEY` exists under Actions variables or secrets.
 - Confirm the GitHub Pages host is added in Firebase Authentication authorized domains.
 - Confirm the workflow artifact path is `dist/`, not the repository root.
 - Avoid opening `/student_digital_locker/` because the deployed static site is at root.
