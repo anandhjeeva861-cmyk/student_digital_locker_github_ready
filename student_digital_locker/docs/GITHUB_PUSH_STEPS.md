@@ -4,6 +4,6 @@ Use the repository root workflow and docs for the active Supabase GitHub Pages s
 
 ```bash
 git add .
-git commit -m "Migrate backend from Firebase to Supabase"
+git commit -m "Fix Supabase student and teacher login"
 git push
 ```

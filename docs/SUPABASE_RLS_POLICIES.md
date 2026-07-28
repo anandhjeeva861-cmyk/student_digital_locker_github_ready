@@ -2,6 +2,11 @@
 
 The required RLS and storage policies are in `supabase/rls-policies.sql`.
 
+Run order:
+
+1. `supabase/schema.sql`
+2. `supabase/rls-policies.sql`
+
 Policy coverage:
 
 - Users can read their own profile.

@@ -4,6 +4,9 @@
 
 begin;
 
+-- Run this file first in Supabase Dashboard > SQL Editor.
+-- Then run supabase/rls-policies.sql.
+
 create extension if not exists pgcrypto;
 
 create table if not exists public.profiles (

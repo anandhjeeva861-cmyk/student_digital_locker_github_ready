@@ -10,6 +10,7 @@ Static HTML/CSS/JavaScript Student Digital Locker for GitHub Pages. The active r
 - Public placeholder config: `js/supabase-config.example.js`
 - Database setup: `supabase/schema.sql`
 - RLS and storage policies: `supabase/rls-policies.sql`
+- Login troubleshooting: `docs/SUPABASE_LOGIN_TROUBLESHOOTING.md`
 
 The `student_digital_locker/` folder is a legacy Flask/SQLite copy and is not the active GitHub Pages deployment.
 
@@ -32,11 +33,18 @@ The frontend must use only the anon key. Do not expose a service role key in bro
 ## Supabase Setup
 
 1. Create a Supabase project.
-2. In Authentication, enable Email Auth.
-3. Open SQL Editor and run `supabase/schema.sql`.
-4. Open SQL Editor and run `supabase/rls-policies.sql`.
-5. Confirm the `certificates` storage bucket exists and is private.
-6. Keep storage paths in this format:
+2. In Authentication > Providers, enable Email.
+3. For easy testing, disable email confirmation. For production, keep email confirmation enabled and users must verify before login.
+4. In Authentication > URL Configuration, add this Site URL / Redirect URL:
+
+```text
+https://anandhjeeva861-cmyk.github.io/student_digital_locker_github_ready/
+```
+
+5. Open SQL Editor and run `supabase/schema.sql` first.
+6. Open SQL Editor and run `supabase/rls-policies.sql` second.
+7. Confirm the `certificates` storage bucket exists and is private.
+8. Keep storage paths in this format:
    - `documents/{userId}/online/{timestamp-fileName}`
    - `documents/{userId}/personal/{timestamp-fileName}`
    - `documents/{userId}/academic/{timestamp-fileName}`
@@ -61,7 +69,7 @@ For local browser testing, copy the example config and paste your own local Supa
 cp js/supabase-config.example.js js/supabase-config.js
 npm install
 npm run build
-npm run dev
+python -m http.server 8000
 ```
 
 On Windows PowerShell:
@@ -69,15 +77,24 @@ On Windows PowerShell:
 ```powershell
 Copy-Item js\supabase-config.example.js js\supabase-config.js
 npm install
-npm run build
-npm run dev
+npm.cmd run build
+python -m http.server 8000
 ```
+
+Then open:
+
+```text
+http://localhost:8000
+```
+
+Do not commit local `js/supabase-config.js`.
 
 ## Useful Commands
 
 ```bash
 npm run build
+npm run check:supabase
 git add .
-git commit -m "Migrate backend from Firebase to Supabase"
+git commit -m "Fix Supabase student and teacher login"
 git push
 ```

@@ -17,3 +17,9 @@ GitHub Pages setup:
 4. Push to `main` or run the workflow manually.
 
 Do not add `SUPABASE_SERVICE_ROLE_KEY` to frontend code or generated static files.
+
+Supabase Auth URL setup:
+
+```text
+https://anandhjeeva861-cmyk.github.io/student_digital_locker_github_ready/
+```
