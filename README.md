@@ -33,10 +33,10 @@ See `.env.example`. Local real values belong in ignored `.env.local` and `.env.p
 
 ## GitHub Pages
 
-The workflow `.github/workflows/pages.yml` deploys the root static frontend and generates `js/firebase-config.js` from GitHub Repository Secrets.
+The workflow `.github/workflows/pages.yml` deploys the root static frontend and generates `js/firebase-config.js` during the build.
 It installs dependencies with `npm ci`, runs `npm run build`, prepares a clean `dist/` artifact, then deploys that artifact to GitHub Pages.
 
-Add these secrets:
+GitHub Repository Secrets are not required for the Firebase Web SDK config because this browser config is public by Firebase design. Local `.env.local` may still override it with either `FIREBASE_CONFIG_JSON` or the individual values:
 
 ```text
 FIREBASE_API_KEY

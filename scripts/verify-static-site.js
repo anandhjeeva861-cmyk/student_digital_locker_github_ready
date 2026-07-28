@@ -75,8 +75,31 @@ if (/AIza|student-digi-locker-2-3293a|G-3Y5T34K732/.test(example)) {
 }
 
 const workflow = fs.readFileSync(path.join(process.cwd(), ".github/workflows/pages.yml"), "utf8");
-for (const expected of ["actions/setup-node@v4", "npm ci", "npm run build", "npm run pages:artifact", "path: dist"]) {
+for (const expected of [
+  "actions/configure-pages@v5",
+  "actions/setup-node@v4",
+  "npm ci",
+  "npm run config:firebase",
+  "npm run build",
+  "npm run pages:artifact",
+  "actions/upload-pages-artifact@v3",
+  "actions/deploy-pages@v4",
+  "path: dist"
+]) {
   if (!workflow.includes(expected)) failures.push(`GitHub Pages workflow is missing: ${expected}`);
+}
+
+if (/\$\{\{\s*secrets\./.test(workflow)) {
+  failures.push("GitHub Pages workflow should not contain direct secrets expressions.");
+}
+
+if (/path:\s*\./.test(workflow)) {
+  failures.push("GitHub Pages workflow must deploy the clean dist artifact, not the repository root.");
+}
+
+const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"));
+for (const scriptName of ["config:firebase", "build", "pages:artifact", "dev"]) {
+  if (!packageJson.scripts?.[scriptName]) failures.push(`package.json is missing ${scriptName} script.`);
 }
 
 if (/localhost:3000|localhost:8000|127\.0\.0\.1:3000/.test([...htmlFiles, ...jsFiles].map((file) => fs.readFileSync(path.join(process.cwd(), file), "utf8")).join("\n"))) {

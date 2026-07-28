@@ -26,9 +26,9 @@ http://localhost:5173
 
 `.env.local` and `.env.production` are ignored by Git. Keep only Firebase Web SDK values there. Do not add Admin SDK service account files.
 
-## GitHub Pages Secrets
+## GitHub Pages Config
 
-Add these repository secrets before deploying:
+No GitHub Repository Secret is required for the Firebase Web SDK browser config. Local `.env.local` can override the public config with individual values:
 
 ```text
 FIREBASE_API_KEY
