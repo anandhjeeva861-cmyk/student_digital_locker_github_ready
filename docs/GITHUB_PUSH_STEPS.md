@@ -4,14 +4,15 @@ Before pushing, verify the static site:
 
 ```bash
 npm run build
+npm run check:api
 ```
 
 Then commit and push:
 
 ```bash
 git add .
-git commit -m "Convert app to frontend only"
+git commit -m "Generate Node backend for Student Digital Locker"
 git push
 ```
 
-No backend config or secret files are required.
+Keep `.env`, `server/data/`, and `server/uploads/` out of commits.

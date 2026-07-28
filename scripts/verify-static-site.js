@@ -5,10 +5,16 @@ const requiredFiles = [
   "index.html",
   "css/style.css",
   "images/sankara-logo.png",
+  "js/api.js",
   "js/auth.js",
-  "js/local-db.js",
   "js/student.js",
   "js/teacher.js",
+  "server/server.js",
+  "server/db.js",
+  "server/routes/auth.js",
+  "server/routes/student.js",
+  "server/routes/teacher.js",
+  "server/routes/files.js",
   "student-login.html",
   "student-register.html",
   "teacher-login.html",
@@ -35,7 +41,7 @@ const htmlFiles = [
   "teacher-dashboard.html"
 ];
 
-const jsFiles = ["js/auth.js", "js/student.js", "js/teacher.js"];
+const jsFiles = ["js/api.js", "js/auth.js", "js/student.js", "js/teacher.js"];
 const failures = [];
 
 for (const file of htmlFiles) {
@@ -51,17 +57,10 @@ for (const file of htmlFiles) {
   }
 }
 
-for (const file of jsFiles) {
-  const content = fs.readFileSync(path.join(process.cwd(), file), "utf8");
-  if (/supabase|firebase|getAuth|getFirestore|getStorage|firestore|uploadBytes|getDownloadURL|deleteObject/i.test(content)) {
-    failures.push(`${file} still contains backend provider references.`);
-  }
-}
-
-for (const file of [...jsFiles, "js/local-db.js", ".github/workflows/pages.yml"]) {
+for (const file of [...jsFiles, ".github/workflows/pages.yml"]) {
   const content = fs.readFileSync(path.join(process.cwd(), file), "utf8");
   if (/supabase|firebase|firestore|service_role/i.test(content)) {
-    failures.push(`${file} still contains backend/database references.`);
+    failures.push(`${file} still contains removed-provider references.`);
   }
 }
 

@@ -2,13 +2,27 @@
   "name": "student-digital-locker-github-ready",
   "version": "1.0.0",
   "private": true,
-  "description": "Student Digital Locker frontend-only static GitHub Pages site.",
+  "description": "Student Digital Locker static frontend with Node/Express backend.",
   "scripts": {
     "dev": "http-server . -p 5173 -c-1",
+    "dev:api": "node server/server.js",
     "build": "node scripts/verify-static-site.js",
+    "check:api": "node scripts/check-api.js",
     "start": "npm run dev"
   },
   "devDependencies": {
     "http-server": "^14.1.1"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^13.0.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.11.0",
+    "multer": "^2.2.0",
+    "zod": "^4.4.3"
   }
 }

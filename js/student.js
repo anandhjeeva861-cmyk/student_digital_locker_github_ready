@@ -1,5 +1,5 @@
+import { apiDelete, apiGet, apiUpload, fileUrl } from "./api.js";
 import { protectPage } from "./auth.js";
-import { documents, fileToDataUrl, saveDocuments, saveProfiles, profiles, uid } from "./local-db.js";
 import {
   DEFAULT_ACADEMIC_TITLES,
   normalizeTitle,
@@ -10,6 +10,7 @@ import {
 
 let user = null;
 let profile = null;
+let documentCache = { online: [], personal: [], academic: [] };
 
 function text(id, value) {
   const element = document.getElementById(id);
@@ -39,65 +40,67 @@ function fillProfile() {
   if (avatar) avatar.textContent = profile.name?.slice(0, 1) || "S";
   const photo = document.getElementById("studentPhoto");
   if (photo && profile.photo_url) {
-    photo.src = profile.photo_url;
+    photo.src = fileUrl(profile.photo_url);
     photo.hidden = false;
     if (avatar) avatar.hidden = true;
   }
 }
 
-function loadDocuments(category) {
-  return documents()
-    .filter((item) => item.owner_id === user.id && item.category === category)
-    .sort((a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at));
+async function loadDocuments(category) {
+  const data = await apiGet(`/student/documents?category=${encodeURIComponent(category)}`);
+  documentCache[category] = data.documents || [];
+  return documentCache[category];
 }
 
 function refreshCounts() {
   for (const category of ["online", "personal", "academic"]) {
-    text(`${category}Count`, String(loadDocuments(category).length));
+    text(`${category}Count`, String(documentCache[category]?.length || 0));
   }
 }
 
-function refreshDocuments(category) {
+async function refreshDocuments(category) {
   const body = document.getElementById(`${category}Documents`);
   const empty = document.getElementById(`${category}Empty`);
   if (!body) return;
 
-  const rows = loadDocuments(category);
+  const rows = await loadDocuments(category);
   body.innerHTML = rows.map((item) => documentRow(item)).join("");
   if (empty) empty.hidden = rows.length > 0;
-  if (category === "academic") refreshAcademicTitles();
+  refreshCounts();
+  if (category === "academic") await refreshAcademicTitles();
 }
 
 function documentRow(item) {
+  const url = fileUrl(item.file_url);
   return `
     <tr>
       <td><b>${item.title}</b></td>
       <td>${item.file_name}</td>
       <td>${dateText(item.uploaded_at)}</td>
       <td class="action-cell">
-        <a class="small-btn" href="${item.file_url}" target="_blank" rel="noopener">VIEW</a>
-        <a class="small-btn" href="${item.file_url}" download="${item.file_name}">DOWNLOAD</a>
-        <button class="small-btn danger" data-delete-doc="${item.id}">REMOVE</button>
+        <a class="small-btn" href="${url}" target="_blank" rel="noopener">VIEW</a>
+        <a class="small-btn" href="${url}" download="${item.file_name}">DOWNLOAD</a>
+        <button class="small-btn danger" data-delete-doc="${item.id}" data-category="${item.category}">REMOVE</button>
       </td>
     </tr>`;
 }
 
-function getAcademicTitles() {
-  const custom = JSON.parse(localStorage.getItem("sdl_academic_titles") || "[]")
-    .filter((item) => item.department_key === profile.department_key && item.year === profile.year);
+async function getAcademicTitles() {
+  const data = await apiGet("/student/academic-titles");
   return [
     ...DEFAULT_ACADEMIC_TITLES.map((title) => ({ title })),
-    ...custom
-  ].sort((a, b) => a.title.localeCompare(b.title));
+    ...(data.titles || [])
+  ].filter((item, index, rows) => rows.findIndex((row) => row.title === item.title) === index)
+    .sort((a, b) => a.title.localeCompare(b.title));
 }
 
-function refreshAcademicTitles() {
+async function refreshAcademicTitles() {
   const select = document.getElementById("academicTitleSelect");
   const list = document.getElementById("academicTitleList");
   if (!select && !list) return;
 
-  const uploaded = new Set(loadDocuments("academic").map((item) => item.title));
-  const titles = getAcademicTitles();
+  const uploaded = new Set(documentCache.academic.map((item) => item.title));
+  const titles = await getAcademicTitles();
 
   if (select) {
     select.innerHTML = '<option value="">Choose title</option>';
@@ -120,30 +123,14 @@ async function uploadDocument(form, category) {
 
   const title = normalizeTitle(form.elements.title.value);
   if (!title) throw new Error("Enter or select a document title.");
-  if (category === "academic" && loadDocuments("academic").some((item) => item.title === title)) {
-    throw new Error("This academic certificate is already uploaded.");
-  }
 
-  const fileUrl = await fileToDataUrl(file);
-  const row = {
-    id: uid(),
-    owner_id: user.id,
-    owner_name: profile.name,
-    owner_reg_no: profile.reg_no,
-    department: profile.department,
-    department_key: profile.department_key,
-    year: profile.year,
-    category,
-    title,
-    file_name: file.name,
-    file_url: fileUrl,
-    uploaded_at: new Date().toISOString()
-  };
+  const formData = new FormData();
+  formData.append("title", title);
+  formData.append("document", file);
+  await apiUpload(`/student/documents/${category}`, formData);
 
-  saveDocuments([...documents(), row]);
   form.reset();
-  refreshCounts();
-  refreshDocuments(category);
+  await refreshDocuments(category);
 }
 
 async function uploadPhoto(form) {
@@ -151,9 +138,10 @@ async function uploadPhoto(form) {
   const result = validatePhotoFile(file);
   if (!result.ok) throw new Error(result.message);
 
-  profile.photo_url = await fileToDataUrl(file);
-  profile.updated_at = new Date().toISOString();
-  saveProfiles(profiles().map((item) => (item.id === profile.id ? { ...item, photo_url: profile.photo_url } : item)));
+  const formData = new FormData();
+  formData.append("photo", file);
+  const data = await apiUpload("/student/profile/photo", formData);
+  profile = data.profile;
   fillProfile();
   form.reset();
 }
@@ -163,9 +151,8 @@ document.addEventListener("DOMContentLoaded", () => {
     user = currentUser;
     profile = currentProfile;
     fillProfile();
-    refreshCounts();
-    for (const category of ["online", "personal", "academic"]) refreshDocuments(category);
-    refreshAcademicTitles();
+    for (const category of ["online", "personal", "academic"]) await refreshDocuments(category);
+    await refreshAcademicTitles();
   });
 
   document.querySelectorAll("[data-open-view]").forEach((link) => {
@@ -197,14 +184,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  document.addEventListener("click", (event) => {
+  document.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-delete-doc]");
     if (!button || !confirm("Remove this document?")) return;
-    const rows = documents();
-    const removed = rows.find((item) => item.id === button.dataset.deleteDoc);
-    saveDocuments(rows.filter((item) => item.id !== button.dataset.deleteDoc));
-    refreshCounts();
-    refreshDocuments(removed?.category || "academic");
-    showMessage("Document removed.", "success");
+    try {
+      await apiDelete(`/student/documents/${button.dataset.deleteDoc}`);
+      await refreshDocuments(button.dataset.category);
+      showMessage("Document removed.", "success");
+    } catch (error) {
+      showMessage(error.message, "danger");
+    }
   });
 });

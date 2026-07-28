@@ -35,8 +35,8 @@ jobs:
           test -f .nojekyll
           test -f css/style.css
           test -f images/sankara-logo.png
+          test -f js/api.js
           test -f js/auth.js
-          test -f js/local-db.js
           test -f js/student.js
           test -f js/teacher.js
 

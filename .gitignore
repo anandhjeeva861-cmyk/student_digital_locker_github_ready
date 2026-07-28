@@ -32,12 +32,14 @@ Thumbs.db
 uploads/
 profile_photos/
 documents/
+server/uploads/
 
 # Local databases
 *.db
 *.sqlite
 *.sqlite3
 locker.db
+server/data/
 
 # Cache
 .cache/

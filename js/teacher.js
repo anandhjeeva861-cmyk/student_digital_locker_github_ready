@@ -1,6 +1,6 @@
+import { apiDelete, apiGet, apiPost, fileUrl } from "./api.js";
 import { protectPage } from "./auth.js";
-import { academicTitles as savedTitles, documents, saveAcademicTitles, saveDocuments, uid } from "./local-db.js";
-import { DEFAULT_ACADEMIC_TITLES, normalizeTitle, showMessage } from "./validation.js";
+import { normalizeTitle, showMessage } from "./validation.js";
 
 let user = null;
 let teacher = null;
@@ -31,66 +31,54 @@ function fillProfile() {
   text("teacherScope", `${teacher.department} - Year ${teacher.year}`);
 }
 
-function matchingStudents() {
-  const rows = JSON.parse(localStorage.getItem("sdl_profiles") || "[]");
-  return rows
-    .filter((item) => item.role === "student" && item.department_key === teacher.department_key && item.year === teacher.year)
-    .sort((a, b) => a.name.localeCompare(b.name));
+async function matchingStudents(filter = "") {
+  const query = filter ? `?q=${encodeURIComponent(filter)}` : "";
+  const data = await apiGet(`/teacher/students${query}`);
+  return data.students || [];
 }
 
-function academicDocs(studentUid = null) {
-  return documents()
-    .filter((item) => item.category === "academic" && item.department_key === teacher.department_key && item.year === teacher.year)
-    .filter((item) => !studentUid || item.owner_id === studentUid)
-    .sort((a, b) => a.title.localeCompare(b.title));
+async function academicDocs(studentUid = null) {
+  if (studentUid) {
+    const data = await apiGet(`/teacher/students/${studentUid}`);
+    return data.documents || [];
+  }
+  const data = await apiGet("/teacher/academic-documents");
+  return data.documents || [];
 }
 
-function academicTitles() {
-  const custom = savedTitles().filter((item) => item.department_key === teacher.department_key && item.year === teacher.year);
-  return [
-    ...DEFAULT_ACADEMIC_TITLES.map((title) => ({ title })),
-    ...custom
-  ].sort((a, b) => a.title.localeCompare(b.title));
-}
-
-function renderDashboard() {
-  const students = matchingStudents();
-  const docs = academicDocs();
-  const titles = academicTitles();
+async function renderDashboard() {
+  const students = await matchingStudents();
+  const docs = await academicDocs();
+  const titles = await apiGet("/teacher/academic-titles");
   text("studentCount", String(students.length));
   text("academicCount", String(docs.length));
-  text("titleCount", String(titles.length));
+  text("titleCount", String((titles.titles || []).length));
 }
 
-function renderStudents(filter = "") {
+async function renderStudents(filter = "") {
   const body = document.getElementById("studentRows");
   const empty = document.getElementById("studentEmpty");
   if (!body) return;
-  const needle = filter.trim().toUpperCase();
-  const students = matchingStudents().filter((item) => {
-    const regNo = item.reg_no || "";
-    return !needle || item.name.includes(needle) || regNo.includes(needle);
-  });
+  const students = await matchingStudents(filter);
   body.innerHTML = "";
   for (const student of students) {
-    const docs = academicDocs(student.id);
     body.insertAdjacentHTML("beforeend", `
       <tr>
         <td><b>${student.name}</b></td>
-        <td>${student.reg_no}</td>
+        <td>${student.reg_no || ""}</td>
         <td>${student.department}</td>
         <td>${student.year}</td>
-        <td>${docs.length}</td>
+        <td>${student.academic_count || 0}</td>
         <td><button class="small-btn" data-student-id="${student.id}">VIEW DATA</button></td>
       </tr>`);
   }
   if (empty) empty.hidden = students.length > 0;
 }
 
-function renderStudentDetail(studentUid) {
+async function renderStudentDetail(studentUid) {
   selectedStudentUid = studentUid;
-  const student = matchingStudents().find((item) => item.id === studentUid);
-  if (!student) return showMessage("Access denied for this student.", "danger");
+  const data = await apiGet(`/teacher/students/${studentUid}`);
+  const student = data.student;
   text("detailName", student.name);
   text("detailRegNo", student.reg_no);
   text("detailEmail", student.email);
@@ -98,46 +86,46 @@ function renderStudentDetail(studentUid) {
   text("detailYear", student.year);
   text("detailMobile", student.mobile);
   const body = document.getElementById("academicRows");
-  const docs = academicDocs(studentUid);
-  body.innerHTML = docs.map((item) => `
+  const docs = data.documents || [];
+  body.innerHTML = docs.map((item) => {
+    const url = fileUrl(item.file_url);
+    return `
     <tr>
       <td><b>${item.title}</b></td>
       <td>${item.file_name}</td>
       <td>${dateText(item.uploaded_at)}</td>
       <td class="action-cell">
-        <a class="small-btn" href="${item.file_url}" target="_blank" rel="noopener">VIEW</a>
-        <a class="small-btn" href="${item.file_url}" download="${item.file_name}">DOWNLOAD</a>
+        <a class="small-btn" href="${url}" target="_blank" rel="noopener">VIEW</a>
+        <a class="small-btn" href="${url}" download="${item.file_name}">DOWNLOAD</a>
         <button class="small-btn danger" data-delete-doc="${item.id}">REMOVE</button>
       </td>
-    </tr>`).join("");
+    </tr>`;
+  }).join("");
   showView("student-detail");
 }
 
-function renderTitles() {
+async function renderTitles() {
   const wrap = document.getElementById("customTitles");
   if (!wrap) return;
-  const data = savedTitles().filter((item) => item.department_key === teacher.department_key && item.year === teacher.year);
-  wrap.innerHTML = !data.length
+  const data = await apiGet("/teacher/academic-titles");
+  const custom = data.customTitles || [];
+  wrap.innerHTML = !custom.length
     ? '<div class="empty-state">No custom titles added yet.</div>'
-    : data.map((item) => `<span class="pill">${item.title}</span>`).join("");
+    : custom.map((item) => `<span class="pill">${item.title}</span>`).join("");
 }
 
-function renderStatus() {
+async function renderStatus() {
   const grid = document.getElementById("statusGrid");
   if (!grid) return;
-  const students = matchingStudents();
-  const titles = academicTitles();
+  const data = await apiGet("/teacher/status");
   grid.innerHTML = "";
-  for (const title of titles) {
-    const uploadedIds = new Set(academicDocs().filter((item) => item.title === title.title).map((item) => item.owner_id));
-    const uploaded = students.filter((item) => uploadedIds.has(item.id));
-    const pending = students.filter((item) => !uploadedIds.has(item.id));
+  for (const row of data.status || []) {
     grid.insertAdjacentHTML("beforeend", `
       <div class="status-card">
-        <h2>${title.title}</h2>
+        <h2>${row.title}</h2>
         <div class="status-columns">
-          <div><h3>Uploaded</h3>${nameList(uploaded, "good-list", "No uploads")}</div>
-          <div><h3>Not Uploaded</h3>${nameList(pending, "warn-list", "All submitted")}</div>
+          <div><h3>Uploaded</h3>${nameList(row.uploaded, "good-list", "No uploads")}</div>
+          <div><h3>Not Uploaded</h3>${nameList(row.pending, "warn-list", "All submitted")}</div>
         </div>
       </div>`);
   }
@@ -145,7 +133,7 @@ function renderStatus() {
 
 function nameList(students, className, emptyText) {
   if (!students.length) return `<p class="muted">${emptyText}</p>`;
-  return `<ul class="name-list ${className}">${students.map((item) => `<li>${item.name} <small>${item.reg_no}</small></li>`).join("")}</ul>`;
+  return `<ul class="name-list ${className}">${students.map((item) => `<li>${item.name} <small>${item.reg_no || ""}</small></li>`).join("")}</ul>`;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -153,65 +141,57 @@ document.addEventListener("DOMContentLoaded", () => {
     user = currentUser;
     teacher = currentProfile;
     fillProfile();
-    renderDashboard();
-    renderStudents();
-    renderStatus();
-    renderTitles();
+    await renderDashboard();
+    await renderStudents();
+    await renderStatus();
+    await renderTitles();
   });
 
   document.querySelectorAll("[data-open-view]").forEach((link) => {
-    link.addEventListener("click", (event) => {
+    link.addEventListener("click", async (event) => {
       event.preventDefault();
       showView(link.dataset.openView);
-      if (link.dataset.openView === "students") renderStudents();
-      if (link.dataset.openView === "status") renderStatus();
-      if (link.dataset.openView === "add-title") renderTitles();
+      if (link.dataset.openView === "students") await renderStudents();
+      if (link.dataset.openView === "status") await renderStatus();
+      if (link.dataset.openView === "add-title") await renderTitles();
     });
   });
 
-  document.getElementById("searchForm")?.addEventListener("submit", (event) => {
+  document.getElementById("searchForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    renderStudents(event.currentTarget.elements.q.value);
+    await renderStudents(event.currentTarget.elements.q.value);
     showView("students");
   });
 
-  document.getElementById("addTitleForm")?.addEventListener("submit", (event) => {
+  document.getElementById("addTitleForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const title = normalizeTitle(event.currentTarget.elements.title.value);
     if (!title) return showMessage("Enter document title.", "danger");
-    const rows = savedTitles();
-    const exists = rows.some((item) => item.department_key === teacher.department_key && item.year === teacher.year && item.title === title);
-    if (exists || DEFAULT_ACADEMIC_TITLES.includes(title)) {
-      showMessage("This academic title already exists.", "warning");
-      return;
+    try {
+      await apiPost("/teacher/academic-titles", { title });
+      event.currentTarget.reset();
+      await renderTitles();
+      await renderDashboard();
+      showMessage("Academic title added.", "success");
+    } catch (error) {
+      showMessage(error.message, "danger");
     }
-
-    saveAcademicTitles([...rows, {
-      id: uid(),
-      title,
-      department: teacher.department,
-      department_key: teacher.department_key,
-      year: teacher.year,
-      created_by_teacher_id: user.id,
-      created_at: new Date().toISOString()
-    }]);
-
-    event.currentTarget.reset();
-    renderTitles();
-    renderDashboard();
-    showMessage("Academic title added.", "success");
   });
 
-  document.addEventListener("click", (event) => {
+  document.addEventListener("click", async (event) => {
     const studentButton = event.target.closest("[data-student-id]");
-    if (studentButton) renderStudentDetail(studentButton.dataset.studentId);
+    if (studentButton) await renderStudentDetail(studentButton.dataset.studentId);
 
     const deleteButton = event.target.closest("[data-delete-doc]");
     if (deleteButton && confirm("Remove this academic document?")) {
-      saveDocuments(documents().filter((item) => item.id !== deleteButton.dataset.deleteDoc));
-      if (selectedStudentUid) renderStudentDetail(selectedStudentUid);
-      renderDashboard();
-      showMessage("Academic document removed.", "success");
+      try {
+        await apiDelete(`/teacher/academic-documents/${deleteButton.dataset.deleteDoc}`);
+        if (selectedStudentUid) await renderStudentDetail(selectedStudentUid);
+        await renderDashboard();
+        showMessage("Academic document removed.", "success");
+      } catch (error) {
+        showMessage(error.message, "danger");
+      }
     }
   });
 });
