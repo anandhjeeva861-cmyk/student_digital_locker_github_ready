@@ -25,8 +25,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Validate Firebase secrets
         shell: bash
@@ -60,23 +69,15 @@ jobs:
         run: node scripts/generate-firebase-config.js
 
       - name: Verify static frontend
-        shell: bash
-        run: |
-          test -f index.html
-          test -f .nojekyll
-          test -f css/style.css
-          test -f images/sankara-logo.png
-          test -f js/firebase.js
-          test -f js/firebase-service.js
-          test -f js/firebase-config.js
-          test -f js/auth.js
-          test -f js/student.js
-          test -f js/teacher.js
+        run: npm run build
+
+      - name: Prepare Pages artifact
+        run: npm run pages:artifact
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: dist
 
       - name: Deploy to GitHub Pages
         id: deployment

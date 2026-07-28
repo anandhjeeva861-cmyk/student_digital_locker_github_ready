@@ -14,6 +14,7 @@ const requiredFiles = [
   "js/teacher.js",
   "firebase/firestore.rules",
   "firebase/storage.rules",
+  "firebase/firestore.indexes.json",
   "student-login.html",
   "student-register.html",
   "teacher-login.html",
@@ -71,6 +72,15 @@ if (!/js\/firebase-config\.js/.test(gitignore)) {
 const example = fs.readFileSync(path.join(process.cwd(), ".env.example"), "utf8");
 if (/AIza|student-digi-locker-2-3293a|G-3Y5T34K732/.test(example)) {
   failures.push(".env.example must contain placeholders only.");
+}
+
+const workflow = fs.readFileSync(path.join(process.cwd(), ".github/workflows/pages.yml"), "utf8");
+for (const expected of ["actions/setup-node@v4", "npm ci", "npm run build", "npm run pages:artifact", "path: dist"]) {
+  if (!workflow.includes(expected)) failures.push(`GitHub Pages workflow is missing: ${expected}`);
+}
+
+if (/localhost:3000|localhost:8000|127\.0\.0\.1:3000/.test([...htmlFiles, ...jsFiles].map((file) => fs.readFileSync(path.join(process.cwd(), file), "utf8")).join("\n"))) {
+  failures.push("Frontend contains hardcoded local backend URLs.");
 }
 
 if (failures.length) {

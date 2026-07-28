@@ -18,17 +18,44 @@ service firebase.storage {
         && resource.metadata.year == currentProfile().year;
     }
 
-    match /profiles/{uid}/{fileName} {
-      allow read, write: if signedIn() && request.auth.uid == uid;
+    function allowedDocumentType() {
+      return request.resource.contentType in [
+        "application/pdf",
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ];
     }
 
-    match /documents/{uid}/{category}/{fileName} {
+    function allowedPhotoType() {
+      return request.resource.contentType in [
+        "image/png",
+        "image/jpeg",
+        "image/webp"
+      ];
+    }
+
+    match /users/{uid}/profile/{fileName} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.size < 4 * 1024 * 1024
+        && allowedPhotoType()
+        && request.resource.metadata.ownerId == request.auth.uid
+        && request.resource.metadata.category == "profile";
+    }
+
+    match /users/{uid}/documents/{documentId}/{fileName} {
       allow create, update: if signedIn()
         && request.auth.uid == uid
         && currentProfile().role == "student"
         && request.resource.size < 16 * 1024 * 1024
+        && allowedDocumentType()
         && request.resource.metadata.ownerId == request.auth.uid
-        && request.resource.metadata.category == category;
+        && request.resource.metadata.documentId == documentId
+        && request.resource.metadata.category in ["online", "personal", "academic"];
       allow read, delete: if signedIn()
         && (request.auth.uid == uid || isTeacherForResource());
     }

@@ -34,6 +34,7 @@ See `.env.example`. Local real values belong in ignored `.env.local` and `.env.p
 ## GitHub Pages
 
 The workflow `.github/workflows/pages.yml` deploys the root static frontend and generates `js/firebase-config.js` from GitHub Repository Secrets.
+It installs dependencies with `npm ci`, runs `npm run build`, prepares a clean `dist/` artifact, then deploys that artifact to GitHub Pages.
 
 Add these secrets:
 
@@ -55,6 +56,7 @@ See `docs/FIREBASE_SETUP.md`.
 
 ```bash
 npm run build
+npm run pages:artifact
 git add .
 git commit -m "Integrate Firebase for Student Digital Locker"
 git push

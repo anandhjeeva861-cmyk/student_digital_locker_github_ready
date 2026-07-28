@@ -163,24 +163,32 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-upload-category]").forEach((form) => {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      const button = form.querySelector("button[type='submit']");
+      button?.setAttribute("disabled", "disabled");
       try {
         await uploadDocument(form, form.dataset.uploadCategory);
         showMessage("Document uploaded successfully.", "success");
       } catch (error) {
         console.error("Student document upload failed", error);
         showMessage(firebaseErrorMessage(error), "danger");
+      } finally {
+        button?.removeAttribute("disabled");
       }
     });
   });
 
   document.getElementById("studentPhotoForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const button = event.currentTarget.querySelector("button[type='submit']");
+    button?.setAttribute("disabled", "disabled");
     try {
       await uploadPhoto(event.currentTarget);
       showMessage("Profile photo updated.", "success");
     } catch (error) {
       console.error("Student profile photo upload failed", error);
       showMessage(firebaseErrorMessage(error), "danger");
+    } finally {
+      button?.removeAttribute("disabled");
     }
   });
 

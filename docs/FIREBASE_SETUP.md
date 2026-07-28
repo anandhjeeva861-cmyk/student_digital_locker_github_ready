@@ -64,7 +64,32 @@ anandhjeeva861-cmyk.github.io
 - `uniqueMobileNumbers`: mobile uniqueness guard.
 - `uniqueRegisterNumbers`: student register number uniqueness guard.
 
+## Uploaded File Metadata
+
+Uploaded binary files stay in Firebase Storage. Firestore `documents/{documentId}` stores only metadata:
+
+- `id`
+- `ownerId`, `userId`, `uploadedUserId`
+- `uploadedUserEmail`
+- `ownerName`, `ownerRegNo`
+- `department`, `departmentKey`, `year`
+- `category`
+- `title`
+- `originalName`
+- `fileName`
+- `storagePath`
+- `downloadURL`, `downloadUrl`
+- `fileType`
+- `mimeType`
+- `size`
+- `description`
+- `accessLevel`
+- `status`
+- `uploadedAt`, `createdAt`, `updatedAt`
+
 ## Storage Paths
 
-- `profiles/{uid}/{file}` for student profile photos.
-- `documents/{uid}/{category}/{file}` for online, personal, and academic certificates.
+- `users/{uid}/profile/{file}` for student profile photos.
+- `users/{uid}/documents/{documentId}/{file}` for online, personal, and academic certificates.
+
+If a Storage upload succeeds but Firestore metadata saving fails, the frontend attempts to delete the uploaded Storage object before showing the error.

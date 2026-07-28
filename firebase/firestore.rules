@@ -38,9 +38,18 @@ service cloud.firestore {
     match /documents/{documentId} {
       allow create, update: if signedIn()
         && currentProfile().role == "student"
+        && request.resource.data.id == documentId
         && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.uploadedUserId == request.auth.uid
         && request.resource.data.departmentKey == currentProfile().departmentKey
-        && request.resource.data.year == currentProfile().year;
+        && request.resource.data.year == currentProfile().year
+        && request.resource.data.category in ["online", "personal", "academic"]
+        && request.resource.data.status == "active"
+        && request.resource.data.accessLevel in ["private", "teacher-visible"]
+        && request.resource.data.size is number
+        && request.resource.data.size < 16 * 1024 * 1024
+        && request.resource.data.storagePath.matches("^users/" + request.auth.uid + "/documents/" + documentId + "/[^/]+$");
       allow read: if signedIn()
         && (resource.data.ownerId == request.auth.uid
           || (resource.data.category == "academic" && isTeacherFor(resource.data)));

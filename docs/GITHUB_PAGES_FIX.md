@@ -13,6 +13,7 @@ The repository was originally Flask-based and nested under `student_digital_lock
 - Added `.nojekyll`.
 - Added root `.gitignore`.
 - Added deploy-time Firebase browser config generation.
+- GitHub Actions now installs dependencies, runs verification, prepares a clean `dist/` artifact, and deploys only that artifact.
 
 ## GitHub Pages Settings
 
@@ -36,6 +37,7 @@ https://anandhjeeva861-cmyk.github.io/student_digital_locker_github_ready/
 - Confirm Pages is set to `main / root`.
 - Confirm the URL includes the repository name.
 - Confirm Firebase repository secrets exist.
+- Confirm the workflow artifact path is `dist/`, not the repository root.
 - Avoid opening `/student_digital_locker/` because the deployed static site is at root.
 
 ## Common Causes Fixed

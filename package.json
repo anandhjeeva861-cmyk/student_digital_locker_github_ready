@@ -7,6 +7,7 @@
     "dev": "http-server . -p 5173 -c-1",
     "config:firebase": "node scripts/generate-firebase-config.js",
     "build": "node scripts/verify-static-site.js",
+    "pages:artifact": "node scripts/prepare-pages-artifact.js",
     "start": "npm run dev"
   },
   "devDependencies": {

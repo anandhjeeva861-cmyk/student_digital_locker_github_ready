@@ -9,6 +9,13 @@
 # Generated Firebase browser config
 js/firebase-config.js
 
+# Firebase Admin/service-account credentials
+*service-account*.json
+*firebase-admin*.json
+*-firebase-adminsdk-*.json
+*.pem
+*.key
+
 # Dependencies
 node_modules/
 venv/
@@ -36,6 +43,7 @@ uploads/
 profile_photos/
 documents/
 server/uploads/
+server/uploads-*/
 
 # Local databases
 *.db

@@ -5,6 +5,7 @@ Before pushing, verify the static site:
 ```bash
 npm run config:firebase
 npm run build
+npm run pages:artifact
 ```
 
 Then commit and push:

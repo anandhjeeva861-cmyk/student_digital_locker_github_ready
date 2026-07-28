@@ -23,7 +23,7 @@ import {
   deleteObject,
   getDownloadURL,
   ref,
-  uploadBytes
+  uploadBytesResumable
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
 import { auth, db, storage } from "./firebase.js";
 import { DEFAULT_ACADEMIC_TITLES } from "./validation.js";
@@ -37,7 +37,13 @@ function nowId() {
 }
 
 function safeSegment(value) {
-  return String(value || "file").replace(/[^a-z0-9._-]/gi, "_");
+  const safe = String(value || "file")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9._-]/gi, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return safe || "file";
 }
 
 function titleId(profile, title) {
@@ -69,10 +75,35 @@ function documentFromDoc(snapshot) {
     owner_id: data.ownerId,
     owner_name: data.ownerName,
     owner_reg_no: data.ownerRegNo,
-    file_name: data.fileName,
-    file_url: data.downloadUrl,
+    file_name: data.originalName || data.fileName,
+    file_url: data.downloadURL || data.downloadUrl,
     uploaded_at: uploaded ? new Date(uploaded).toISOString() : ""
   };
+}
+
+function uploadWithProgress(fileRef, file, metadata, onProgress) {
+  return new Promise((resolve, reject) => {
+    const task = uploadBytesResumable(fileRef, file, metadata);
+    task.on(
+      "state_changed",
+      (snapshot) => {
+        if (onProgress && snapshot.totalBytes) {
+          onProgress(Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100));
+        }
+      },
+      reject,
+      () => resolve(task.snapshot)
+    );
+  });
+}
+
+async function removeStorageObject(storagePath) {
+  if (!storagePath) return;
+  try {
+    await deleteObject(ref(storage, storagePath));
+  } catch (error) {
+    if (error?.code !== "storage/object-not-found") throw error;
+  }
 }
 
 export function firebaseErrorMessage(error) {
@@ -191,19 +222,31 @@ export async function getCurrentProfile() {
 }
 
 export async function uploadProfilePhoto(profile, file) {
-  const path = `profiles/${profile.uid}/${nowId()}-${safeSegment(file.name)}`;
+  const safeName = safeSegment(file.name);
+  const path = `users/${profile.uid}/profile/${nowId()}-${safeName}`;
   const fileRef = ref(storage, path);
-  await uploadBytes(fileRef, file, {
+  await uploadWithProgress(fileRef, file, {
     contentType: file.type,
     customMetadata: { ownerId: profile.uid, category: "profile" }
   });
   const downloadUrl = await getDownloadURL(fileRef);
-  await updateDoc(doc(db, profileCollection, profile.uid), {
-    photoPath: path,
-    photoUrl: downloadUrl,
-    updatedAt: serverTimestamp()
-  });
-  if (profile.photoPath) await deleteObject(ref(storage, profile.photoPath)).catch(() => {});
+  try {
+    await updateDoc(doc(db, profileCollection, profile.uid), {
+      photoPath: path,
+      photoUrl: downloadUrl,
+      updatedAt: serverTimestamp()
+    });
+  } catch (error) {
+    await removeStorageObject(path).catch((cleanupError) => {
+      console.error("Profile photo rollback failed", cleanupError);
+    });
+    throw error;
+  }
+  if (profile.photoPath) {
+    await removeStorageObject(profile.photoPath).catch((error) => {
+      console.warn("Previous profile photo cleanup failed", error);
+    });
+  }
   return getProfile(profile.uid);
 }
 
@@ -218,37 +261,63 @@ export async function listStudentDocuments(profile, category) {
 }
 
 export async function uploadStudentDocument(profile, category, title, file) {
-  const path = `documents/${profile.uid}/${category}/${nowId()}-${safeSegment(file.name)}`;
+  const id = documentId(profile.uid, category, title);
+  const safeName = `${nowId()}-${safeSegment(file.name)}`;
+  const path = `users/${profile.uid}/documents/${id}/${safeName}`;
   const fileRef = ref(storage, path);
-  await uploadBytes(fileRef, file, {
+  await uploadWithProgress(fileRef, file, {
     contentType: file.type,
     customMetadata: {
       ownerId: profile.uid,
       category,
+      documentId: id,
       departmentKey: profile.departmentKey,
       year: profile.year
     }
   });
   const downloadUrl = await getDownloadURL(fileRef);
-  const docRef = doc(db, documentsCollection, documentId(profile.uid, category, title));
+  const docRef = doc(db, documentsCollection, id);
   const existing = await getDoc(docRef);
-  if (existing.exists() && existing.data().storagePath) {
-    await deleteObject(ref(storage, existing.data().storagePath)).catch(() => {});
+  try {
+    await setDoc(docRef, {
+      id,
+      ownerId: profile.uid,
+      userId: profile.uid,
+      uploadedUserId: profile.uid,
+      uploadedUserEmail: profile.email || "",
+      ownerName: profile.name,
+      ownerRegNo: profile.regNo || "",
+      department: profile.department,
+      departmentKey: profile.departmentKey,
+      year: profile.year,
+      category,
+      title,
+      originalName: file.name,
+      fileName: safeName,
+      storagePath: path,
+      downloadURL: downloadUrl,
+      downloadUrl,
+      fileType: file.name.includes(".") ? file.name.split(".").pop().toLowerCase() : "",
+      mimeType: file.type || "application/octet-stream",
+      size: file.size,
+      description: "",
+      accessLevel: category === "academic" ? "teacher-visible" : "private",
+      status: "active",
+      uploadedAt: serverTimestamp(),
+      createdAt: existing.exists() ? existing.data().createdAt : serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+  } catch (error) {
+    await removeStorageObject(path).catch((cleanupError) => {
+      console.error("Document upload rollback failed", cleanupError);
+    });
+    throw error;
   }
-  await setDoc(docRef, {
-    ownerId: profile.uid,
-    ownerName: profile.name,
-    ownerRegNo: profile.regNo || "",
-    department: profile.department,
-    departmentKey: profile.departmentKey,
-    year: profile.year,
-    category,
-    title,
-    fileName: file.name,
-    storagePath: path,
-    downloadUrl,
-    uploadedAt: serverTimestamp()
-  });
+  if (existing.exists() && existing.data().storagePath) {
+    await removeStorageObject(existing.data().storagePath).catch((error) => {
+      console.warn("Previous document cleanup failed", error);
+    });
+  }
 }
 
 export async function deleteStudentDocument(profile, documentIdValue) {
@@ -257,8 +326,8 @@ export async function deleteStudentDocument(profile, documentIdValue) {
   if (!snapshot.exists()) throw new Error("Document not found.");
   const data = snapshot.data();
   if (data.ownerId !== profile.uid) throw new Error("You can delete only your own documents.");
+  await removeStorageObject(data.storagePath);
   await deleteDoc(docRef);
-  if (data.storagePath) await deleteObject(ref(storage, data.storagePath)).catch(() => {});
 }
 
 export async function listAcademicTitles(profile) {
@@ -278,7 +347,8 @@ export async function addAcademicTitle(profile, title) {
     departmentKey: profile.departmentKey,
     year: profile.year,
     createdBy: profile.uid,
-    createdAt: serverTimestamp()
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
   });
 }
 
@@ -331,8 +401,8 @@ export async function deleteTeacherAcademicDocument(profile, documentIdValue) {
   if (data.category !== "academic" || data.departmentKey !== profile.departmentKey || data.year !== profile.year) {
     throw new Error("You can delete only matching academic documents.");
   }
+  await removeStorageObject(data.storagePath);
   await deleteDoc(docRef);
-  if (data.storagePath) await deleteObject(ref(storage, data.storagePath)).catch(() => {});
 }
 
 export async function teacherStatus(profile) {
