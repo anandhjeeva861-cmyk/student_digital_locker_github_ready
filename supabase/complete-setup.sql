@@ -1,5 +1,6 @@
 -- Student Digital Locker Supabase complete setup
--- Run this file once in Supabase Dashboard > SQL Editor.
+-- Run this file in Supabase Dashboard > SQL Editor.
+-- Safe to rerun after edits; policies are dropped/recreated.
 
 begin;
 
@@ -52,6 +53,11 @@ create index if not exists profiles_role_scope_idx on public.profiles (role, dep
 create index if not exists documents_owner_category_idx on public.documents (owner_id, category);
 create index if not exists documents_scope_category_idx on public.documents (department_key, year, category);
 create index if not exists academic_titles_scope_idx on public.academic_titles (department_key, year);
+
+grant usage on schema public to anon, authenticated;
+grant select, insert on public.profiles to authenticated;
+grant select, insert, delete on public.documents to authenticated;
+grant select, insert on public.academic_titles to authenticated;
 
 create or replace function public.profile_value_exists(check_column text, check_value text)
 returns boolean

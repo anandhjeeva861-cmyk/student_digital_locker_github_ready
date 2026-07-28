@@ -48,6 +48,11 @@ create index if not exists documents_owner_category_idx on public.documents (own
 create index if not exists documents_scope_category_idx on public.documents (department_key, year, category);
 create index if not exists academic_titles_scope_idx on public.academic_titles (department_key, year);
 
+grant usage on schema public to anon, authenticated;
+grant select, insert on public.profiles to authenticated;
+grant select, insert, delete on public.documents to authenticated;
+grant select, insert on public.academic_titles to authenticated;
+
 create or replace function public.profile_value_exists(check_column text, check_value text)
 returns boolean
 language plpgsql
