@@ -57,14 +57,22 @@ async function registerProfile(profile, password) {
 
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email: profile.email,
-    password
+    password,
+    options: {
+      data: profileColumns(profile)
+    }
   });
   if (authError) throw authError;
   if (!authData.user) throw new Error("Account was not created. Please try again.");
 
   const row = profileColumns({ ...profile, id: authData.user.id });
   const { error: profileError } = await supabase.from("profiles").insert(row);
-  if (profileError) throw profileError;
+  if (profileError && profileError.code !== "23505") {
+    if (/row-level security|violates row level security/i.test(profileError.message)) {
+      return;
+    }
+    throw profileError;
+  }
 }
 
 async function registerStudent(form) {

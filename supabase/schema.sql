@@ -74,3 +74,54 @@ end;
 $$;
 
 grant execute on function public.profile_value_exists(text, text) to anon, authenticated;
+
+create or replace function public.handle_new_user_profile()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  user_role text;
+begin
+  user_role := new.raw_user_meta_data->>'role';
+
+  if user_role not in ('student', 'teacher') then
+    return new;
+  end if;
+
+  insert into public.profiles (
+    id,
+    role,
+    name,
+    email,
+    mobile,
+    department,
+    department_key,
+    year,
+    reg_no,
+    photo_url
+  )
+  values (
+    new.id,
+    user_role,
+    coalesce(nullif(new.raw_user_meta_data->>'name', ''), 'USER'),
+    lower(coalesce(new.email, new.raw_user_meta_data->>'email')),
+    coalesce(nullif(new.raw_user_meta_data->>'mobile', ''), new.id::text),
+    coalesce(nullif(new.raw_user_meta_data->>'department', ''), 'UNKNOWN'),
+    coalesce(nullif(new.raw_user_meta_data->>'department_key', ''), 'UNKNOWN'),
+    coalesce(nullif(new.raw_user_meta_data->>'year', ''), 'UNKNOWN'),
+    nullif(new.raw_user_meta_data->>'reg_no', ''),
+    coalesce(new.raw_user_meta_data->>'photo_url', '')
+  )
+  on conflict (id) do nothing;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created_create_profile on auth.users;
+
+create trigger on_auth_user_created_create_profile
+after insert on auth.users
+for each row execute function public.handle_new_user_profile();

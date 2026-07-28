@@ -81,7 +81,10 @@ async function renderStudents(filter = "") {
   const empty = document.getElementById("studentEmpty");
   if (!body) return;
   const needle = filter.trim().toUpperCase();
-  const students = (await matchingStudents()).filter((item) => !needle || item.name.includes(needle) || item.reg_no.includes(needle));
+  const students = (await matchingStudents()).filter((item) => {
+    const regNo = item.reg_no || "";
+    return !needle || item.name.includes(needle) || regNo.includes(needle);
+  });
   body.innerHTML = "";
   for (const student of students) {
     const docs = await academicDocs(student.id);
