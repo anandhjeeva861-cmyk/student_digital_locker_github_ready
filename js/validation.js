@@ -47,6 +47,16 @@ export function validatePhotoFile(file) {
   return validateFile(file, ["png", "jpg", "jpeg", "webp"], 4);
 }
 
+export function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;"
+  }[char]));
+}
+
 function validateFile(file, extensions, maxMb) {
   if (!file) return { ok: false, message: "Choose a file." };
   const ext = file.name.split(".").pop().toLowerCase();

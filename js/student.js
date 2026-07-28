@@ -9,13 +9,13 @@ import {
 } from "./firebase-service.js";
 import {
   DEFAULT_ACADEMIC_TITLES,
+  escapeHtml,
   normalizeTitle,
   showMessage,
   validateDocumentFile,
   validatePhotoFile
 } from "./validation.js";
 
-let user = null;
 let profile = null;
 let documentCache = { online: [], personal: [], academic: [] };
 
@@ -80,13 +80,13 @@ function documentRow(item) {
   const url = item.file_url;
   return `
     <tr>
-      <td><b>${item.title}</b></td>
-      <td>${item.file_name}</td>
-      <td>${dateText(item.uploaded_at)}</td>
+      <td><b>${escapeHtml(item.title)}</b></td>
+      <td>${escapeHtml(item.file_name)}</td>
+      <td>${escapeHtml(dateText(item.uploaded_at))}</td>
       <td class="action-cell">
-        <a class="small-btn" href="${url}" target="_blank" rel="noopener">VIEW</a>
-        <a class="small-btn" href="${url}" download="${item.file_name}">DOWNLOAD</a>
-        <button class="small-btn danger" data-delete-doc="${item.id}" data-category="${item.category}">REMOVE</button>
+        <a class="small-btn" href="${escapeHtml(url)}" target="_blank" rel="noopener">VIEW</a>
+        <a class="small-btn" href="${escapeHtml(url)}" download="${escapeHtml(item.file_name)}">DOWNLOAD</a>
+        <button class="small-btn danger" data-delete-doc="${escapeHtml(item.id)}" data-category="${escapeHtml(item.category)}">REMOVE</button>
       </td>
     </tr>`;
 }
@@ -117,7 +117,7 @@ async function refreshAcademicTitles() {
     });
   }
   if (list) {
-    list.innerHTML = titles.map((item) => `<span class="pill">${item.title}</span>`).join("");
+    list.innerHTML = titles.map((item) => `<span class="pill">${escapeHtml(item.title)}</span>`).join("");
   }
 }
 
@@ -146,8 +146,7 @@ async function uploadPhoto(form) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  protectPage("student", async (currentUser, currentProfile) => {
-    user = currentUser;
+  protectPage("student", async (_currentUser, currentProfile) => {
     profile = currentProfile;
     fillProfile();
     for (const category of ["online", "personal", "academic"]) await refreshDocuments(category);

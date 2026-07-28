@@ -9,9 +9,8 @@ import {
   listTeacherStudents,
   teacherStatus
 } from "./firebase-service.js";
-import { normalizeTitle, showMessage } from "./validation.js";
+import { DEFAULT_ACADEMIC_TITLES, escapeHtml, normalizeTitle, showMessage } from "./validation.js";
 
-let user = null;
 let teacher = null;
 let selectedStudentUid = null;
 
@@ -54,10 +53,17 @@ async function academicDocs(studentUid = null) {
 async function renderDashboard() {
   const students = await matchingStudents();
   const docs = await academicDocs();
-  const titles = await listAcademicTitles(teacher);
+  const titles = await allAcademicTitles();
   text("studentCount", String(students.length));
   text("academicCount", String(docs.length));
   text("titleCount", String(titles.length));
+}
+
+async function allAcademicTitles() {
+  return [
+    ...DEFAULT_ACADEMIC_TITLES.map((title) => ({ title })),
+    ...(await listAcademicTitles(teacher))
+  ].filter((item, index, rows) => rows.findIndex((row) => row.title === item.title) === index);
 }
 
 async function renderStudents(filter = "") {
@@ -69,12 +75,12 @@ async function renderStudents(filter = "") {
   for (const student of students) {
     body.insertAdjacentHTML("beforeend", `
       <tr>
-        <td><b>${student.name}</b></td>
-        <td>${student.reg_no || ""}</td>
-        <td>${student.department}</td>
-        <td>${student.year}</td>
+        <td><b>${escapeHtml(student.name)}</b></td>
+        <td>${escapeHtml(student.reg_no || "")}</td>
+        <td>${escapeHtml(student.department)}</td>
+        <td>${escapeHtml(student.year)}</td>
         <td>${student.academic_count || 0}</td>
-        <td><button class="small-btn" data-student-id="${student.id}">VIEW DATA</button></td>
+        <td><button class="small-btn" data-student-id="${escapeHtml(student.id)}">VIEW DATA</button></td>
       </tr>`);
   }
   if (empty) empty.hidden = students.length > 0;
@@ -96,13 +102,13 @@ async function renderStudentDetail(studentUid) {
     const url = item.file_url;
     return `
     <tr>
-      <td><b>${item.title}</b></td>
-      <td>${item.file_name}</td>
-      <td>${dateText(item.uploaded_at)}</td>
+      <td><b>${escapeHtml(item.title)}</b></td>
+      <td>${escapeHtml(item.file_name)}</td>
+      <td>${escapeHtml(dateText(item.uploaded_at))}</td>
       <td class="action-cell">
-        <a class="small-btn" href="${url}" target="_blank" rel="noopener">VIEW</a>
-        <a class="small-btn" href="${url}" download="${item.file_name}">DOWNLOAD</a>
-        <button class="small-btn danger" data-delete-doc="${item.id}">REMOVE</button>
+        <a class="small-btn" href="${escapeHtml(url)}" target="_blank" rel="noopener">VIEW</a>
+        <a class="small-btn" href="${escapeHtml(url)}" download="${escapeHtml(item.file_name)}">DOWNLOAD</a>
+        <button class="small-btn danger" data-delete-doc="${escapeHtml(item.id)}">REMOVE</button>
       </td>
     </tr>`;
   }).join("");
@@ -115,7 +121,7 @@ async function renderTitles() {
   const custom = await listAcademicTitles(teacher);
   wrap.innerHTML = !custom.length
     ? '<div class="empty-state">No custom titles added yet.</div>'
-    : custom.map((item) => `<span class="pill">${item.title}</span>`).join("");
+    : custom.map((item) => `<span class="pill">${escapeHtml(item.title)}</span>`).join("");
 }
 
 async function renderStatus() {
@@ -126,7 +132,7 @@ async function renderStatus() {
   for (const row of status) {
     grid.insertAdjacentHTML("beforeend", `
       <div class="status-card">
-        <h2>${row.title}</h2>
+        <h2>${escapeHtml(row.title)}</h2>
         <div class="status-columns">
           <div><h3>Uploaded</h3>${nameList(row.uploaded, "good-list", "No uploads")}</div>
           <div><h3>Not Uploaded</h3>${nameList(row.pending, "warn-list", "All submitted")}</div>
@@ -137,12 +143,11 @@ async function renderStatus() {
 
 function nameList(students, className, emptyText) {
   if (!students.length) return `<p class="muted">${emptyText}</p>`;
-  return `<ul class="name-list ${className}">${students.map((item) => `<li>${item.name} <small>${item.reg_no || ""}</small></li>`).join("")}</ul>`;
+  return `<ul class="name-list ${className}">${students.map((item) => `<li>${escapeHtml(item.name)} <small>${escapeHtml(item.reg_no || "")}</small></li>`).join("")}</ul>`;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  protectPage("teacher", async (currentUser, currentProfile) => {
-    user = currentUser;
+  protectPage("teacher", async (_currentUser, currentProfile) => {
     teacher = currentProfile;
     fillProfile();
     await renderDashboard();

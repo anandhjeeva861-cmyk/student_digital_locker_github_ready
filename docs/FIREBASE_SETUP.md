@@ -49,7 +49,8 @@ The GitHub Actions workflow generates `js/firebase-config.js` during deployment.
 3. Create Firebase Storage.
 4. Publish `firebase/firestore.rules` in Firestore Rules.
 5. Publish `firebase/storage.rules` in Storage Rules.
-6. Add authorized domain for GitHub Pages:
+6. Import or create indexes from `firebase/firestore.indexes.json`.
+7. Add authorized domain for GitHub Pages:
 
 ```text
 anandhjeeva861-cmyk.github.io

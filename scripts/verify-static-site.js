@@ -3,6 +3,7 @@ const path = require("path");
 
 const requiredFiles = [
   "index.html",
+  ".nojekyll",
   "css/style.css",
   "images/sankara-logo.png",
   "js/firebase.js",
@@ -39,7 +40,7 @@ const htmlFiles = [
   "teacher-dashboard.html"
 ];
 
-const jsFiles = ["js/firebase.js", "js/firebase-service.js", "js/auth.js", "js/student.js", "js/teacher.js"];
+const jsFiles = ["js/firebase.js", "js/firebase-service.js", "js/auth.js", "js/student.js", "js/teacher.js", "js/validation.js"];
 const failures = [];
 
 for (const file of htmlFiles) {
