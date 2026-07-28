@@ -5,16 +5,14 @@ const requiredFiles = [
   "index.html",
   "css/style.css",
   "images/sankara-logo.png",
-  "js/api.js",
+  "js/firebase.js",
+  "js/firebase-service.js",
+  "js/firebase-config.example.js",
   "js/auth.js",
   "js/student.js",
   "js/teacher.js",
-  "server/server.js",
-  "server/db.js",
-  "server/routes/auth.js",
-  "server/routes/student.js",
-  "server/routes/teacher.js",
-  "server/routes/files.js",
+  "firebase/firestore.rules",
+  "firebase/storage.rules",
   "student-login.html",
   "student-register.html",
   "teacher-login.html",
@@ -41,7 +39,7 @@ const htmlFiles = [
   "teacher-dashboard.html"
 ];
 
-const jsFiles = ["js/api.js", "js/auth.js", "js/student.js", "js/teacher.js"];
+const jsFiles = ["js/firebase.js", "js/firebase-service.js", "js/auth.js", "js/student.js", "js/teacher.js"];
 const failures = [];
 
 for (const file of htmlFiles) {
@@ -59,9 +57,19 @@ for (const file of htmlFiles) {
 
 for (const file of [...jsFiles, ".github/workflows/pages.yml"]) {
   const content = fs.readFileSync(path.join(process.cwd(), file), "utf8");
-  if (/supabase|firebase|firestore|service_role/i.test(content)) {
-    failures.push(`${file} still contains removed-provider references.`);
+  if (/supabase|service_role|private_key|serviceAccount/i.test(content)) {
+    failures.push(`${file} contains unsafe or removed-provider references.`);
   }
+}
+
+const gitignore = fs.readFileSync(path.join(process.cwd(), ".gitignore"), "utf8");
+if (!/js\/firebase-config\.js/.test(gitignore)) {
+  failures.push(".gitignore must ignore generated js/firebase-config.js.");
+}
+
+const example = fs.readFileSync(path.join(process.cwd(), ".env.example"), "utf8");
+if (/AIza|student-digi-locker-2-3293a|G-3Y5T34K732/.test(example)) {
+  failures.push(".env.example must contain placeholders only.");
 }
 
 if (failures.length) {

@@ -6,6 +6,9 @@
 .env.*
 !.env.example
 
+# Generated Firebase browser config
+js/firebase-config.js
+
 # Dependencies
 node_modules/
 venv/

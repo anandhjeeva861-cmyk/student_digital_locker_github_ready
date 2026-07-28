@@ -12,6 +12,7 @@ The repository was originally Flask-based and nested under `student_digital_lock
 - Replaced Flask paths with relative paths like `./css/style.css` and `./js/auth.js`.
 - Added `.nojekyll`.
 - Added root `.gitignore`.
+- Added deploy-time Firebase browser config generation.
 
 ## GitHub Pages Settings
 
@@ -34,6 +35,7 @@ https://anandhjeeva861-cmyk.github.io/student_digital_locker_github_ready/
 - Confirm `index.html` exists at repository root.
 - Confirm Pages is set to `main / root`.
 - Confirm the URL includes the repository name.
+- Confirm Firebase repository secrets exist.
 - Avoid opening `/student_digital_locker/` because the deployed static site is at root.
 
 ## Common Causes Fixed

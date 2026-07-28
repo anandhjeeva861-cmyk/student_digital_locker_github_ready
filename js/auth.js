@@ -1,4 +1,11 @@
-import { apiGet, apiPost, clearToken, setToken } from "./api.js";
+import {
+  firebaseErrorMessage,
+  getCurrentProfile,
+  loginWithEmail,
+  logout,
+  registerStudent as firebaseRegisterStudent,
+  registerTeacher as firebaseRegisterTeacher
+} from "./firebase-service.js";
 import {
   departmentKey,
   isCapsName,
@@ -21,9 +28,7 @@ function value(form, name) {
 }
 
 function friendlyError(error) {
-  const message = String(error?.message || error || "");
-  if (/failed to fetch/i.test(message)) return "Backend API is not reachable. Start the backend with npm run dev:api.";
-  return message || "Something went wrong.";
+  return firebaseErrorMessage(error);
 }
 
 function studentPayload(form) {
@@ -62,49 +67,44 @@ function teacherPayload(form) {
 }
 
 async function registerStudent(form) {
-  const data = await apiPost("/auth/register/student", studentPayload(form));
-  setToken(data.token);
+  await firebaseRegisterStudent(studentPayload(form));
   location.href = pages.student;
 }
 
 async function registerTeacher(form) {
-  const data = await apiPost("/auth/register/teacher", teacherPayload(form));
-  setToken(data.token);
+  await firebaseRegisterTeacher(teacherPayload(form));
   location.href = pages.teacher;
 }
 
 async function login(form, role) {
-  const data = await apiPost("/auth/login", {
-    email: value(form, "email").trim().toLowerCase(),
-    password: value(form, "password")
-  });
+  const profile = await loginWithEmail(
+    value(form, "email").trim().toLowerCase(),
+    value(form, "password")
+  );
 
-  if (data.profile.role !== role) {
-    clearToken();
+  if (profile.role !== role) {
+    await logout();
     throw new Error(`This is not a ${role} account.`);
   }
-
-  setToken(data.token);
   location.href = pages[role];
 }
 
 export async function fetchProfile() {
-  const data = await apiGet("/auth/me");
-  return data.profile;
+  return getCurrentProfile();
 }
 
 export async function protectPage(role, callback) {
   try {
     const profile = await fetchProfile();
     if (!profile || profile.role !== role) {
-      clearToken();
+      await logout().catch(() => {});
       location.href = pages.login;
       return;
     }
-    await Promise.resolve(callback?.({ id: profile.id }, profile));
+    await Promise.resolve(callback?.({ id: profile.uid }, profile));
   } catch (error) {
     console.error("Protected page failed", error);
-    clearToken();
+    await logout().catch(() => {});
     showMessage(friendlyError(error), "danger");
     window.setTimeout(() => {
       location.href = pages.login;
@@ -138,9 +138,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.querySelectorAll("[data-logout]").forEach((button) => {
-    button.addEventListener("click", (event) => {
+    button.addEventListener("click", async (event) => {
       event.preventDefault();
-      clearToken();
+      await logout().catch((error) => console.error("Logout failed", error));
       location.href = pages.login;
     });
   });

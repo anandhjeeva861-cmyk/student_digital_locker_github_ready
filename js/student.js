@@ -1,5 +1,12 @@
-import { apiDelete, apiGet, apiUpload, fileUrl } from "./api.js";
 import { protectPage } from "./auth.js";
+import {
+  deleteStudentDocument,
+  firebaseErrorMessage,
+  listAcademicTitles,
+  listStudentDocuments,
+  uploadProfilePhoto,
+  uploadStudentDocument
+} from "./firebase-service.js";
 import {
   DEFAULT_ACADEMIC_TITLES,
   normalizeTitle,
@@ -40,15 +47,14 @@ function fillProfile() {
   if (avatar) avatar.textContent = profile.name?.slice(0, 1) || "S";
   const photo = document.getElementById("studentPhoto");
   if (photo && profile.photo_url) {
-    photo.src = fileUrl(profile.photo_url);
+    photo.src = profile.photo_url;
     photo.hidden = false;
     if (avatar) avatar.hidden = true;
   }
 }
 
 async function loadDocuments(category) {
-  const data = await apiGet(`/student/documents?category=${encodeURIComponent(category)}`);
-  documentCache[category] = data.documents || [];
+  documentCache[category] = await listStudentDocuments(profile, category);
   return documentCache[category];
 }
 
@@ -71,7 +77,7 @@ async function refreshDocuments(category) {
 }
 
 function documentRow(item) {
-  const url = fileUrl(item.file_url);
+  const url = item.file_url;
   return `
     <tr>
       <td><b>${item.title}</b></td>
@@ -86,10 +92,9 @@ function documentRow(item) {
 }
 
 async function getAcademicTitles() {
-  const data = await apiGet("/student/academic-titles");
   return [
     ...DEFAULT_ACADEMIC_TITLES.map((title) => ({ title })),
-    ...(data.titles || [])
+    ...(await listAcademicTitles(profile))
   ].filter((item, index, rows) => rows.findIndex((row) => row.title === item.title) === index)
     .sort((a, b) => a.title.localeCompare(b.title));
 }
@@ -124,10 +129,7 @@ async function uploadDocument(form, category) {
   const title = normalizeTitle(form.elements.title.value);
   if (!title) throw new Error("Enter or select a document title.");
 
-  const formData = new FormData();
-  formData.append("title", title);
-  formData.append("document", file);
-  await apiUpload(`/student/documents/${category}`, formData);
+  await uploadStudentDocument(profile, category, title, file);
 
   form.reset();
   await refreshDocuments(category);
@@ -138,10 +140,7 @@ async function uploadPhoto(form) {
   const result = validatePhotoFile(file);
   if (!result.ok) throw new Error(result.message);
 
-  const formData = new FormData();
-  formData.append("photo", file);
-  const data = await apiUpload("/student/profile/photo", formData);
-  profile = data.profile;
+  profile = await uploadProfilePhoto(profile, file);
   fillProfile();
   form.reset();
 }
@@ -169,7 +168,8 @@ document.addEventListener("DOMContentLoaded", () => {
         await uploadDocument(form, form.dataset.uploadCategory);
         showMessage("Document uploaded successfully.", "success");
       } catch (error) {
-        showMessage(error.message, "danger");
+        console.error("Student document upload failed", error);
+        showMessage(firebaseErrorMessage(error), "danger");
       }
     });
   });
@@ -180,7 +180,8 @@ document.addEventListener("DOMContentLoaded", () => {
       await uploadPhoto(event.currentTarget);
       showMessage("Profile photo updated.", "success");
     } catch (error) {
-      showMessage(error.message, "danger");
+      console.error("Student profile photo upload failed", error);
+      showMessage(firebaseErrorMessage(error), "danger");
     }
   });
 
@@ -188,11 +189,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const button = event.target.closest("[data-delete-doc]");
     if (!button || !confirm("Remove this document?")) return;
     try {
-      await apiDelete(`/student/documents/${button.dataset.deleteDoc}`);
+      await deleteStudentDocument(profile, button.dataset.deleteDoc);
       await refreshDocuments(button.dataset.category);
       showMessage("Document removed.", "success");
     } catch (error) {
-      showMessage(error.message, "danger");
+      console.error("Student document delete failed", error);
+      showMessage(firebaseErrorMessage(error), "danger");
     }
   });
 });

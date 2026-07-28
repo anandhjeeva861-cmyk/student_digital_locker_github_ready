@@ -3,16 +3,16 @@
 Before pushing, verify the static site:
 
 ```bash
+npm run config:firebase
 npm run build
-npm run check:api
 ```
 
 Then commit and push:
 
 ```bash
 git add .
-git commit -m "Generate Node backend for Student Digital Locker"
+git commit -m "Integrate Firebase for Student Digital Locker"
 git push
 ```
 
-Keep `.env`, `server/data/`, and `server/uploads/` out of commits.
+Keep `.env`, `.env.local`, `.env.production`, `js/firebase-config.js`, Admin SDK files, and service account JSON files out of commits.

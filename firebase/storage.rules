@@ -1,0 +1,36 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function currentProfile() {
+      return firestore.get(/databases/(default)/documents/profiles/$(request.auth.uid)).data;
+    }
+
+    function isTeacherForResource() {
+      return signedIn()
+        && currentProfile().role == "teacher"
+        && resource.metadata.category == "academic"
+        && resource.metadata.departmentKey == currentProfile().departmentKey
+        && resource.metadata.year == currentProfile().year;
+    }
+
+    match /profiles/{uid}/{fileName} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /documents/{uid}/{category}/{fileName} {
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && currentProfile().role == "student"
+        && request.resource.size < 16 * 1024 * 1024
+        && request.resource.metadata.ownerId == request.auth.uid
+        && request.resource.metadata.category == category;
+      allow read, delete: if signedIn()
+        && (request.auth.uid == uid || isTeacherForResource());
+    }
+  }
+}

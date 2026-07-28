@@ -1,5 +1,14 @@
-import { apiDelete, apiGet, apiPost, fileUrl } from "./api.js";
 import { protectPage } from "./auth.js";
+import {
+  addAcademicTitle,
+  deleteTeacherAcademicDocument,
+  firebaseErrorMessage,
+  getTeacherStudentDetail,
+  listAcademicTitles,
+  listTeacherAcademicDocuments,
+  listTeacherStudents,
+  teacherStatus
+} from "./firebase-service.js";
 import { normalizeTitle, showMessage } from "./validation.js";
 
 let user = null;
@@ -32,27 +41,23 @@ function fillProfile() {
 }
 
 async function matchingStudents(filter = "") {
-  const query = filter ? `?q=${encodeURIComponent(filter)}` : "";
-  const data = await apiGet(`/teacher/students${query}`);
-  return data.students || [];
+  return listTeacherStudents(teacher, filter);
 }
 
 async function academicDocs(studentUid = null) {
   if (studentUid) {
-    const data = await apiGet(`/teacher/students/${studentUid}`);
-    return data.documents || [];
+    return (await getTeacherStudentDetail(teacher, studentUid)).documents || [];
   }
-  const data = await apiGet("/teacher/academic-documents");
-  return data.documents || [];
+  return listTeacherAcademicDocuments(teacher);
 }
 
 async function renderDashboard() {
   const students = await matchingStudents();
   const docs = await academicDocs();
-  const titles = await apiGet("/teacher/academic-titles");
+  const titles = await listAcademicTitles(teacher);
   text("studentCount", String(students.length));
   text("academicCount", String(docs.length));
-  text("titleCount", String((titles.titles || []).length));
+  text("titleCount", String(titles.length));
 }
 
 async function renderStudents(filter = "") {
@@ -77,7 +82,7 @@ async function renderStudents(filter = "") {
 
 async function renderStudentDetail(studentUid) {
   selectedStudentUid = studentUid;
-  const data = await apiGet(`/teacher/students/${studentUid}`);
+  const data = await getTeacherStudentDetail(teacher, studentUid);
   const student = data.student;
   text("detailName", student.name);
   text("detailRegNo", student.reg_no);
@@ -88,7 +93,7 @@ async function renderStudentDetail(studentUid) {
   const body = document.getElementById("academicRows");
   const docs = data.documents || [];
   body.innerHTML = docs.map((item) => {
-    const url = fileUrl(item.file_url);
+    const url = item.file_url;
     return `
     <tr>
       <td><b>${item.title}</b></td>
@@ -107,8 +112,7 @@ async function renderStudentDetail(studentUid) {
 async function renderTitles() {
   const wrap = document.getElementById("customTitles");
   if (!wrap) return;
-  const data = await apiGet("/teacher/academic-titles");
-  const custom = data.customTitles || [];
+  const custom = await listAcademicTitles(teacher);
   wrap.innerHTML = !custom.length
     ? '<div class="empty-state">No custom titles added yet.</div>'
     : custom.map((item) => `<span class="pill">${item.title}</span>`).join("");
@@ -117,9 +121,9 @@ async function renderTitles() {
 async function renderStatus() {
   const grid = document.getElementById("statusGrid");
   if (!grid) return;
-  const data = await apiGet("/teacher/status");
+  const status = await teacherStatus(teacher);
   grid.innerHTML = "";
-  for (const row of data.status || []) {
+  for (const row of status) {
     grid.insertAdjacentHTML("beforeend", `
       <div class="status-card">
         <h2>${row.title}</h2>
@@ -168,29 +172,38 @@ document.addEventListener("DOMContentLoaded", () => {
     const title = normalizeTitle(event.currentTarget.elements.title.value);
     if (!title) return showMessage("Enter document title.", "danger");
     try {
-      await apiPost("/teacher/academic-titles", { title });
+      await addAcademicTitle(teacher, title);
       event.currentTarget.reset();
       await renderTitles();
       await renderDashboard();
       showMessage("Academic title added.", "success");
     } catch (error) {
-      showMessage(error.message, "danger");
+      console.error("Teacher add title failed", error);
+      showMessage(firebaseErrorMessage(error), "danger");
     }
   });
 
   document.addEventListener("click", async (event) => {
     const studentButton = event.target.closest("[data-student-id]");
-    if (studentButton) await renderStudentDetail(studentButton.dataset.studentId);
+    if (studentButton) {
+      try {
+        await renderStudentDetail(studentButton.dataset.studentId);
+      } catch (error) {
+        console.error("Teacher student detail failed", error);
+        showMessage(firebaseErrorMessage(error), "danger");
+      }
+    }
 
     const deleteButton = event.target.closest("[data-delete-doc]");
     if (deleteButton && confirm("Remove this academic document?")) {
       try {
-        await apiDelete(`/teacher/academic-documents/${deleteButton.dataset.deleteDoc}`);
+        await deleteTeacherAcademicDocument(teacher, deleteButton.dataset.deleteDoc);
         if (selectedStudentUid) await renderStudentDetail(selectedStudentUid);
         await renderDashboard();
         showMessage("Academic document removed.", "success");
       } catch (error) {
-        showMessage(error.message, "danger");
+        console.error("Teacher academic document delete failed", error);
+        showMessage(firebaseErrorMessage(error), "danger");
       }
     }
   });

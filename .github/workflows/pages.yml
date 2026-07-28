@@ -28,6 +28,37 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
+      - name: Validate Firebase secrets
+        shell: bash
+        env:
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          FIREBASE_MEASUREMENT_ID: ${{ secrets.FIREBASE_MEASUREMENT_ID }}
+        run: |
+          test -n "$FIREBASE_API_KEY"
+          test -n "$FIREBASE_AUTH_DOMAIN"
+          test -n "$FIREBASE_PROJECT_ID"
+          test -n "$FIREBASE_STORAGE_BUCKET"
+          test -n "$FIREBASE_MESSAGING_SENDER_ID"
+          test -n "$FIREBASE_APP_ID"
+          test -n "$FIREBASE_MEASUREMENT_ID"
+
+      - name: Generate Firebase browser config
+        shell: bash
+        env:
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          FIREBASE_MEASUREMENT_ID: ${{ secrets.FIREBASE_MEASUREMENT_ID }}
+        run: node scripts/generate-firebase-config.js
+
       - name: Verify static frontend
         shell: bash
         run: |
@@ -35,7 +66,9 @@ jobs:
           test -f .nojekyll
           test -f css/style.css
           test -f images/sankara-logo.png
-          test -f js/api.js
+          test -f js/firebase.js
+          test -f js/firebase-service.js
+          test -f js/firebase-config.js
           test -f js/auth.js
           test -f js/student.js
           test -f js/teacher.js

@@ -1,0 +1,81 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function currentProfile() {
+      return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data;
+    }
+
+    function isTeacherFor(data) {
+      return signedIn()
+        && currentProfile().role == "teacher"
+        && currentProfile().departmentKey == data.departmentKey
+        && currentProfile().year == data.year;
+    }
+
+    function isSameScope(data) {
+      return signedIn()
+        && currentProfile().departmentKey == data.departmentKey
+        && currentProfile().year == data.year;
+    }
+
+    match /profiles/{uid} {
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role in ["student", "teacher"];
+      allow read: if signedIn()
+        && (request.auth.uid == uid || isTeacherFor(resource.data));
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["photoPath", "photoUrl", "updatedAt"]);
+      allow delete: if false;
+    }
+
+    match /documents/{documentId} {
+      allow create, update: if signedIn()
+        && currentProfile().role == "student"
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.departmentKey == currentProfile().departmentKey
+        && request.resource.data.year == currentProfile().year;
+      allow read: if signedIn()
+        && (resource.data.ownerId == request.auth.uid
+          || (resource.data.category == "academic" && isTeacherFor(resource.data)));
+      allow delete: if signedIn()
+        && (resource.data.ownerId == request.auth.uid
+          || (resource.data.category == "academic" && isTeacherFor(resource.data)));
+    }
+
+    match /academicTitles/{titleId} {
+      allow read: if signedIn() && isSameScope(resource.data);
+      allow create, update: if signedIn()
+        && currentProfile().role == "teacher"
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.departmentKey == currentProfile().departmentKey
+        && request.resource.data.year == currentProfile().year;
+      allow delete: if signedIn()
+        && resource.data.createdBy == request.auth.uid;
+    }
+
+    match /uniqueMobileNumbers/{mobile} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && !exists(/databases/$(database)/documents/uniqueMobileNumbers/$(mobile))
+        && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /uniqueRegisterNumbers/{regNo} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && !exists(/databases/$(database)/documents/uniqueRegisterNumbers/$(regNo))
+        && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+  }
+}
