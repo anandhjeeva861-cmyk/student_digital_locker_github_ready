@@ -36,9 +36,9 @@ See `.env.example`. Local real values belong in ignored `.env.local` and `.env.p
 The workflow `.github/workflows/pages.yml` deploys the root static frontend and generates `js/firebase-config.js` during the build.
 It installs dependencies with `npm ci`, runs `npm run build`, prepares a clean `dist/` artifact, then deploys that artifact to GitHub Pages.
 
-`js/firebase-config.js` is also kept in the repository so branch/root GitHub Pages deployments can still load Firebase. The Firebase Web SDK config is public by Firebase design; do not place Admin SDK service accounts, private keys, passwords, or server credentials in frontend files.
+`js/firebase-config.js` is generated locally and during GitHub Actions, but it is ignored by Git so API keys are not committed. Use GitHub Actions Pages deployment; branch/root Pages mode will not have Firebase config unless the generated artifact is deployed.
 
-Local `.env.local` may override the committed browser config with either `FIREBASE_CONFIG_JSON` or the individual values:
+Local `.env.local` may supply the browser config with either `FIREBASE_CONFIG_JSON` or the individual values:
 
 ```text
 FIREBASE_API_KEY
@@ -49,6 +49,8 @@ FIREBASE_MESSAGING_SENDER_ID
 FIREBASE_APP_ID
 FIREBASE_MEASUREMENT_ID
 ```
+
+In GitHub, add the API key as an Actions repository variable named `FIREBASE_API_KEY`. Do not paste the API key into source files, docs, or workflow YAML.
 
 ## Firebase Setup
 

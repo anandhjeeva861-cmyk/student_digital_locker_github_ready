@@ -28,7 +28,7 @@ http://localhost:5173
 
 ## GitHub Pages Config
 
-No GitHub Repository Secret is required for the Firebase Web SDK browser config. The repository includes `js/firebase-config.js` so both GitHub Actions deployments and branch/root GitHub Pages deployments can load Firebase.
+GitHub Pages must use the GitHub Actions workflow in this repository. The workflow generates `js/firebase-config.js` during deployment and deploys it inside the clean `dist/` artifact. The generated config file is ignored by Git and must not be committed.
 
 Local `.env.local` can override the public config with individual values:
 
@@ -42,7 +42,7 @@ FIREBASE_APP_ID
 FIREBASE_MEASUREMENT_ID
 ```
 
-The GitHub Actions workflow regenerates `js/firebase-config.js` during deployment when environment values are supplied. Without environment values, the committed public browser config is used.
+The GitHub Actions workflow requires the API key from an Actions repository variable named `FIREBASE_API_KEY`. Without that variable, config generation fails instead of deploying a broken or placeholder config.
 
 ## Firebase Console
 
