@@ -28,7 +28,9 @@ http://localhost:5173
 
 ## GitHub Pages Config
 
-No GitHub Repository Secret is required for the Firebase Web SDK browser config. Local `.env.local` can override the public config with individual values:
+No GitHub Repository Secret is required for the Firebase Web SDK browser config. The repository includes `js/firebase-config.js` so both GitHub Actions deployments and branch/root GitHub Pages deployments can load Firebase.
+
+Local `.env.local` can override the public config with individual values:
 
 ```text
 FIREBASE_API_KEY
@@ -40,7 +42,7 @@ FIREBASE_APP_ID
 FIREBASE_MEASUREMENT_ID
 ```
 
-The GitHub Actions workflow generates `js/firebase-config.js` during deployment. That generated file is ignored locally.
+The GitHub Actions workflow regenerates `js/firebase-config.js` during deployment when environment values are supplied. Without environment values, the committed public browser config is used.
 
 ## Firebase Console
 
@@ -55,6 +57,36 @@ The GitHub Actions workflow generates `js/firebase-config.js` during deployment.
 ```text
 anandhjeeva861-cmyk.github.io
 ```
+
+Only add the host name, not the repository path. For a custom domain, add that host name too.
+
+## Allowed Academic Values
+
+Departments:
+
+```text
+BSC CS
+BSC AI&ML
+BSC IT
+CSDA
+BCOM
+BCOM CA
+BCOM PA
+CS&HM
+BCOM IT
+MBA
+BBA
+```
+
+Years:
+
+```text
+I
+II
+III
+```
+
+These values are shared from `js/options.js` in the frontend and enforced in `firebase/firestore.rules`.
 
 ## Firestore Collections
 

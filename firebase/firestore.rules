@@ -10,6 +10,61 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data;
     }
 
+    function allowedDepartment(value) {
+      return value in [
+        "BSC CS",
+        "BSC AI&ML",
+        "BSC IT",
+        "CSDA",
+        "BCOM",
+        "BCOM CA",
+        "BCOM PA",
+        "CS&HM",
+        "BCOM IT",
+        "MBA",
+        "BBA"
+      ];
+    }
+
+    function allowedYear(value) {
+      return value in ["I", "II", "III"];
+    }
+
+    function validDepartmentKey(data) {
+      return (data.department == "BSC CS" && data.departmentKey == "BSCCS")
+        || (data.department == "BSC AI&ML" && data.departmentKey == "BSCAIML")
+        || (data.department == "BSC IT" && data.departmentKey == "BSCIT")
+        || (data.department == "CSDA" && data.departmentKey == "CSDA")
+        || (data.department == "BCOM" && data.departmentKey == "BCOM")
+        || (data.department == "BCOM CA" && data.departmentKey == "BCOMCA")
+        || (data.department == "BCOM PA" && data.departmentKey == "BCOMPA")
+        || (data.department == "CS&HM" && data.departmentKey == "CSHM")
+        || (data.department == "BCOM IT" && data.departmentKey == "BCOMIT")
+        || (data.department == "MBA" && data.departmentKey == "MBA")
+        || (data.department == "BBA" && data.departmentKey == "BBA");
+    }
+
+    function validProfileCreate(uid) {
+      return request.resource.data.uid == uid
+        && request.resource.data.role in ["student", "teacher"]
+        && request.resource.data.name is string
+        && request.resource.data.name.matches("^[A-Z ]{2,60}$")
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.mobile is string
+        && request.resource.data.mobile.matches("^[6-9][0-9]{9}$")
+        && allowedDepartment(request.resource.data.department)
+        && allowedYear(request.resource.data.year)
+        && validDepartmentKey(request.resource.data)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && ((request.resource.data.role == "student"
+            && request.resource.data.keys().hasOnly(["uid", "role", "name", "regNo", "email", "year", "department", "departmentKey", "mobile", "createdAt", "updatedAt"])
+            && request.resource.data.regNo is string
+            && request.resource.data.regNo.matches("^[0-9]{2}[A-Z]{3}[0-9]{3}$"))
+          || (request.resource.data.role == "teacher"
+            && request.resource.data.keys().hasOnly(["uid", "role", "name", "email", "year", "department", "departmentKey", "mobile", "createdAt", "updatedAt"])));
+    }
+
     function isTeacherFor(data) {
       return signedIn()
         && currentProfile().role == "teacher"
@@ -26,7 +81,7 @@ service cloud.firestore {
     match /profiles/{uid} {
       allow create: if signedIn()
         && request.auth.uid == uid
-        && request.resource.data.role in ["student", "teacher"];
+        && validProfileCreate(uid);
       allow read: if signedIn()
         && (request.auth.uid == uid || isTeacherFor(resource.data));
       allow update: if signedIn()
@@ -42,8 +97,12 @@ service cloud.firestore {
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.uploadedUserId == request.auth.uid
+        && request.resource.data.department == currentProfile().department
         && request.resource.data.departmentKey == currentProfile().departmentKey
         && request.resource.data.year == currentProfile().year
+        && allowedDepartment(request.resource.data.department)
+        && allowedYear(request.resource.data.year)
+        && validDepartmentKey(request.resource.data)
         && request.resource.data.category in ["online", "personal", "academic"]
         && request.resource.data.status == "active"
         && request.resource.data.accessLevel in ["private", "teacher-visible"]
@@ -63,8 +122,12 @@ service cloud.firestore {
       allow create, update: if signedIn()
         && currentProfile().role == "teacher"
         && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.department == currentProfile().department
         && request.resource.data.departmentKey == currentProfile().departmentKey
-        && request.resource.data.year == currentProfile().year;
+        && request.resource.data.year == currentProfile().year
+        && allowedDepartment(request.resource.data.department)
+        && allowedYear(request.resource.data.year)
+        && validDepartmentKey(request.resource.data);
       allow delete: if signedIn()
         && resource.data.createdBy == request.auth.uid;
     }
@@ -74,7 +137,10 @@ service cloud.firestore {
       allow list: if false;
       allow create: if signedIn()
         && !exists(/databases/$(database)/documents/uniqueMobileNumbers/$(mobile))
-        && request.resource.data.uid == request.auth.uid;
+        && request.resource.data.keys().hasOnly(["uid", "role", "createdAt"])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.role in ["student", "teacher"]
+        && request.resource.data.createdAt == request.time;
       allow update, delete: if false;
     }
 
@@ -83,7 +149,10 @@ service cloud.firestore {
       allow list: if false;
       allow create: if signedIn()
         && !exists(/databases/$(database)/documents/uniqueRegisterNumbers/$(regNo))
-        && request.resource.data.uid == request.auth.uid;
+        && request.resource.data.keys().hasOnly(["uid", "createdAt"])
+        && request.resource.data.uid == request.auth.uid
+        && regNo.matches("^[0-9]{2}[A-Z]{3}[0-9]{3}$")
+        && request.resource.data.createdAt == request.time;
       allow update, delete: if false;
     }
   }

@@ -16,4 +16,4 @@ git commit -m "Integrate Firebase for Student Digital Locker"
 git push
 ```
 
-Keep `.env`, `.env.local`, `.env.production`, `js/firebase-config.js`, Admin SDK files, and service account JSON files out of commits.
+Keep `.env`, `.env.local`, `.env.production`, Admin SDK files, and service account JSON files out of commits. `js/firebase-config.js` contains only Firebase Web SDK browser config and must be present for branch/root GitHub Pages deployments.

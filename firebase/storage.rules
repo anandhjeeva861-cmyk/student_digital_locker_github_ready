@@ -10,6 +10,26 @@ service firebase.storage {
       return firestore.get(/databases/(default)/documents/profiles/$(request.auth.uid)).data;
     }
 
+    function allowedDepartmentKey(value) {
+      return value in [
+        "BSCCS",
+        "BSCAIML",
+        "BSCIT",
+        "CSDA",
+        "BCOM",
+        "BCOMCA",
+        "BCOMPA",
+        "CSHM",
+        "BCOMIT",
+        "MBA",
+        "BBA"
+      ];
+    }
+
+    function allowedYear(value) {
+      return value in ["I", "II", "III"];
+    }
+
     function isTeacherForResource() {
       return signedIn()
         && currentProfile().role == "teacher"
@@ -55,7 +75,11 @@ service firebase.storage {
         && allowedDocumentType()
         && request.resource.metadata.ownerId == request.auth.uid
         && request.resource.metadata.documentId == documentId
-        && request.resource.metadata.category in ["online", "personal", "academic"];
+        && request.resource.metadata.category in ["online", "personal", "academic"]
+        && request.resource.metadata.departmentKey == currentProfile().departmentKey
+        && request.resource.metadata.year == currentProfile().year
+        && allowedDepartmentKey(request.resource.metadata.departmentKey)
+        && allowedYear(request.resource.metadata.year);
       allow read, delete: if signedIn()
         && (request.auth.uid == uid || isTeacherForResource());
     }

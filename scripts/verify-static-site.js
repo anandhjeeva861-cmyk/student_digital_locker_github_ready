@@ -8,7 +8,9 @@ const requiredFiles = [
   "images/sankara-logo.png",
   "js/firebase.js",
   "js/firebase-service.js",
+  "js/firebase-config.js",
   "js/firebase-config.example.js",
+  "js/options.js",
   "js/auth.js",
   "js/student.js",
   "js/teacher.js",
@@ -41,7 +43,7 @@ const htmlFiles = [
   "teacher-dashboard.html"
 ];
 
-const jsFiles = ["js/firebase.js", "js/firebase-service.js", "js/auth.js", "js/student.js", "js/teacher.js", "js/validation.js"];
+const jsFiles = ["js/firebase.js", "js/firebase-service.js", "js/options.js", "js/auth.js", "js/student.js", "js/teacher.js", "js/validation.js"];
 const failures = [];
 
 for (const file of htmlFiles) {
@@ -64,14 +66,29 @@ for (const file of [...jsFiles, ".github/workflows/pages.yml"]) {
   }
 }
 
-const gitignore = fs.readFileSync(path.join(process.cwd(), ".gitignore"), "utf8");
-if (!/js\/firebase-config\.js/.test(gitignore)) {
-  failures.push(".gitignore must ignore generated js/firebase-config.js.");
-}
-
 const example = fs.readFileSync(path.join(process.cwd(), ".env.example"), "utf8");
 if (/AIza|student-digi-locker-2-3293a|G-3Y5T34K732/.test(example)) {
   failures.push(".env.example must contain placeholders only.");
+}
+
+const firebaseConfig = fs.readFileSync(path.join(process.cwd(), "js/firebase-config.js"), "utf8");
+if (/YOUR_FIREBASE_/.test(firebaseConfig)) {
+  failures.push("js/firebase-config.js must contain deployable Firebase Web SDK values, not placeholders.");
+}
+
+const options = fs.readFileSync(path.join(process.cwd(), "js/options.js"), "utf8");
+for (const expected of ["BSC CS", "BSC AI&ML", "BSC IT", "CSDA", "BCOM", "BCOM CA", "BCOM PA", "CS&HM", "BCOM IT", "MBA", "BBA", "I", "II", "III"]) {
+  if (!options.includes(`"${expected}"`)) failures.push(`js/options.js is missing option: ${expected}`);
+}
+
+for (const file of ["student-register.html", "teacher-register.html"]) {
+  const content = fs.readFileSync(path.join(process.cwd(), file), "utf8");
+  if (!/select name="department" data-options="departments" required/.test(content)) {
+    failures.push(`${file} must use the shared department select.`);
+  }
+  if (!/select name="year" data-options="years" required/.test(content)) {
+    failures.push(`${file} must use the shared year select.`);
+  }
 }
 
 const workflow = fs.readFileSync(path.join(process.cwd(), ".github/workflows/pages.yml"), "utf8");

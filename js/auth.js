@@ -11,9 +11,9 @@ import {
   isCapsName,
   isMobile,
   isRegisterNumber,
-  normalizeDepartment,
   normalizeName,
-  normalizeYear,
+  parseDepartment,
+  parseYear,
   showMessage
 } from "./validation.js";
 
@@ -36,8 +36,8 @@ function studentPayload(form) {
     name: normalizeName(value(form, "name")),
     regNo: value(form, "regNo").trim().toUpperCase(),
     email: value(form, "email").trim().toLowerCase(),
-    year: normalizeYear(value(form, "year")),
-    department: normalizeDepartment(value(form, "department")),
+    year: parseYear(value(form, "year")),
+    department: parseDepartment(value(form, "department")),
     mobile: value(form, "mobile").trim(),
     password: value(form, "password")
   };
@@ -54,11 +54,12 @@ function teacherPayload(form) {
   const payload = {
     name: normalizeName(value(form, "name")),
     email: value(form, "email").trim().toLowerCase(),
-    department: normalizeDepartment(value(form, "department")),
-    year: normalizeYear(value(form, "year")),
+    department: parseDepartment(value(form, "department")),
+    year: parseYear(value(form, "year")),
     mobile: value(form, "mobile").trim(),
     password: value(form, "password")
   };
+  payload.departmentKey = departmentKey(payload.department);
 
   if (!isCapsName(payload.name)) throw new Error("Name must be uppercase letters only.");
   if (!isMobile(payload.mobile)) throw new Error("Enter a valid 10 digit mobile number.");

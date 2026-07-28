@@ -1,3 +1,5 @@
+import { DEPARTMENT_OPTIONS, YEAR_OPTIONS } from "./options.js";
+
 export const DEFAULT_ACADEMIC_TITLES = [
   "AADHAR CARD",
   "INCOME CERTIFICATE",
@@ -21,6 +23,30 @@ export function departmentKey(value) {
 
 export function normalizeYear(value) {
   return String(value || "").trim().toUpperCase();
+}
+
+export function isDepartment(value) {
+  return DEPARTMENT_OPTIONS.includes(value);
+}
+
+export function isAcademicYear(value) {
+  return YEAR_OPTIONS.includes(value);
+}
+
+export function parseDepartment(value) {
+  const raw = String(value || "");
+  const normalized = normalizeDepartment(raw);
+  if (!normalized) throw new Error("Please select a department.");
+  if (raw !== normalized || !isDepartment(normalized)) throw new Error("Invalid department selected.");
+  return normalized;
+}
+
+export function parseYear(value) {
+  const raw = String(value || "");
+  const normalized = normalizeYear(raw);
+  if (!normalized) throw new Error("Please select a year.");
+  if (raw !== normalized || !isAcademicYear(normalized)) throw new Error("Invalid academic year selected.");
+  return normalized;
 }
 
 export function normalizeTitle(value) {

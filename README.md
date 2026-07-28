@@ -36,7 +36,9 @@ See `.env.example`. Local real values belong in ignored `.env.local` and `.env.p
 The workflow `.github/workflows/pages.yml` deploys the root static frontend and generates `js/firebase-config.js` during the build.
 It installs dependencies with `npm ci`, runs `npm run build`, prepares a clean `dist/` artifact, then deploys that artifact to GitHub Pages.
 
-GitHub Repository Secrets are not required for the Firebase Web SDK config because this browser config is public by Firebase design. Local `.env.local` may still override it with either `FIREBASE_CONFIG_JSON` or the individual values:
+`js/firebase-config.js` is also kept in the repository so branch/root GitHub Pages deployments can still load Firebase. The Firebase Web SDK config is public by Firebase design; do not place Admin SDK service accounts, private keys, passwords, or server credentials in frontend files.
+
+Local `.env.local` may override the committed browser config with either `FIREBASE_CONFIG_JSON` or the individual values:
 
 ```text
 FIREBASE_API_KEY
@@ -51,6 +53,10 @@ FIREBASE_MEASUREMENT_ID
 ## Firebase Setup
 
 See `docs/FIREBASE_SETUP.md`.
+
+## Academic Options
+
+Department and year values are defined once in `js/options.js`. Registration forms use selects populated from that file, and Firestore rules enforce the same allowed values.
 
 ## Commands
 

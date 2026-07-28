@@ -25,8 +25,12 @@ import {
   ref,
   uploadBytesResumable
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
-import { auth, db, storage } from "./firebase.js";
-import { DEFAULT_ACADEMIC_TITLES } from "./validation.js";
+import { auth, authReady, db, storage } from "./firebase.js";
+import {
+  DEFAULT_ACADEMIC_TITLES,
+  isAcademicYear,
+  isDepartment
+} from "./validation.js";
 
 const profileCollection = "profiles";
 const documentsCollection = "documents";
@@ -116,6 +120,11 @@ export function firebaseErrorMessage(error) {
     "auth/user-not-found": "No account found for this email.",
     "auth/wrong-password": "Invalid email or password.",
     "auth/weak-password": "Password must contain at least 6 characters.",
+    "auth/invalid-email": "Enter a valid email address.",
+    "auth/invalid-api-key": "Firebase configuration is invalid. Check the deployed Firebase config.",
+    "auth/operation-not-allowed": "Email/password login is not enabled in Firebase Authentication.",
+    "auth/too-many-requests": "Too many failed attempts. Try again later.",
+    "auth/unauthorized-domain": "This website domain is not authorized in Firebase Authentication settings.",
     "auth/network-request-failed": "Network error. Check your internet connection.",
     "permission-denied": "Permission denied. Check Firebase security rules.",
     "storage/unauthorized": "Storage permission denied. Check Firebase Storage rules.",
@@ -125,6 +134,7 @@ export function firebaseErrorMessage(error) {
 }
 
 export async function registerStudent(payload) {
+  await authReady;
   const credential = await createUserWithEmailAndPassword(auth, payload.email, payload.password);
   try {
     await updateProfile(credential.user, { displayName: payload.name });
@@ -146,6 +156,7 @@ export async function registerStudent(payload) {
 }
 
 export async function registerTeacher(payload) {
+  await authReady;
   const credential = await createUserWithEmailAndPassword(auth, payload.email, payload.password);
   try {
     await updateProfile(credential.user, { displayName: payload.name });
@@ -166,6 +177,10 @@ export async function registerTeacher(payload) {
 }
 
 async function createProfileWithUniqueKeys(uid, profile) {
+  if (!isDepartment(profile.department)) throw new Error("Invalid department selected.");
+  if (!isAcademicYear(profile.year)) throw new Error("Invalid academic year selected.");
+  if (!profile.departmentKey) throw new Error("Invalid department selected.");
+
   await runTransaction(db, async (transaction) => {
     const mobileRef = doc(db, "uniqueMobileNumbers", profile.mobile);
     const mobileSnap = await transaction.get(mobileRef);
@@ -179,6 +194,7 @@ async function createProfileWithUniqueKeys(uid, profile) {
     }
 
     transaction.set(doc(db, profileCollection, uid), {
+      uid,
       ...profile,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
@@ -189,6 +205,7 @@ async function createProfileWithUniqueKeys(uid, profile) {
 }
 
 export async function loginWithEmail(email, password) {
+  await authReady;
   const credential = await signInWithEmailAndPassword(auth, email, password);
   const profile = await getProfile(credential.user.uid);
   if (!profile) {
@@ -199,10 +216,11 @@ export async function loginWithEmail(email, password) {
 }
 
 export function logout() {
-  return signOut(auth);
+  return authReady.then(() => signOut(auth));
 }
 
-export function waitForUser() {
+export async function waitForUser() {
+  await authReady;
   return new Promise((resolve) => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       unsubscribe();
@@ -216,6 +234,7 @@ export async function getProfile(uid) {
 }
 
 export async function getCurrentProfile() {
+  await authReady;
   const user = auth.currentUser || await waitForUser();
   if (!user) return null;
   return getProfile(user.uid);
