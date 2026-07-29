@@ -8,6 +8,7 @@
     "config:firebase": "node scripts/generate-firebase-config.js",
     "build": "node scripts/verify-static-site.js",
     "pages:artifact": "node scripts/prepare-pages-artifact.js",
+    "deploy:firebase": "npx firebase-tools deploy --only firestore:rules,firestore:indexes,storage",
     "start": "npm run dev"
   },
   "devDependencies": {

@@ -32,7 +32,6 @@ service firebase.storage {
     function validDocumentUpload(ownerId, category, documentId) {
       return signedIn()
         && request.auth.uid == ownerId
-        && currentProfile().role == "student"
         && category in ["online", "personal", "academic"]
         && request.resource.size > 0
         && request.resource.size <= 16 * 1024 * 1024
@@ -40,8 +39,9 @@ service firebase.storage {
         && request.resource.metadata.documentId == documentId
         && request.resource.metadata.ownerId == ownerId
         && request.resource.metadata.category == category
-        && request.resource.metadata.departmentKey == currentProfile().departmentKey
-        && request.resource.metadata.year == currentProfile().year;
+        && request.resource.metadata.departmentKey is string
+        && request.resource.metadata.departmentKey.size() > 0
+        && request.resource.metadata.year in ["I", "II", "III"];
     }
 
     function canReadAcademicObject() {

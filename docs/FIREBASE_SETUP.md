@@ -36,6 +36,7 @@ Local `.env.local` can override the public config with individual values:
 FIREBASE_API_KEY
 FIREBASE_AUTH_DOMAIN
 FIREBASE_PROJECT_ID
+FIREBASE_STORAGE_BUCKET
 FIREBASE_MESSAGING_SENDER_ID
 FIREBASE_APP_ID
 FIREBASE_MEASUREMENT_ID
@@ -58,6 +59,16 @@ anandhjeeva861-cmyk.github.io
 ```
 
 Only add the host name, not the repository path. For a custom domain, add that host name too.
+
+## Deploy Firebase Rules
+
+After changing rules locally, deploy them with:
+
+```bash
+npm run deploy:firebase
+```
+
+This uses `.firebaserc`, `firebase.json`, `firebase/firestore.rules`, `firebase/storage.rules`, and `firebase/firestore.indexes.json`. If the Firebase CLI asks for login, complete `npx firebase-tools login` once and run the deploy command again.
 
 ## Allowed Academic Values
 

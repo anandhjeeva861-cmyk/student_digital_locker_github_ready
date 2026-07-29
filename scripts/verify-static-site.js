@@ -14,6 +14,7 @@ const requiredFiles = [
   "js/auth.js",
   "js/student.js",
   "js/teacher.js",
+  ".firebaserc",
   "firebase.json",
   "firebase/firestore.rules",
   "firebase/storage.rules",
@@ -74,6 +75,12 @@ const firestoreRules = fs.readFileSync(path.join(process.cwd(), "firebase/firest
 
 if (!/getStorage\(/.test(firebaseJs) || !/export const storage/.test(firebaseJs)) {
   failures.push("js/firebase.js must initialize and export Firebase Storage.");
+}
+
+for (const expected of ["storageBucket", "FIREBASE_STORAGE_BUCKET"]) {
+  if (!fs.readFileSync(path.join(process.cwd(), "scripts/generate-firebase-config.js"), "utf8").includes(expected)) {
+    failures.push(`scripts/generate-firebase-config.js is missing Firebase Storage config: ${expected}`);
+  }
 }
 
 for (const expected of ["uploadBytes", "getDownloadURL", "deleteObject", "storageProvider: \"firebase-storage\"", "storagePath"]) {

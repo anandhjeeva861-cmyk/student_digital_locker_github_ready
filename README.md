@@ -46,6 +46,7 @@ Local `.env.local` may supply the browser config with either `FIREBASE_CONFIG_JS
 FIREBASE_API_KEY
 FIREBASE_AUTH_DOMAIN
 FIREBASE_PROJECT_ID
+FIREBASE_STORAGE_BUCKET
 FIREBASE_MESSAGING_SENDER_ID
 FIREBASE_APP_ID
 FIREBASE_MEASUREMENT_ID
@@ -65,6 +66,7 @@ Department and year values are defined once in `js/options.js`. Registration for
 
 ```bash
 npm run build
+npm run deploy:firebase
 npm run pages:artifact
 git add .
 git commit -m "Integrate Firebase for Student Digital Locker"

@@ -85,6 +85,11 @@ async function deleteStoragePath(path) {
   }
 }
 
+function tagFirebaseError(error, operation) {
+  if (error && typeof error === "object") error.operation = operation;
+  return error;
+}
+
 function profileFromDoc(snapshot) {
   if (!snapshot.exists()) return null;
   const data = snapshot.data();
@@ -175,6 +180,15 @@ export function firebaseErrorMessage(error) {
   console.error("Firebase operation failed", error);
   const code = error?.code || "";
   const message = error?.message || "";
+  const operationMessages = {
+    "storage-upload": "Firebase Storage upload denied. Publish Storage rules and check the Storage bucket config.",
+    "storage-delete": "Firebase Storage delete denied. Publish Storage rules.",
+    "firestore-metadata": "Firestore metadata save denied. Publish Firestore rules and check the logged-in student profile.",
+    "firestore-photo": "Firestore profile photo metadata save denied. Publish Firestore rules and check the logged-in student profile."
+  };
+  if (error?.operation && (code === "permission-denied" || code === "storage/unauthorized")) {
+    return operationMessages[error.operation] || operationMessages["firestore-metadata"];
+  }
   const map = {
     "auth/email-already-in-use": "This email is already registered.",
     "auth/invalid-credential": "Invalid email or password.",
@@ -188,6 +202,7 @@ export function firebaseErrorMessage(error) {
     "auth/unauthorized-domain": "This website domain is not authorized in Firebase Authentication settings.",
     "auth/network-request-failed": "Network error. Check your internet connection.",
     "permission-denied": "Permission denied. Check Firebase security rules.",
+    "storage/unauthorized": "Firebase Storage permission denied. Publish Firebase Storage rules.",
     "resource-exhausted": "The selected file is too large for Firebase Storage. Choose a smaller file."
   };
   return map[code] || message || "Firebase request failed. Check the browser console.";
@@ -306,13 +321,17 @@ export async function uploadProfilePhoto(profile, file) {
   if (!mimeType) throw new Error("This file type is not supported.");
   const profileRef = doc(db, profileCollection, profile.uid);
   const path = profilePhotoStoragePath(profile, `${nowId()}-${file.name}`);
-  await uploadBytes(storageObject(path), file, {
-    contentType: mimeType,
-    customMetadata: {
-      ownerId: profile.uid,
-      profileId: profile.uid
-    }
-  });
+  try {
+    await uploadBytes(storageObject(path), file, {
+      contentType: mimeType,
+      customMetadata: {
+        ownerId: profile.uid,
+        profileId: profile.uid
+      }
+    });
+  } catch (error) {
+    throw tagFirebaseError(error, "storage-upload");
+  }
   try {
     await updateDoc(profileRef, {
       photoPath: path,
@@ -327,7 +346,7 @@ export async function uploadProfilePhoto(profile, file) {
     });
   } catch (error) {
     await deleteStoragePath(path).catch((cleanupError) => console.error("Profile photo rollback failed", cleanupError));
-    throw error;
+    throw tagFirebaseError(error, "firestore-photo");
   }
   if (profile.photoProvider === "firebase-storage" && profile.photoPath && profile.photoPath !== path) {
     await deleteStoragePath(profile.photoPath).catch((error) => console.warn("Previous profile photo cleanup failed", error));
@@ -375,16 +394,20 @@ export async function uploadStudentDocument(profile, category, title, file) {
   const safeName = `${nowId()}-${safeSegment(file.name)}`;
   const existingData = existing.exists() ? existing.data() : null;
   const path = documentStoragePath(profile, category, id, safeName);
-  await uploadBytes(storageObject(path), file, {
-    contentType: mimeType,
-    customMetadata: {
-      documentId: id,
-      ownerId: profile.uid,
-      category,
-      departmentKey: profile.departmentKey,
-      year: profile.year
-    }
-  });
+  try {
+    await uploadBytes(storageObject(path), file, {
+      contentType: mimeType,
+      customMetadata: {
+        documentId: id,
+        ownerId: profile.uid,
+        category,
+        departmentKey: profile.departmentKey,
+        year: profile.year
+      }
+    });
+  } catch (error) {
+    throw tagFirebaseError(error, "storage-upload");
+  }
   try {
     await setDoc(docRef, {
       id,
@@ -417,7 +440,7 @@ export async function uploadStudentDocument(profile, category, title, file) {
     });
   } catch (error) {
     await deleteStoragePath(path).catch((cleanupError) => console.error("Document upload rollback failed", cleanupError));
-    throw error;
+    throw tagFirebaseError(error, "firestore-metadata");
   }
   if (existingData?.storageProvider === "firebase-storage" && existingData.storagePath && existingData.storagePath !== path) {
     await deleteStoragePath(existingData.storagePath).catch((error) => console.warn("Previous document cleanup failed", error));
@@ -447,7 +470,9 @@ export async function deleteStudentDocument(profile, documentIdValue) {
   const data = snapshot.data();
   if (data.ownerId !== profile.uid) throw new Error("You can delete only your own documents.");
   if (data.storageProvider === "firebase-storage") {
-    await deleteStoragePath(data.storagePath);
+    await deleteStoragePath(data.storagePath).catch((error) => {
+      throw tagFirebaseError(error, "storage-delete");
+    });
   } else {
     await deleteChunks(docRef, fileChunksCollection);
   }
@@ -527,7 +552,9 @@ export async function deleteTeacherAcademicDocument(profile, documentIdValue) {
     throw new Error("You can delete only matching academic documents.");
   }
   if (data.storageProvider === "firebase-storage") {
-    await deleteStoragePath(data.storagePath);
+    await deleteStoragePath(data.storagePath).catch((error) => {
+      throw tagFirebaseError(error, "storage-delete");
+    });
   } else {
     await deleteChunks(docRef, fileChunksCollection);
   }

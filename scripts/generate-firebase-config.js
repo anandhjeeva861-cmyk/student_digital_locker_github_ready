@@ -24,6 +24,7 @@ function configFromJson() {
 const publicFirebaseConfig = {
   authDomain: "student-digi-locker-2-3293a.firebaseapp.com",
   projectId: "student-digi-locker-2-3293a",
+  storageBucket: "student-digi-locker-2-3293a.firebasestorage.app",
   messagingSenderId: "202705864241",
   appId: "1:202705864241:web:0d27a0084d8f491efbf710",
   measurementId: "G-3Y5T34K732"
@@ -35,6 +36,7 @@ const config = {
   apiKey: process.env.FIREBASE_API_KEY || envConfig.apiKey,
   authDomain: process.env.FIREBASE_AUTH_DOMAIN || envConfig.authDomain || publicFirebaseConfig.authDomain,
   projectId: process.env.FIREBASE_PROJECT_ID || envConfig.projectId || publicFirebaseConfig.projectId,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || envConfig.storageBucket || publicFirebaseConfig.storageBucket,
   messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || envConfig.messagingSenderId || publicFirebaseConfig.messagingSenderId,
   appId: process.env.FIREBASE_APP_ID || envConfig.appId || publicFirebaseConfig.appId,
   measurementId: process.env.FIREBASE_MEASUREMENT_ID || envConfig.measurementId || publicFirebaseConfig.measurementId
@@ -46,6 +48,7 @@ const missing = [
   ["apiKey", "FIREBASE_API_KEY"],
   ["authDomain", "FIREBASE_AUTH_DOMAIN"],
   ["projectId", "FIREBASE_PROJECT_ID"],
+  ["storageBucket", "FIREBASE_STORAGE_BUCKET"],
   ["messagingSenderId", "FIREBASE_MESSAGING_SENDER_ID"],
   ["appId", "FIREBASE_APP_ID"],
   ["measurementId", "FIREBASE_MEASUREMENT_ID"]
