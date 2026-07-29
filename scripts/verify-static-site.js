@@ -72,6 +72,14 @@ const firebaseJs = fs.readFileSync(path.join(process.cwd(), "js/firebase.js"), "
 const firebaseServiceJs = fs.readFileSync(path.join(process.cwd(), "js/firebase-service.js"), "utf8");
 const firestoreRules = fs.readFileSync(path.join(process.cwd(), "firebase/firestore.rules"), "utf8");
 
+if (/AIza[0-9A-Za-z_-]{20,}/.test(firebaseJs)) {
+  failures.push("js/firebase.js must not contain a hardcoded Firebase API key.");
+}
+
+if (!/import\s*\{\s*firebaseConfig\s*\}\s*from\s*["']\.\/firebase-config\.js["']/.test(firebaseJs)) {
+  failures.push("js/firebase.js must load the generated Firebase browser config.");
+}
+
 if (/firebase-storage\.js|getStorage\(|uploadBytes|uploadBytesResumable|deleteObject\(|ref\(storage/.test(firebaseJs + "\n" + firebaseServiceJs)) {
   failures.push("Firebase Storage is not configured for this project; uploads must stay in Firestore.");
 }
