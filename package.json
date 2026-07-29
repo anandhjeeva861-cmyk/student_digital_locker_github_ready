@@ -2,7 +2,7 @@
   "name": "student-digital-locker-github-ready",
   "version": "1.0.0",
   "private": true,
-  "description": "Student Digital Locker static frontend with Firebase Auth and Firestore.",
+  "description": "Student Digital Locker static frontend with Firebase Auth, Firestore, and Storage.",
   "scripts": {
     "dev": "http-server . -p 5173 -c-1",
     "config:firebase": "node scripts/generate-firebase-config.js",

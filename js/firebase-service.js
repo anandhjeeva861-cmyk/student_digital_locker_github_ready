@@ -20,7 +20,13 @@ import {
   where,
   writeBatch
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
-import { auth, authReady, db } from "./firebase.js";
+import {
+  deleteObject,
+  getDownloadURL,
+  ref as storageRef,
+  uploadBytes
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
+import { auth, authReady, db, storage } from "./firebase.js";
 import {
   DEFAULT_ACADEMIC_TITLES,
   documentMimeType,
@@ -35,7 +41,6 @@ const titlesCollection = "academicTitles";
 const documentCategories = ["online", "personal", "academic"];
 const fileChunksCollection = "fileChunks";
 const photoChunksCollection = "photoChunks";
-const firestoreChunkChars = 700000;
 
 function nowId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -59,6 +64,27 @@ function documentId(uid, category, title) {
   return `${uid}_${category}_${safeSegment(title).toUpperCase()}`;
 }
 
+function documentStoragePath(profile, category, documentIdValue, fileName) {
+  return `documents/${profile.uid}/${category}/${documentIdValue}/${safeSegment(fileName)}`;
+}
+
+function profilePhotoStoragePath(profile, fileName) {
+  return `profilePhotos/${profile.uid}/${safeSegment(fileName)}`;
+}
+
+function storageObject(path) {
+  return storageRef(storage, path);
+}
+
+async function deleteStoragePath(path) {
+  if (!path) return;
+  try {
+    await deleteObject(storageObject(path));
+  } catch (error) {
+    if (error?.code !== "storage/object-not-found") throw error;
+  }
+}
+
 function profileFromDoc(snapshot) {
   if (!snapshot.exists()) return null;
   const data = snapshot.data();
@@ -67,7 +93,7 @@ function profileFromDoc(snapshot) {
     uid: snapshot.id,
     ...data,
     reg_no: data.regNo || "",
-    photo_url: data.photoProvider === "firestore" ? "" : (data.photoUrl || ""),
+    photo_url: data.photoProvider === "firebase-storage" ? "" : (data.photoUrl || ""),
     photo_provider: data.photoProvider || ""
   };
 }
@@ -83,34 +109,10 @@ function documentFromDoc(snapshot) {
     owner_reg_no: data.ownerRegNo,
     file_name: data.originalName || data.fileName,
     file_url: data.downloadURL || data.downloadUrl || "",
+    storage_path: data.storagePath || "",
     storage_provider: data.storageProvider || (data.downloadURL || data.downloadUrl ? "firebase-storage" : "firestore"),
     uploaded_at: uploaded ? new Date(uploaded).toISOString() : ""
   };
-}
-
-function readFileAsBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener("load", () => {
-      const result = String(reader.result || "");
-      const comma = result.indexOf(",");
-      resolve(comma >= 0 ? result.slice(comma + 1) : result);
-    });
-    reader.addEventListener("error", () => reject(reader.error || new Error("Unable to read file.")));
-    reader.readAsDataURL(file);
-  });
-}
-
-function chunkString(value) {
-  const chunks = [];
-  for (let index = 0; index < value.length; index += firestoreChunkChars) {
-    chunks.push(value.slice(index, index + firestoreChunkChars));
-  }
-  return chunks;
-}
-
-function chunkId(version, index) {
-  return `${version}_${String(index).padStart(4, "0")}`;
 }
 
 function base64ToUint8Array(base64) {
@@ -140,19 +142,6 @@ async function listChunkSnapshots(parentRef, collectionName) {
 async function deleteChunks(parentRef, collectionName, filter = () => true) {
   const chunks = (await listChunkSnapshots(parentRef, collectionName)).filter((snapshot) => filter(snapshot.data()));
   await commitBatches(chunks.map((snapshot) => (batch) => batch.delete(snapshot.ref)));
-}
-
-async function writeChunks(parentRef, collectionName, chunks, metadata) {
-  const operations = chunks.map((data, index) => (batch) => {
-    batch.set(doc(parentRef, collectionName, chunkId(metadata.fileDataVersion, index)), {
-      ...metadata,
-      chunkIndex: index,
-      chunkCount: chunks.length,
-      data,
-      createdAt: serverTimestamp()
-    });
-  });
-  await commitBatches(operations);
 }
 
 async function buildObjectUrl(parentRef, collectionName, metadata) {
@@ -199,7 +188,7 @@ export function firebaseErrorMessage(error) {
     "auth/unauthorized-domain": "This website domain is not authorized in Firebase Authentication settings.",
     "auth/network-request-failed": "Network error. Check your internet connection.",
     "permission-denied": "Permission denied. Check Firebase security rules.",
-    "resource-exhausted": "The selected file is too large for Firestore. Choose a smaller file."
+    "resource-exhausted": "The selected file is too large for Firebase Storage. Choose a smaller file."
   };
   return map[code] || message || "Firebase request failed. Check the browser console.";
 }
@@ -316,37 +305,43 @@ export async function uploadProfilePhoto(profile, file) {
   const mimeType = photoMimeType(file);
   if (!mimeType) throw new Error("This file type is not supported.");
   const profileRef = doc(db, profileCollection, profile.uid);
-  const version = nowId();
-  const chunks = chunkString(await readFileAsBase64(file));
-  await writeChunks(profileRef, photoChunksCollection, chunks, {
-    ownerId: profile.uid,
-    fileDataVersion: version
+  const path = profilePhotoStoragePath(profile, `${nowId()}-${file.name}`);
+  await uploadBytes(storageObject(path), file, {
+    contentType: mimeType,
+    customMetadata: {
+      ownerId: profile.uid,
+      profileId: profile.uid
+    }
   });
   try {
     await updateDoc(profileRef, {
-      photoPath: "",
+      photoPath: path,
       photoUrl: "",
-      photoProvider: "firestore",
-      photoFileDataVersion: version,
-      photoChunkCount: chunks.length,
+      photoProvider: "firebase-storage",
+      photoFileDataVersion: "",
+      photoChunkCount: 0,
       photoMimeType: mimeType,
       photoOriginalName: file.name,
       photoSize: file.size,
       updatedAt: serverTimestamp()
     });
   } catch (error) {
-    await deleteChunks(profileRef, photoChunksCollection, (item) => item.fileDataVersion === version).catch((cleanupError) => {
-      console.error("Profile photo rollback failed", cleanupError);
-    });
+    await deleteStoragePath(path).catch((cleanupError) => console.error("Profile photo rollback failed", cleanupError));
     throw error;
   }
-  await deleteChunks(profileRef, photoChunksCollection, (item) => item.fileDataVersion !== version).catch((error) => {
-    console.warn("Previous profile photo cleanup failed", error);
-  });
+  if (profile.photoProvider === "firebase-storage" && profile.photoPath && profile.photoPath !== path) {
+    await deleteStoragePath(profile.photoPath).catch((error) => console.warn("Previous profile photo cleanup failed", error));
+  }
+  if (profile.photoFileDataVersion) {
+    await deleteChunks(profileRef, photoChunksCollection).catch((error) => console.warn("Legacy profile photo cleanup failed", error));
+  }
   return getProfile(profile.uid);
 }
 
 export async function getProfilePhotoUrl(profile) {
+  if (profile.photoProvider === "firebase-storage" && profile.photoPath) {
+    return getDownloadURL(storageObject(profile.photoPath));
+  }
   if (profile.photoProvider === "firestore" || profile.photoFileDataVersion) {
     if (!profile.photoFileDataVersion || !profile.photoChunkCount) return "";
     return buildObjectUrl(doc(db, profileCollection, profile.uid), photoChunksCollection, {
@@ -378,15 +373,17 @@ export async function uploadStudentDocument(profile, category, title, file) {
   const docRef = doc(db, documentsCollection, id);
   const existing = await getDoc(docRef);
   const safeName = `${nowId()}-${safeSegment(file.name)}`;
-  const version = nowId();
-  const chunks = chunkString(await readFileAsBase64(file));
-  await writeChunks(docRef, fileChunksCollection, chunks, {
-    documentId: id,
-    ownerId: profile.uid,
-    category,
-    departmentKey: profile.departmentKey,
-    year: profile.year,
-    fileDataVersion: version
+  const existingData = existing.exists() ? existing.data() : null;
+  const path = documentStoragePath(profile, category, id, safeName);
+  await uploadBytes(storageObject(path), file, {
+    contentType: mimeType,
+    customMetadata: {
+      documentId: id,
+      ownerId: profile.uid,
+      category,
+      departmentKey: profile.departmentKey,
+      year: profile.year
+    }
   });
   try {
     await setDoc(docRef, {
@@ -404,9 +401,10 @@ export async function uploadStudentDocument(profile, category, title, file) {
       title,
       originalName: file.name,
       fileName: safeName,
-      storageProvider: "firestore",
-      fileDataVersion: version,
-      chunkCount: chunks.length,
+      storageProvider: "firebase-storage",
+      storagePath: path,
+      fileDataVersion: "",
+      chunkCount: 0,
       fileType: file.name.includes(".") ? file.name.split(".").pop().toLowerCase() : "",
       mimeType,
       size: file.size,
@@ -418,17 +416,21 @@ export async function uploadStudentDocument(profile, category, title, file) {
       updatedAt: serverTimestamp()
     });
   } catch (error) {
-    await deleteChunks(docRef, fileChunksCollection, (item) => item.fileDataVersion === version).catch((cleanupError) => {
-      console.error("Document upload rollback failed", cleanupError);
-    });
+    await deleteStoragePath(path).catch((cleanupError) => console.error("Document upload rollback failed", cleanupError));
     throw error;
   }
-  await deleteChunks(docRef, fileChunksCollection, (item) => item.fileDataVersion !== version).catch((error) => {
-    console.warn("Previous document cleanup failed", error);
-  });
+  if (existingData?.storageProvider === "firebase-storage" && existingData.storagePath && existingData.storagePath !== path) {
+    await deleteStoragePath(existingData.storagePath).catch((error) => console.warn("Previous document cleanup failed", error));
+  }
+  if (existingData?.storageProvider === "firestore" || existingData?.fileDataVersion) {
+    await deleteChunks(docRef, fileChunksCollection).catch((error) => console.warn("Legacy document cleanup failed", error));
+  }
 }
 
 export async function getDocumentObjectUrl(documentItem) {
+  if (documentItem.storage_provider === "firebase-storage" && documentItem.storage_path) {
+    return getDownloadURL(storageObject(documentItem.storage_path));
+  }
   if (documentItem.file_url) return documentItem.file_url;
   return buildObjectUrl(doc(db, documentsCollection, documentItem.id), fileChunksCollection, {
     fileDataVersion: documentItem.fileDataVersion,
@@ -444,7 +446,11 @@ export async function deleteStudentDocument(profile, documentIdValue) {
   if (!snapshot.exists()) throw new Error("Document not found.");
   const data = snapshot.data();
   if (data.ownerId !== profile.uid) throw new Error("You can delete only your own documents.");
-  await deleteChunks(docRef, fileChunksCollection);
+  if (data.storageProvider === "firebase-storage") {
+    await deleteStoragePath(data.storagePath);
+  } else {
+    await deleteChunks(docRef, fileChunksCollection);
+  }
   await deleteDoc(docRef);
 }
 
@@ -520,7 +526,11 @@ export async function deleteTeacherAcademicDocument(profile, documentIdValue) {
   if (data.category !== "academic" || data.departmentKey !== profile.departmentKey || data.year !== profile.year) {
     throw new Error("You can delete only matching academic documents.");
   }
-  await deleteChunks(docRef, fileChunksCollection);
+  if (data.storageProvider === "firebase-storage") {
+    await deleteStoragePath(data.storagePath);
+  } else {
+    await deleteChunks(docRef, fileChunksCollection);
+  }
   await deleteDoc(docRef);
 }
 

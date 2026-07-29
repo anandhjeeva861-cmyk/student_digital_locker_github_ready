@@ -105,6 +105,7 @@ service cloud.firestore {
           "originalName",
           "fileName",
           "storageProvider",
+          "storagePath",
           "fileDataVersion",
           "chunkCount",
           "fileType",
@@ -130,12 +131,13 @@ service cloud.firestore {
         && request.resource.data.title.size() <= 120
         && request.resource.data.originalName is string
         && request.resource.data.fileName is string
-        && request.resource.data.storageProvider == "firestore"
+        && request.resource.data.storageProvider == "firebase-storage"
+        && request.resource.data.storagePath is string
+        && request.resource.data.storagePath.matches("^documents/" + request.auth.uid + "/" + request.resource.data.category + "/" + documentId + "/.+$")
         && request.resource.data.fileDataVersion is string
-        && request.resource.data.fileDataVersion.size() > 0
+        && request.resource.data.fileDataVersion == ""
         && request.resource.data.chunkCount is number
-        && request.resource.data.chunkCount > 0
-        && request.resource.data.chunkCount <= 40
+        && request.resource.data.chunkCount == 0
         && request.resource.data.fileType is string
         && request.resource.data.mimeType is string
         && allowedDocumentMimeType(request.resource.data.mimeType)
@@ -227,14 +229,14 @@ service cloud.firestore {
           "photoSize",
           "updatedAt"
         ])
-        && request.resource.data.photoProvider == "firestore"
-        && request.resource.data.photoPath == ""
+        && request.resource.data.photoProvider == "firebase-storage"
+        && request.resource.data.photoPath is string
+        && request.resource.data.photoPath.matches("^profilePhotos/" + uid + "/.+$")
         && request.resource.data.photoUrl == ""
         && request.resource.data.photoFileDataVersion is string
-        && request.resource.data.photoFileDataVersion.size() > 0
+        && request.resource.data.photoFileDataVersion == ""
         && request.resource.data.photoChunkCount is number
-        && request.resource.data.photoChunkCount > 0
-        && request.resource.data.photoChunkCount <= 8
+        && request.resource.data.photoChunkCount == 0
         && allowedPhotoMimeType(request.resource.data.photoMimeType)
         && request.resource.data.photoOriginalName is string
         && request.resource.data.photoSize is number
@@ -275,9 +277,7 @@ service cloud.firestore {
 
       match /photoChunks/{chunkId} {
         allow read: if signedIn() && request.auth.uid == uid;
-        allow create: if signedIn()
-          && request.auth.uid == uid
-          && validPhotoChunk(uid);
+        allow create: if false;
         allow update: if false;
         allow delete: if signedIn()
           && request.auth.uid == uid
@@ -321,9 +321,7 @@ service cloud.firestore {
 
       match /fileChunks/{chunkId} {
         allow read: if canReadDocumentData(get(/databases/$(database)/documents/documents/$(documentId)).data);
-        allow create: if signedIn()
-          && currentProfile().role == "student"
-          && validFileChunk(documentId);
+        allow create: if false;
         allow update: if false;
         allow delete: if signedIn()
           && (resource.data.ownerId == request.auth.uid

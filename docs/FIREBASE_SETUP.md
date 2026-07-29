@@ -1,12 +1,12 @@
 # Firebase Setup
 
-Student Digital Locker now uses Firebase directly from the static GitHub Pages frontend.
+Student Digital Locker uses Firebase directly from the static GitHub Pages frontend.
 
 ## Services
 
 - Firebase Authentication: student and teacher email/password login.
-- Firestore: profiles, academic titles, document metadata, profile photo chunks, and uploaded document chunks.
-- Firebase Storage: not used by the app. The included Storage rules deny all reads and writes.
+- Cloud Firestore: profiles, academic titles, and document metadata.
+- Firebase Storage: uploaded profile photos and certificate files.
 - Analytics: initialized only when the browser supports it.
 
 ## Local Setup
@@ -47,10 +47,11 @@ The GitHub Actions workflow requires the API key from an Actions repository vari
 
 1. Enable Authentication -> Sign-in method -> Email/Password.
 2. Create Firestore Database.
-3. Publish `firebase/firestore.rules` in Firestore Rules.
-4. Optional hardening: if Firebase Storage exists, publish `firebase/storage.rules` so Storage stays blocked.
-5. Import or create indexes from `firebase/firestore.indexes.json`.
-6. Add authorized domain for GitHub Pages:
+3. Create Firebase Storage.
+4. Publish `firebase/firestore.rules` in Firestore Rules.
+5. Publish `firebase/storage.rules` in Storage Rules.
+6. Import or create indexes from `firebase/firestore.indexes.json`.
+7. Add authorized domain for GitHub Pages:
 
 ```text
 anandhjeeva861-cmyk.github.io
@@ -89,16 +90,21 @@ These values are shared from `js/options.js` in the frontend and enforced in `fi
 ## Firestore Collections
 
 - `profiles`: student and teacher profile records keyed by Firebase Auth UID.
-- `profiles/{uid}/photoChunks`: profile photo base64 chunks stored in Firestore.
 - `documents`: uploaded certificate metadata.
-- `documents/{documentId}/fileChunks`: uploaded certificate base64 chunks stored in Firestore.
 - `academicTitles`: teacher-added academic certificate requirements per department/year.
 - `uniqueMobileNumbers`: mobile uniqueness guard.
 - `uniqueRegisterNumbers`: student register number uniqueness guard.
 
-## Uploaded File Data
+## Storage Paths
 
-Uploaded binary files are base64 encoded and split into Firestore chunks. Firestore `documents/{documentId}` stores metadata:
+- `profilePhotos/{uid}/{fileName}`: profile photos readable and removable only by that signed-in user.
+- `documents/{uid}/{category}/{documentId}/{fileName}`: certificate files uploaded by the owning student.
+
+Teachers can read or remove only `academic` Storage objects when their department and year match the document metadata. Online and personal certificates stay private to the student.
+
+## Document Metadata
+
+Firestore `documents/{documentId}` stores metadata only:
 
 - `id`
 - `ownerId`, `userId`, `uploadedUserId`
@@ -110,6 +116,7 @@ Uploaded binary files are base64 encoded and split into Firestore chunks. Firest
 - `originalName`
 - `fileName`
 - `storageProvider`
+- `storagePath`
 - `fileDataVersion`
 - `chunkCount`
 - `fileType`
@@ -120,12 +127,4 @@ Uploaded binary files are base64 encoded and split into Firestore chunks. Firest
 - `status`
 - `uploadedAt`, `createdAt`, `updatedAt`
 
-Chunk documents are stored under `documents/{documentId}/fileChunks/{chunkId}` with:
-
-- `documentId`, `ownerId`, `category`, `departmentKey`, `year`
-- `fileDataVersion`
-- `chunkIndex`, `chunkCount`
-- `data`
-- `createdAt`
-
-If metadata saving fails, the frontend attempts to delete the newly written Firestore chunks before showing the error.
+New uploads use `storageProvider: "firebase-storage"`, a non-empty `storagePath`, `fileDataVersion: ""`, and `chunkCount: 0`. If metadata saving fails, the frontend deletes the just-uploaded Storage object before showing the error.

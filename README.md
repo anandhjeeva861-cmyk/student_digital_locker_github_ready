@@ -7,10 +7,12 @@ Student Digital Locker is a static HTML/CSS/JavaScript frontend powered by Fireb
 - Frontend: plain HTML, CSS, JavaScript modules
 - Authentication: Firebase Authentication
 - Database: Cloud Firestore
-- File uploads: Cloud Firestore document chunk subcollections
+- File uploads: Firebase Storage files with Cloud Firestore metadata
 - Frontend hosting: GitHub Pages
 
 GitHub Pages hosts the complete active app. No Node backend is required for login, register, dashboards, uploads, downloads, deletes, teacher student list, search, submission status, or academic title management.
+
+Uploaded files are stored in Firebase Storage. Firestore stores only profile records, academic titles, and document metadata such as title, owner, category, type, size, and Storage path.
 
 ## Installation
 
