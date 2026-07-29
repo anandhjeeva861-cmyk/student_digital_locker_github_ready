@@ -7,7 +7,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
-const { firebaseConfig } = await import("./firebase-config.js").catch((error) => {
+const firebaseConfigUrl = `./firebase-config.js?v=${Date.now()}`;
+const { firebaseConfig } = await import(firebaseConfigUrl).catch((error) => {
   console.error("Firebase configuration failed to load.", error);
   const message = document.createElement("p");
   message.className = "message danger";

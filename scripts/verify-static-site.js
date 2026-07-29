@@ -77,7 +77,7 @@ if (/AIza[0-9A-Za-z_-]{20,}/.test(firebaseJs)) {
   failures.push("js/firebase.js must not contain a hardcoded Firebase API key.");
 }
 
-if (!/import\(["']\.\/firebase-config\.js["']\)/.test(firebaseJs)) {
+if (!/import\((?:["']\.\/firebase-config\.js["']|firebaseConfigUrl)\)/.test(firebaseJs)) {
   failures.push("js/firebase.js must load the generated Firebase browser config.");
 }
 
