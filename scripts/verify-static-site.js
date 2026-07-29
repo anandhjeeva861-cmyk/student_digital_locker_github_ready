@@ -70,29 +70,18 @@ for (const file of [...jsFiles, ".github/workflows/pages.yml"]) {
 
 const firebaseJs = fs.readFileSync(path.join(process.cwd(), "js/firebase.js"), "utf8");
 const firebaseServiceJs = fs.readFileSync(path.join(process.cwd(), "js/firebase-service.js"), "utf8");
-const storageRules = fs.readFileSync(path.join(process.cwd(), "firebase/storage.rules"), "utf8");
 const firestoreRules = fs.readFileSync(path.join(process.cwd(), "firebase/firestore.rules"), "utf8");
 
-if (!/getStorage\(/.test(firebaseJs) || !/export const storage/.test(firebaseJs)) {
-  failures.push("js/firebase.js must initialize and export Firebase Storage.");
+if (/firebase-storage\.js|getStorage\(|uploadBytes|uploadBytesResumable|deleteObject\(|ref\(storage/.test(firebaseJs + "\n" + firebaseServiceJs)) {
+  failures.push("Firebase Storage is not configured for this project; uploads must stay in Firestore.");
 }
 
-for (const expected of ["storageBucket", "FIREBASE_STORAGE_BUCKET"]) {
-  if (!fs.readFileSync(path.join(process.cwd(), "scripts/generate-firebase-config.js"), "utf8").includes(expected)) {
-    failures.push(`scripts/generate-firebase-config.js is missing Firebase Storage config: ${expected}`);
-  }
+for (const expected of ["writeChunks", "buildObjectUrl", "storageProvider: \"firestore\"", "fileChunksCollection"]) {
+  if (!firebaseServiceJs.includes(expected)) failures.push(`js/firebase-service.js is missing Firestore chunk upload support: ${expected}`);
 }
 
-for (const expected of ["uploadBytes", "getDownloadURL", "deleteObject", "storageProvider: \"firebase-storage\"", "storagePath"]) {
-  if (!firebaseServiceJs.includes(expected)) failures.push(`js/firebase-service.js is missing Storage upload support: ${expected}`);
-}
-
-if (!/match \/documents\/\{ownerId\}\/\{category\}\/\{documentId\}\/\{fileName\}/.test(storageRules)) {
-  failures.push("firebase/storage.rules must allow authenticated Storage document uploads instead of denying all access.");
-}
-
-if (!/request\.resource\.data\.storageProvider == "firebase-storage"/.test(firestoreRules) || !/request\.resource\.data\.storagePath/.test(firestoreRules)) {
-  failures.push("firebase/firestore.rules must accept Firebase Storage metadata.");
+if (!/request\.resource\.data\.storageProvider == "firestore"/.test(firestoreRules) || !/validOwnedDocumentId/.test(firestoreRules)) {
+  failures.push("firebase/firestore.rules must accept Firestore chunk metadata and first-upload document checks.");
 }
 
 const example = fs.readFileSync(path.join(process.cwd(), ".env.example"), "utf8");

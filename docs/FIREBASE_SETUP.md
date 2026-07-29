@@ -5,8 +5,8 @@ Student Digital Locker uses Firebase directly from the static GitHub Pages front
 ## Services
 
 - Firebase Authentication: student and teacher email/password login.
-- Cloud Firestore: profiles, academic titles, and document metadata.
-- Firebase Storage: uploaded profile photos and certificate files.
+- Cloud Firestore: profiles, academic titles, document metadata, profile photo chunks, and uploaded document chunks.
+- Firebase Storage: not required. The included Storage rules deny all reads and writes.
 - Analytics: initialized only when the browser supports it.
 
 ## Local Setup
@@ -36,7 +36,6 @@ Local `.env.local` can override the public config with individual values:
 FIREBASE_API_KEY
 FIREBASE_AUTH_DOMAIN
 FIREBASE_PROJECT_ID
-FIREBASE_STORAGE_BUCKET
 FIREBASE_MESSAGING_SENDER_ID
 FIREBASE_APP_ID
 FIREBASE_MEASUREMENT_ID
@@ -48,11 +47,10 @@ The GitHub Actions workflow requires the API key from an Actions repository vari
 
 1. Enable Authentication -> Sign-in method -> Email/Password.
 2. Create Firestore Database.
-3. Create Firebase Storage.
-4. Publish `firebase/firestore.rules` in Firestore Rules.
-5. Publish `firebase/storage.rules` in Storage Rules.
-6. Import or create indexes from `firebase/firestore.indexes.json`.
-7. Add authorized domain for GitHub Pages:
+3. Publish `firebase/firestore.rules` in Firestore Rules.
+4. Import or create indexes from `firebase/firestore.indexes.json`.
+5. Optional hardening: publish `firebase/storage.rules` only if you later enable Firebase Storage.
+6. Add authorized domain for GitHub Pages:
 
 ```text
 anandhjeeva861-cmyk.github.io
@@ -68,7 +66,7 @@ After changing rules locally, deploy them with:
 npm run deploy:firebase
 ```
 
-This uses `.firebaserc`, `firebase.json`, `firebase/firestore.rules`, `firebase/storage.rules`, and `firebase/firestore.indexes.json`. If the Firebase CLI asks for login, complete `npx firebase-tools login` once and run the deploy command again.
+This uses `.firebaserc`, `firebase.json`, `firebase/firestore.rules`, and `firebase/firestore.indexes.json`.
 
 ## Allowed Academic Values
 
@@ -101,21 +99,16 @@ These values are shared from `js/options.js` in the frontend and enforced in `fi
 ## Firestore Collections
 
 - `profiles`: student and teacher profile records keyed by Firebase Auth UID.
+- `profiles/{uid}/photoChunks`: profile photo base64 chunks stored in Firestore.
 - `documents`: uploaded certificate metadata.
+- `documents/{documentId}/fileChunks`: uploaded certificate base64 chunks stored in Firestore.
 - `academicTitles`: teacher-added academic certificate requirements per department/year.
 - `uniqueMobileNumbers`: mobile uniqueness guard.
 - `uniqueRegisterNumbers`: student register number uniqueness guard.
 
-## Storage Paths
+## Uploaded File Data
 
-- `profilePhotos/{uid}/{fileName}`: profile photos readable and removable only by that signed-in user.
-- `documents/{uid}/{category}/{documentId}/{fileName}`: certificate files uploaded by the owning student.
-
-Teachers can read or remove only `academic` Storage objects when their department and year match the document metadata. Online and personal certificates stay private to the student.
-
-## Document Metadata
-
-Firestore `documents/{documentId}` stores metadata only:
+Uploaded binary files are base64 encoded and split into Firestore chunks. Firestore `documents/{documentId}` stores metadata:
 
 - `id`
 - `ownerId`, `userId`, `uploadedUserId`
@@ -127,7 +120,6 @@ Firestore `documents/{documentId}` stores metadata only:
 - `originalName`
 - `fileName`
 - `storageProvider`
-- `storagePath`
 - `fileDataVersion`
 - `chunkCount`
 - `fileType`
@@ -138,4 +130,4 @@ Firestore `documents/{documentId}` stores metadata only:
 - `status`
 - `uploadedAt`, `createdAt`, `updatedAt`
 
-New uploads use `storageProvider: "firebase-storage"`, a non-empty `storagePath`, `fileDataVersion: ""`, and `chunkCount: 0`. If metadata saving fails, the frontend deletes the just-uploaded Storage object before showing the error.
+New uploads use `storageProvider: "firestore"`, a non-empty `fileDataVersion`, and a positive `chunkCount`. If metadata saving fails, the frontend deletes the just-written Firestore chunks before showing the error.
