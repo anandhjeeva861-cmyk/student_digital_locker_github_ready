@@ -38,6 +38,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Enforce GitHub Actions Pages source
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: gh api --method PUT "repos/${GITHUB_REPOSITORY}/pages" -f build_type=workflow
+
       - name: Validate Firebase API key input
         env:
           FIREBASE_API_KEY: "${{ vars.FIREBASE_API_KEY || secrets.FIREBASE_API_KEY }}"
@@ -66,3 +71,22 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Verify deployed Firebase configuration
+        env:
+          SITE_URL: "${{ steps.deployment.outputs.page_url }}"
+        run: |
+          config_url="${SITE_URL%/}/js/firebase-config.js"
+          for attempt in {1..12}; do
+            if curl --fail --silent --show-error \
+              -H "Cache-Control: no-cache" \
+              "${config_url}?deployment=${GITHUB_SHA}" \
+              --output /tmp/firebase-config.js \
+              && grep --quiet "export const firebaseConfig" /tmp/firebase-config.js; then
+              echo "Firebase browser configuration is available on GitHub Pages."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Firebase browser configuration is missing from the deployed GitHub Pages site."
+          exit 1

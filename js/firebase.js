@@ -6,7 +6,16 @@ import {
   setPersistence
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
-import { firebaseConfig } from "./firebase-config.js";
+
+const { firebaseConfig } = await import("./firebase-config.js").catch((error) => {
+  console.error("Firebase configuration failed to load.", error);
+  const message = document.createElement("p");
+  message.className = "message danger";
+  message.setAttribute("role", "alert");
+  message.textContent = "Website configuration is unavailable. Please refresh after the latest deployment completes.";
+  (document.querySelector("form") || document.body).prepend(message);
+  throw new Error("Firebase configuration file is missing from this deployment.", { cause: error });
+});
 
 const requiredConfigKeys = [
   "apiKey",

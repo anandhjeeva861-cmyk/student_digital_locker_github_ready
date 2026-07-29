@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { execFileSync } = require("child_process");
 
 const requiredFiles = [
   "index.html",
@@ -76,8 +77,20 @@ if (/AIza[0-9A-Za-z_-]{20,}/.test(firebaseJs)) {
   failures.push("js/firebase.js must not contain a hardcoded Firebase API key.");
 }
 
-if (!/import\s*\{\s*firebaseConfig\s*\}\s*from\s*["']\.\/firebase-config\.js["']/.test(firebaseJs)) {
+if (!/import\(["']\.\/firebase-config\.js["']\)/.test(firebaseJs)) {
   failures.push("js/firebase.js must load the generated Firebase browser config.");
+}
+
+const trackedTextFiles = execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" })
+  .split("\0")
+  .filter(Boolean)
+  .filter((file) => /(?:^|\/)(?:[^/]+\.(?:html?|css|js|json|md|ya?ml|txt|rules)|\.firebaserc|\.env\.example)$/.test(file));
+
+for (const file of trackedTextFiles) {
+  const content = fs.readFileSync(path.join(process.cwd(), file), "utf8");
+  if (/AIza[0-9A-Za-z_-]{20,}/.test(content)) {
+    failures.push(`${file} contains a tracked Google/Firebase API key.`);
+  }
 }
 
 if (/firebase-storage\.js|getStorage\(|uploadBytes|uploadBytesResumable|deleteObject\(|ref\(storage/.test(firebaseJs + "\n" + firebaseServiceJs)) {
@@ -122,11 +135,13 @@ for (const expected of [
   "actions/configure-pages@v5",
   "actions/setup-node@v4",
   "npm ci",
+  "build_type=workflow",
   "npm run config:firebase",
   "npm run build",
   "npm run pages:artifact",
   "actions/upload-pages-artifact@v3",
   "actions/deploy-pages@v4",
+  "Verify deployed Firebase configuration",
   "path: dist"
 ]) {
   if (!workflow.includes(expected)) failures.push(`GitHub Pages workflow is missing: ${expected}`);
