@@ -142,7 +142,8 @@ function allowedMimeType(file, mimeByExtension) {
   return actual === expected ? expected : "";
 }
 
-export function showMessage(message, type = "info") {
+export function showMessage(message, type = "info", options = {}) {
+  const duration = typeof options === "number" ? options : options.duration ?? 3500;
   let wrap = document.querySelector(".flash-wrap");
   if (!wrap) {
     wrap = document.createElement("div");
@@ -153,5 +154,5 @@ export function showMessage(message, type = "info") {
   note.className = `flash ${type}`;
   note.textContent = message;
   wrap.appendChild(note);
-  setTimeout(() => note.remove(), 3500);
+  if (duration > 0) setTimeout(() => note.remove(), duration);
 }

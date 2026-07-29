@@ -219,12 +219,15 @@ export function firebaseErrorMessage(error) {
     "auth/wrong-password": "Invalid email or password.",
     "auth/weak-password": "Password must contain at least 6 characters.",
     "auth/invalid-email": "Enter a valid email address.",
+    "auth/missing-password": "Enter your password.",
+    "auth/invalid-login-credentials": "Invalid email or password.",
     "auth/invalid-api-key": "Firebase configuration is invalid. Check the deployed Firebase config.",
+    "auth/api-key-not-valid.-please-pass-a-valid-api-key.": "Firebase configuration is invalid. Check the deployed Firebase config.",
     "auth/operation-not-allowed": "Email/password login is not enabled in Firebase Authentication.",
     "auth/too-many-requests": "Too many failed attempts. Try again later.",
     "auth/unauthorized-domain": "This website domain is not authorized in Firebase Authentication settings.",
     "auth/network-request-failed": "Network error. Check your internet connection.",
-    "permission-denied": "Permission denied. Check Firebase security rules.",
+    "permission-denied": "Permission denied. Deploy the latest Firebase Firestore rules.",
     "storage/unauthorized": "Firebase Storage permission denied. The app now stores files in Firestore; deploy the latest code.",
     "resource-exhausted": "The selected file is too large for Firestore. Choose a smaller file."
   };

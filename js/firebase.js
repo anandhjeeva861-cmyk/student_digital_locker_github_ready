@@ -1,8 +1,10 @@
 import { getApps, initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import { getAnalytics, isSupported as analyticsIsSupported } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-analytics.js";
 import {
+  browserSessionPersistence,
   browserLocalPersistence,
   getAuth,
+  inMemoryPersistence,
   setPersistence
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
@@ -38,7 +40,15 @@ if (missingConfig.length) {
 export const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const authReady = setPersistence(auth, browserLocalPersistence);
+export const authReady = setPersistence(auth, browserLocalPersistence)
+  .catch((error) => {
+    console.warn("Local auth persistence is not available. Falling back to session persistence.", error);
+    return setPersistence(auth, browserSessionPersistence);
+  })
+  .catch((error) => {
+    console.warn("Session auth persistence is not available. Falling back to in-memory persistence.", error);
+    return setPersistence(auth, inMemoryPersistence);
+  });
 
 export const analyticsReady = analyticsIsSupported()
   .then((supported) => (supported ? getAnalytics(app) : null))

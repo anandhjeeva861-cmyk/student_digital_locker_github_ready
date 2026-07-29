@@ -131,7 +131,7 @@ document.addEventListener("DOMContentLoaded", () => {
         await handler(form);
       } catch (error) {
         console.error(`${id} failed`, error);
-        showMessage(friendlyError(error), "danger");
+        showMessage(friendlyError(error), "danger", { duration: 9000 });
       } finally {
         button?.removeAttribute("disabled");
       }

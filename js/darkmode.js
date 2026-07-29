@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const apply = () => {
     const dark = localStorage.getItem("lockerTheme") === "dark";
     document.body.classList.toggle("dark-mode", dark);
-    if (toggle) toggle.textContent = dark ? "☀️" : "🌙";
+    if (toggle) toggle.textContent = dark ? "\u2600\uFE0F" : "\uD83C\uDF19";
   };
 
   apply();

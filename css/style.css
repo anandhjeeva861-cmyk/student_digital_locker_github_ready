@@ -265,6 +265,21 @@ label {
     font-weight: 800;
 }
 
+.message {
+    margin: 0 0 18px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(11, 104, 209, 0.08);
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-weight: 750;
+}
+
+.message.danger {
+    border-left: 5px solid var(--danger);
+    background: rgba(217, 54, 54, 0.10);
+}
+
 .back-link {
     display: inline-block;
     margin-bottom: 20px;

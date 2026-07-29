@@ -67,6 +67,9 @@ for (const file of [...jsFiles, ".github/workflows/pages.yml"]) {
   if (/supabase|service_role|private_key|serviceAccount/i.test(content)) {
     failures.push(`${file} contains unsafe or removed-provider references.`);
   }
+  if (/Ã°|Ã¢|ï¿½|â˜|ðŸ/.test(content)) {
+    failures.push(`${file} contains mojibake/corrupted visible characters.`);
+  }
 }
 
 const firebaseJs = fs.readFileSync(path.join(process.cwd(), "js/firebase.js"), "utf8");
@@ -79,6 +82,10 @@ if (/AIza[0-9A-Za-z_-]{20,}/.test(firebaseJs)) {
 
 if (!/import\((?:["']\.\/firebase-config\.js["']|firebaseConfigUrl)\)/.test(firebaseJs)) {
   failures.push("js/firebase.js must load the generated Firebase browser config.");
+}
+
+for (const expected of ["browserSessionPersistence", "inMemoryPersistence"]) {
+  if (!firebaseJs.includes(expected)) failures.push(`js/firebase.js is missing auth persistence fallback: ${expected}`);
 }
 
 const trackedTextFiles = execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" })
