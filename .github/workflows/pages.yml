@@ -8,6 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   pages: write
   id-token: write
@@ -38,11 +39,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Enforce GitHub Actions Pages source
-        env:
-          GH_TOKEN: "${{ github.token }}"
-        run: gh api --method PUT "repos/${GITHUB_REPOSITORY}/pages" -f build_type=workflow
-
       - name: Validate Firebase API key input
         env:
           FIREBASE_API_KEY: "${{ vars.FIREBASE_API_KEY || secrets.FIREBASE_API_KEY }}"
@@ -67,6 +63,25 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+
+      - name: Wait for legacy Pages deployment
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          for attempt in {1..36}; do
+            legacy_status="$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              "repos/${GITHUB_REPOSITORY}/actions/runs?per_page=20" \
+              --jq '[.workflow_runs[] | select(.name == "pages build and deployment" and .status != "completed")][0].status // "absent"')"
+            if [ "$legacy_status" = "absent" ] || [ "$legacy_status" = "completed" ]; then
+              echo "Legacy Pages deployment status: $legacy_status"
+              exit 0
+            fi
+            echo "Waiting for legacy Pages deployment (status: $legacy_status)..."
+            sleep 5
+          done
+          echo "Timed out waiting for the legacy Pages deployment."
+          exit 1
 
       - name: Deploy to GitHub Pages
         id: deployment

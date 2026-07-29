@@ -135,11 +135,12 @@ for (const expected of [
   "actions/configure-pages@v5",
   "actions/setup-node@v4",
   "npm ci",
-  "build_type=workflow",
+  "actions: read",
   "npm run config:firebase",
   "npm run build",
   "npm run pages:artifact",
   "actions/upload-pages-artifact@v3",
+  "Wait for legacy Pages deployment",
   "actions/deploy-pages@v4",
   "Verify deployed Firebase configuration",
   "path: dist"
