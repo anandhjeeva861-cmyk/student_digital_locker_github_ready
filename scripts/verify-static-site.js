@@ -64,6 +64,9 @@ for (const file of [...jsFiles, ".github/workflows/pages.yml"]) {
   if (/supabase|service_role|private_key|serviceAccount/i.test(content)) {
     failures.push(`${file} contains unsafe or removed-provider references.`);
   }
+  if (/firebase-storage\.js|getStorage\(|uploadBytes|uploadBytesResumable|deleteObject\(|ref\(storage/.test(content)) {
+    failures.push(`${file} imports or calls Firebase Storage; documents must stay in Firestore.`);
+  }
 }
 
 const example = fs.readFileSync(path.join(process.cwd(), ".env.example"), "utf8");

@@ -2,86 +2,8 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    function currentProfile() {
-      return firestore.get(/databases/(default)/documents/profiles/$(request.auth.uid)).data;
-    }
-
-    function allowedDepartmentKey(value) {
-      return value in [
-        "BSCCS",
-        "BSCAIML",
-        "BSCIT",
-        "CSDA",
-        "BCOM",
-        "BCOMCA",
-        "BCOMPA",
-        "CSHM",
-        "BCOMIT",
-        "MBA",
-        "BBA"
-      ];
-    }
-
-    function allowedYear(value) {
-      return value in ["I", "II", "III"];
-    }
-
-    function isTeacherForResource() {
-      return signedIn()
-        && currentProfile().role == "teacher"
-        && resource.metadata.category == "academic"
-        && resource.metadata.departmentKey == currentProfile().departmentKey
-        && resource.metadata.year == currentProfile().year;
-    }
-
-    function allowedDocumentType() {
-      return request.resource.contentType in [
-        "application/pdf",
-        "image/png",
-        "image/jpeg",
-        "image/webp",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-      ];
-    }
-
-    function allowedPhotoType() {
-      return request.resource.contentType in [
-        "image/png",
-        "image/jpeg",
-        "image/webp"
-      ];
-    }
-
-    match /users/{uid}/profile/{fileName} {
-      allow read, delete: if signedIn() && request.auth.uid == uid;
-      allow create, update: if signedIn()
-        && request.auth.uid == uid
-        && request.resource.size <= 4 * 1024 * 1024
-        && allowedPhotoType()
-        && request.resource.metadata.ownerId == request.auth.uid
-        && request.resource.metadata.category == "profile";
-    }
-
-    match /users/{uid}/documents/{documentId}/{fileName} {
-      allow create, update: if signedIn()
-        && request.auth.uid == uid
-        && currentProfile().role == "student"
-        && request.resource.size <= 16 * 1024 * 1024
-        && allowedDocumentType()
-        && request.resource.metadata.ownerId == request.auth.uid
-        && request.resource.metadata.documentId == documentId
-        && request.resource.metadata.category in ["online", "personal", "academic"]
-        && request.resource.metadata.departmentKey == currentProfile().departmentKey
-        && request.resource.metadata.year == currentProfile().year
-        && allowedDepartmentKey(request.resource.metadata.departmentKey)
-        && allowedYear(request.resource.metadata.year);
-      allow read, delete: if signedIn()
-        && (request.auth.uid == uid || isTeacherForResource());
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }

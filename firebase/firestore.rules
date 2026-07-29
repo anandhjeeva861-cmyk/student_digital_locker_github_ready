@@ -76,7 +76,19 @@ service cloud.firestore {
       ];
     }
 
-    function validDocumentMetadata(documentId) {
+    function allowedPhotoMimeType(value) {
+      return value in [
+        "image/png",
+        "image/jpeg",
+        "image/webp"
+      ];
+    }
+
+    function validDocumentIdForCategory(documentId, category) {
+      return documentId.matches("^" + request.auth.uid + "_" + category + "_.+$");
+    }
+
+    function validDocumentMetadataBase(documentId) {
       return request.resource.data.keys().hasOnly([
           "id",
           "ownerId",
@@ -92,9 +104,9 @@ service cloud.firestore {
           "title",
           "originalName",
           "fileName",
-          "storagePath",
-          "downloadURL",
-          "downloadUrl",
+          "storageProvider",
+          "fileDataVersion",
+          "chunkCount",
           "fileType",
           "mimeType",
           "size",
@@ -109,14 +121,21 @@ service cloud.firestore {
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.uploadedUserId == request.auth.uid
-        && request.resource.data.uploadedUserEmail is string
-        && request.resource.data.ownerName is string
-        && request.resource.data.ownerRegNo is string
+        && request.resource.data.uploadedUserEmail == request.auth.token.email
+        && request.resource.data.ownerName == currentProfile().name
+        && request.resource.data.ownerRegNo == currentProfile().regNo
+        && validDocumentIdForCategory(documentId, request.resource.data.category)
         && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 120
         && request.resource.data.originalName is string
         && request.resource.data.fileName is string
-        && request.resource.data.downloadURL is string
-        && request.resource.data.downloadUrl == request.resource.data.downloadURL
+        && request.resource.data.storageProvider == "firestore"
+        && request.resource.data.fileDataVersion is string
+        && request.resource.data.fileDataVersion.size() > 0
+        && request.resource.data.chunkCount is number
+        && request.resource.data.chunkCount > 0
+        && request.resource.data.chunkCount <= 40
         && request.resource.data.fileType is string
         && request.resource.data.mimeType is string
         && allowedDocumentMimeType(request.resource.data.mimeType)
@@ -124,14 +143,104 @@ service cloud.firestore {
         && request.resource.data.size is number
         && request.resource.data.size > 0
         && request.resource.data.size <= 16 * 1024 * 1024
-        && request.resource.data.storagePath.matches("^users/" + request.auth.uid + "/documents/" + documentId + "/[^/]+$")
         && request.resource.data.uploadedAt == request.time
         && request.resource.data.updatedAt == request.time;
     }
 
-    function documentIdOwnedBySignedInUser(documentId) {
-      return signedIn()
-        && documentId.matches("^" + request.auth.uid + "_(online|personal|academic)_.+$");
+    function validDocumentCreate(documentId) {
+      return validDocumentMetadataBase(documentId)
+        && request.resource.data.createdAt == request.time;
+    }
+
+    function validDocumentUpdate(documentId) {
+      return validDocumentMetadataBase(documentId)
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function validFileChunk(documentId) {
+      return request.resource.data.keys().hasOnly([
+          "documentId",
+          "ownerId",
+          "category",
+          "departmentKey",
+          "year",
+          "fileDataVersion",
+          "chunkIndex",
+          "chunkCount",
+          "data",
+          "createdAt"
+        ])
+        && request.resource.data.documentId == documentId
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.category in ["online", "personal", "academic"]
+        && validDocumentIdForCategory(documentId, request.resource.data.category)
+        && request.resource.data.departmentKey == currentProfile().departmentKey
+        && request.resource.data.year == currentProfile().year
+        && request.resource.data.fileDataVersion is string
+        && request.resource.data.fileDataVersion.size() > 0
+        && request.resource.data.chunkIndex is number
+        && request.resource.data.chunkIndex >= 0
+        && request.resource.data.chunkCount is number
+        && request.resource.data.chunkCount > 0
+        && request.resource.data.chunkCount <= 40
+        && request.resource.data.chunkIndex < request.resource.data.chunkCount
+        && request.resource.data.data is string
+        && request.resource.data.data.size() > 0
+        && request.resource.data.data.size() <= 700000
+        && request.resource.data.createdAt == request.time;
+    }
+
+    function validPhotoChunk(uid) {
+      return request.resource.data.keys().hasOnly([
+          "ownerId",
+          "fileDataVersion",
+          "chunkIndex",
+          "chunkCount",
+          "data",
+          "createdAt"
+        ])
+        && request.resource.data.ownerId == uid
+        && request.resource.data.fileDataVersion is string
+        && request.resource.data.fileDataVersion.size() > 0
+        && request.resource.data.chunkIndex is number
+        && request.resource.data.chunkIndex >= 0
+        && request.resource.data.chunkCount is number
+        && request.resource.data.chunkCount > 0
+        && request.resource.data.chunkCount <= 8
+        && request.resource.data.chunkIndex < request.resource.data.chunkCount
+        && request.resource.data.data is string
+        && request.resource.data.data.size() > 0
+        && request.resource.data.data.size() <= 700000
+        && request.resource.data.createdAt == request.time;
+    }
+
+    function validPhotoUpdate(uid) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "photoProvider",
+          "photoPath",
+          "photoUrl",
+          "photoFileDataVersion",
+          "photoChunkCount",
+          "photoMimeType",
+          "photoOriginalName",
+          "photoSize",
+          "updatedAt"
+        ])
+        && request.resource.data.photoProvider == "firestore"
+        && request.resource.data.photoPath == ""
+        && request.resource.data.photoUrl == ""
+        && request.resource.data.photoFileDataVersion is string
+        && request.resource.data.photoFileDataVersion.size() > 0
+        && request.resource.data.photoChunkCount is number
+        && request.resource.data.photoChunkCount > 0
+        && request.resource.data.photoChunkCount <= 8
+        && allowedPhotoMimeType(request.resource.data.photoMimeType)
+        && request.resource.data.photoOriginalName is string
+        && request.resource.data.photoSize is number
+        && request.resource.data.photoSize > 0
+        && request.resource.data.photoSize <= 4 * 1024 * 1024
+        && request.resource.data.updatedAt == request.time;
     }
 
     function isTeacherFor(data) {
@@ -139,6 +248,12 @@ service cloud.firestore {
         && currentProfile().role == "teacher"
         && currentProfile().departmentKey == data.departmentKey
         && currentProfile().year == data.year;
+    }
+
+    function canReadDocumentData(data) {
+      return signedIn()
+        && (data.ownerId == request.auth.uid
+          || (data.category == "academic" && isTeacherFor(data)));
     }
 
     function isSameScope(data) {
@@ -152,17 +267,28 @@ service cloud.firestore {
         && request.auth.uid == uid
         && validProfileCreate(uid);
       allow read: if signedIn()
-        && (request.auth.uid == uid || isTeacherFor(resource.data));
+        && (request.auth.uid == uid || (resource.data.role == "student" && isTeacherFor(resource.data)));
       allow update: if signedIn()
         && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["photoPath", "photoUrl", "updatedAt"]);
+        && validPhotoUpdate(uid);
       allow delete: if false;
+
+      match /photoChunks/{chunkId} {
+        allow read: if signedIn() && request.auth.uid == uid;
+        allow create: if signedIn()
+          && request.auth.uid == uid
+          && validPhotoChunk(uid);
+        allow update: if false;
+        allow delete: if signedIn()
+          && request.auth.uid == uid
+          && resource.data.ownerId == request.auth.uid;
+      }
     }
 
     match /documents/{documentId} {
-      allow create, update: if signedIn()
+      allow create: if signedIn()
         && currentProfile().role == "student"
-        && validDocumentMetadata(documentId)
+        && validDocumentCreate(documentId)
         && request.resource.data.department == currentProfile().department
         && request.resource.data.departmentKey == currentProfile().departmentKey
         && request.resource.data.year == currentProfile().year
@@ -171,14 +297,38 @@ service cloud.firestore {
         && validDepartmentKey(request.resource.data)
         && request.resource.data.category in ["online", "personal", "academic"]
         && request.resource.data.status == "active"
-        && request.resource.data.accessLevel in ["private", "teacher-visible"];
+        && ((request.resource.data.category == "academic" && request.resource.data.accessLevel == "teacher-visible")
+          || (request.resource.data.category in ["online", "personal"] && request.resource.data.accessLevel == "private"));
+      allow update: if signedIn()
+        && currentProfile().role == "student"
+        && validDocumentUpdate(documentId)
+        && request.resource.data.department == currentProfile().department
+        && request.resource.data.departmentKey == currentProfile().departmentKey
+        && request.resource.data.year == currentProfile().year
+        && allowedDepartment(request.resource.data.department)
+        && allowedYear(request.resource.data.year)
+        && validDepartmentKey(request.resource.data)
+        && request.resource.data.category in ["online", "personal", "academic"]
+        && request.resource.data.status == "active"
+        && ((request.resource.data.category == "academic" && request.resource.data.accessLevel == "teacher-visible")
+          || (request.resource.data.category in ["online", "personal"] && request.resource.data.accessLevel == "private"));
       allow read: if signedIn()
-        && (documentIdOwnedBySignedInUser(documentId)
-          || resource.data.ownerId == request.auth.uid
+        && (resource.data.ownerId == request.auth.uid
           || (resource.data.category == "academic" && isTeacherFor(resource.data)));
       allow delete: if signedIn()
         && (resource.data.ownerId == request.auth.uid
           || (resource.data.category == "academic" && isTeacherFor(resource.data)));
+
+      match /fileChunks/{chunkId} {
+        allow read: if canReadDocumentData(get(/databases/$(database)/documents/documents/$(documentId)).data);
+        allow create: if signedIn()
+          && currentProfile().role == "student"
+          && validFileChunk(documentId);
+        allow update: if false;
+        allow delete: if signedIn()
+          && (resource.data.ownerId == request.auth.uid
+            || canReadDocumentData(get(/databases/$(database)/documents/documents/$(documentId)).data));
+      }
     }
 
     match /academicTitles/{titleId} {

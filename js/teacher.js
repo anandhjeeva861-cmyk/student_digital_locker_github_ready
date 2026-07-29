@@ -3,6 +3,7 @@ import {
   addAcademicTitle,
   deleteTeacherAcademicDocument,
   firebaseErrorMessage,
+  getDocumentObjectUrl,
   getTeacherStudentDetail,
   listAcademicTitles,
   listTeacherAcademicDocuments,
@@ -13,6 +14,7 @@ import { DEFAULT_ACADEMIC_TITLES, escapeHtml, normalizeTitle, showMessage } from
 
 let teacher = null;
 let selectedStudentUid = null;
+let detailDocumentCache = [];
 
 function text(id, value) {
   const element = document.getElementById(id);
@@ -98,21 +100,38 @@ async function renderStudentDetail(studentUid) {
   text("detailMobile", student.mobile);
   const body = document.getElementById("academicRows");
   const docs = data.documents || [];
+  detailDocumentCache = docs;
   body.innerHTML = docs.map((item) => {
-    const url = item.file_url;
     return `
     <tr>
       <td><b>${escapeHtml(item.title)}</b></td>
       <td>${escapeHtml(item.file_name)}</td>
       <td>${escapeHtml(dateText(item.uploaded_at))}</td>
       <td class="action-cell">
-        <a class="small-btn" href="${escapeHtml(url)}" target="_blank" rel="noopener">VIEW</a>
-        <a class="small-btn" href="${escapeHtml(url)}" download="${escapeHtml(item.file_name)}">DOWNLOAD</a>
+        <button class="small-btn" data-view-doc="${escapeHtml(item.id)}">VIEW</button>
+        <button class="small-btn" data-download-doc="${escapeHtml(item.id)}">DOWNLOAD</button>
         <button class="small-btn danger" data-delete-doc="${escapeHtml(item.id)}">REMOVE</button>
       </td>
     </tr>`;
   }).join("");
   showView("student-detail");
+}
+
+async function openStoredDocument(documentId, mode) {
+  const item = detailDocumentCache.find((documentItem) => documentItem.id === documentId);
+  if (!item) throw new Error("Document not found.");
+  const url = await getDocumentObjectUrl(item);
+  if (mode === "view") {
+    window.open(url, "_blank", "noopener");
+  } else {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = item.file_name || "document";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+  if (url.startsWith("blob:")) window.setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 async function renderTitles() {
@@ -189,6 +208,21 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.addEventListener("click", async (event) => {
+    const viewButton = event.target.closest("[data-view-doc]");
+    const downloadButton = event.target.closest("[data-download-doc]");
+    if (viewButton || downloadButton) {
+      try {
+        await openStoredDocument(
+          (viewButton || downloadButton).dataset.viewDoc || (viewButton || downloadButton).dataset.downloadDoc,
+          viewButton ? "view" : "download"
+        );
+      } catch (error) {
+        console.error("Teacher document open failed", error);
+        showMessage(firebaseErrorMessage(error), "danger");
+      }
+      return;
+    }
+
     const studentButton = event.target.closest("[data-student-id]");
     if (studentButton) {
       try {

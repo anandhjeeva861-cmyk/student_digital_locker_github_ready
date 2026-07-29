@@ -2,7 +2,9 @@ import { protectPage } from "./auth.js";
 import {
   deleteStudentDocument,
   firebaseErrorMessage,
+  getDocumentObjectUrl,
   listAcademicTitles,
+  getProfilePhotoUrl,
   listStudentDocuments,
   uploadProfilePhoto,
   uploadStudentDocument
@@ -53,6 +55,17 @@ function fillProfile() {
   }
 }
 
+async function refreshProfilePhoto() {
+  const photo = document.getElementById("studentPhoto");
+  const avatar = document.getElementById("studentAvatar");
+  if (!photo) return;
+  const url = await getProfilePhotoUrl(profile);
+  if (!url) return;
+  photo.src = url;
+  photo.hidden = false;
+  if (avatar) avatar.hidden = true;
+}
+
 async function loadDocuments(category) {
   documentCache[category] = await listStudentDocuments(profile, category);
   return documentCache[category];
@@ -77,15 +90,14 @@ async function refreshDocuments(category) {
 }
 
 function documentRow(item) {
-  const url = item.file_url;
   return `
     <tr>
       <td><b>${escapeHtml(item.title)}</b></td>
       <td>${escapeHtml(item.file_name)}</td>
       <td>${escapeHtml(dateText(item.uploaded_at))}</td>
       <td class="action-cell">
-        <a class="small-btn" href="${escapeHtml(url)}" target="_blank" rel="noopener">VIEW</a>
-        <a class="small-btn" href="${escapeHtml(url)}" download="${escapeHtml(item.file_name)}">DOWNLOAD</a>
+        <button class="small-btn" data-view-doc="${escapeHtml(item.id)}">VIEW</button>
+        <button class="small-btn" data-download-doc="${escapeHtml(item.id)}">DOWNLOAD</button>
         <button class="small-btn danger" data-delete-doc="${escapeHtml(item.id)}" data-category="${escapeHtml(item.category)}">REMOVE</button>
       </td>
     </tr>`;
@@ -142,13 +154,36 @@ async function uploadPhoto(form) {
 
   profile = await uploadProfilePhoto(profile, file);
   fillProfile();
+  await refreshProfilePhoto();
   form.reset();
+}
+
+function findDocument(documentId) {
+  return Object.values(documentCache).flat().find((item) => item.id === documentId);
+}
+
+async function openStoredDocument(documentId, mode) {
+  const item = findDocument(documentId);
+  if (!item) throw new Error("Document not found.");
+  const url = await getDocumentObjectUrl(item);
+  if (mode === "view") {
+    window.open(url, "_blank", "noopener");
+  } else {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = item.file_name || "document";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+  if (url.startsWith("blob:")) window.setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   protectPage("student", async (_currentUser, currentProfile) => {
     profile = currentProfile;
     fillProfile();
+    await refreshProfilePhoto();
     for (const category of ["online", "personal", "academic"]) await refreshDocuments(category);
     await refreshAcademicTitles();
   });
@@ -193,6 +228,21 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.addEventListener("click", async (event) => {
+    const viewButton = event.target.closest("[data-view-doc]");
+    const downloadButton = event.target.closest("[data-download-doc]");
+    if (viewButton || downloadButton) {
+      try {
+        await openStoredDocument(
+          (viewButton || downloadButton).dataset.viewDoc || (viewButton || downloadButton).dataset.downloadDoc,
+          viewButton ? "view" : "download"
+        );
+      } catch (error) {
+        console.error("Student document open failed", error);
+        showMessage(firebaseErrorMessage(error), "danger");
+      }
+      return;
+    }
+
     const button = event.target.closest("[data-delete-doc]");
     if (!button || !confirm("Remove this document?")) return;
     try {
