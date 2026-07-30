@@ -61,7 +61,8 @@ function collectFiles(directory) {
 collectFiles(dist);
 
 const forbiddenArtifactFiles = artifactFiles.filter((file) =>
-  /(^|\/)(\.env(?:\..*)?|.*(?:service[-_]?account|serviceAccount|firebase-admin|firebase-adminsdk).*\.json|.*\.(?:pem|key|p12|pfx))$/i.test(file)
+  /(^|\/)(\.env(?:\..*)?|.*(?:service[-_]?account|serviceAccount|firebase-admin|firebase-adminsdk).*\.json|vercel\.json|netlify\.toml|_redirects|_headers|.*\.(?:pem|key|p12|pfx|db|sqlite|sqlite3))$/i.test(file)
+  || /(^|\/)(?:server|\.vercel|\.netlify|\.firebase)(\/|$)/i.test(file)
 );
 if (forbiddenArtifactFiles.length) {
   console.error(`Credential files found in Pages artifact: ${forbiddenArtifactFiles.join(", ")}`);

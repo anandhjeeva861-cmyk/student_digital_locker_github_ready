@@ -49,6 +49,23 @@ const htmlFiles = [
 const jsFiles = ["js/firebase.js", "js/firebase-service.js", "js/options.js", "js/auth.js", "js/student.js", "js/teacher.js", "js/validation.js"];
 const failures = [];
 
+const trackedFiles = execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" })
+  .split("\0")
+  .filter(Boolean);
+
+const forbiddenTrackedFiles = trackedFiles.filter((file) =>
+  file !== ".env.example"
+  && (
+    /(^|\/)(?:\.env(?:\..*)?|js\/firebase-config\.js|vercel\.json|netlify\.toml|_redirects|_headers)$/i.test(file)
+    || /(^|\/)(?:server|\.vercel|\.netlify|\.firebase)(\/|$)/i.test(file)
+    || /(^|\/).*(?:service[-_]?account|serviceAccount|firebase-admin|firebase-adminsdk).*\.json$/i.test(file)
+    || /\.(?:pem|key|p12|pfx|db|sqlite|sqlite3)$/i.test(file)
+  )
+);
+if (forbiddenTrackedFiles.length) {
+  failures.push(`Tracked files include deployment leftovers or secrets: ${forbiddenTrackedFiles.join(", ")}`);
+}
+
 for (const file of htmlFiles) {
   const content = fs.readFileSync(path.join(process.cwd(), file), "utf8");
   if (/src="\/js\//.test(content) || /href="\/css\//.test(content) || /src="\/images\//.test(content)) {
@@ -64,7 +81,7 @@ for (const file of htmlFiles) {
 
 for (const file of [...jsFiles, ".github/workflows/pages.yml"]) {
   const content = fs.readFileSync(path.join(process.cwd(), file), "utf8");
-  if (/supabase|service_role|private_key|serviceAccount/i.test(content)) {
+  if (/supabase|service_role|private_key|serviceAccount|vercel|netlify/i.test(content)) {
     failures.push(`${file} contains unsafe or removed-provider references.`);
   }
   if (/Ã°|Ã¢|ï¿½|â˜|ðŸ/.test(content)) {
@@ -75,6 +92,11 @@ for (const file of [...jsFiles, ".github/workflows/pages.yml"]) {
 const firebaseJs = fs.readFileSync(path.join(process.cwd(), "js/firebase.js"), "utf8");
 const firebaseServiceJs = fs.readFileSync(path.join(process.cwd(), "js/firebase-service.js"), "utf8");
 const firestoreRules = fs.readFileSync(path.join(process.cwd(), "firebase/firestore.rules"), "utf8");
+const firebaseJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), "firebase.json"), "utf8"));
+
+if (firebaseJson.hosting || JSON.stringify(firebaseJson).includes("rewrites")) {
+  failures.push("firebase.json must not contain Firebase Hosting rewrites for the GitHub Pages app.");
+}
 
 if (/AIza[0-9A-Za-z_-]{20,}/.test(firebaseJs)) {
   failures.push("js/firebase.js must not contain a hardcoded Firebase API key.");
@@ -103,9 +125,7 @@ for (const expected of ["browserSessionPersistence", "inMemoryPersistence"]) {
   if (!firebaseJs.includes(expected)) failures.push(`js/firebase.js is missing auth persistence fallback: ${expected}`);
 }
 
-const trackedTextFiles = execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" })
-  .split("\0")
-  .filter(Boolean)
+const trackedTextFiles = trackedFiles
   .filter((file) => /(?:^|\/)(?:[^/]+\.(?:html?|css|js|json|md|ya?ml|txt|rules)|\.firebaserc|\.env\.example)$/.test(file));
 
 for (const file of trackedTextFiles) {
