@@ -34,6 +34,9 @@ function showView(name) {
   document.querySelectorAll("[data-view]").forEach((view) => {
     view.hidden = view.dataset.view !== name;
   });
+}
+
+function onViewChange(name) {
   if (name === "academic") {
     refreshAcademicTitles().catch((error) => {
       console.error("Academic titles failed", error);
@@ -204,11 +207,8 @@ document.addEventListener("DOMContentLoaded", () => {
     await safeRefresh("Academic titles load", refreshAcademicTitles);
   });
 
-  document.querySelectorAll("[data-open-view]").forEach((link) => {
-    link.addEventListener("click", (event) => {
-      event.preventDefault();
-      showView(link.dataset.openView);
-    });
+  document.addEventListener("dashboard:view-change", (event) => {
+    onViewChange(event.detail?.view);
   });
 
   document.querySelectorAll("[data-upload-category]").forEach((form) => {

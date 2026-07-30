@@ -202,14 +202,11 @@ document.addEventListener("DOMContentLoaded", () => {
     await safeRender("Document title load", renderTitles);
   });
 
-  document.querySelectorAll("[data-open-view]").forEach((link) => {
-    link.addEventListener("click", async (event) => {
-      event.preventDefault();
-      showView(link.dataset.openView);
-      if (link.dataset.openView === "students") await safeRender("Student list load", renderStudents);
-      if (link.dataset.openView === "status") await safeRender("Submission status load", renderStatus);
-      if (link.dataset.openView === "add-title") await safeRender("Document title load", renderTitles);
-    });
+  document.addEventListener("dashboard:view-change", async (event) => {
+    const view = event.detail?.view;
+    if (view === "students") await safeRender("Student list load", renderStudents);
+    if (view === "status") await safeRender("Submission status load", renderStatus);
+    if (view === "add-title") await safeRender("Document title load", renderTitles);
   });
 
   document.getElementById("searchForm")?.addEventListener("submit", async (event) => {

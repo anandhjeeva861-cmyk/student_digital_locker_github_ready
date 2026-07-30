@@ -9,6 +9,7 @@ const requiredFiles = [
   "images/sankara-logo.png",
   "js/firebase.js",
   "js/firebase-service.js",
+  "js/dashboard-nav.js",
   "js/firebase-config.js",
   "js/firebase-config.example.js",
   "js/options.js",
@@ -47,7 +48,7 @@ const htmlFiles = [
   "teacher-dashboard.html"
 ];
 
-const jsFiles = ["js/firebase.js", "js/firebase-service.js", "js/options.js", "js/auth.js", "js/student.js", "js/teacher.js", "js/validation.js"];
+const jsFiles = ["js/firebase.js", "js/firebase-service.js", "js/dashboard-nav.js", "js/options.js", "js/auth.js", "js/student.js", "js/teacher.js", "js/validation.js"];
 const failures = [];
 
 const trackedFiles = execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" })
@@ -127,6 +128,18 @@ for (const file of ["student-register.html", "teacher-register.html"]) {
 
 if (/from\s+["']\.\/firebase-service\.js["']/.test(authJs) || !authJs.includes("loadFirebaseService")) {
   failures.push("js/auth.js must lazy-load Firebase service after submit handlers attach.");
+}
+
+for (const file of ["student-dashboard.html", "teacher-dashboard.html"]) {
+  const content = fs.readFileSync(path.join(process.cwd(), file), "utf8");
+  if (!/<script\s+type="module"\s+src="\.\/js\/dashboard-nav\.js"><\/script>/.test(content)) {
+    failures.push(`${file} must load ./js/dashboard-nav.js before dashboard data scripts.`);
+  }
+}
+
+const dashboardNavJs = fs.readFileSync(path.join(process.cwd(), "js/dashboard-nav.js"), "utf8");
+if (!dashboardNavJs.includes("dashboard:view-change") || !dashboardNavJs.includes("event.preventDefault()")) {
+  failures.push("js/dashboard-nav.js must prevent # navigation and emit dashboard view changes.");
 }
 
 if (!/const profileCollection = ["']profiles["']/.test(firebaseServiceJs)
