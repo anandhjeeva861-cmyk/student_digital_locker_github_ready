@@ -588,10 +588,16 @@ export async function teacherStatus(profile) {
   ].filter((item, index, rows) => rows.findIndex((row) => row.title === item.title) === index);
 
   return titles.map((title) => {
-    const uploadedIds = new Set(docs.filter((docItem) => docItem.title === title.title).map((docItem) => docItem.ownerId));
+    const docsForTitle = docs.filter((docItem) => docItem.title === title.title);
+    const uploadedIds = new Set(docsForTitle.map((docItem) => docItem.ownerId));
     return {
       title: title.title,
-      uploaded: students.filter((student) => uploadedIds.has(student.uid)),
+      uploaded: students
+        .filter((student) => uploadedIds.has(student.uid))
+        .map((student) => ({
+          ...student,
+          documents: docsForTitle.filter((docItem) => docItem.ownerId === student.uid)
+        })),
       pending: students.filter((student) => !uploadedIds.has(student.uid))
     };
   });

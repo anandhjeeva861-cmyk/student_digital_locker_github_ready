@@ -755,6 +755,13 @@ tr:hover td {
     font-weight: 700;
 }
 
+.status-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
 .good-list li {
     border-left: 4px solid var(--success);
 }

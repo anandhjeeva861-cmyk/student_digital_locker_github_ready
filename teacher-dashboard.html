@@ -16,7 +16,6 @@
         <a href="#" class="nav-link" data-open-view="students">SEARCH STUDENT</a>
         <a href="#" class="nav-link" data-open-view="status">DOCUMENT SUBMISSION STATUS</a>
         <a href="#" class="nav-link" data-open-view="add-title">ADD STUDENT DOCUMENT TITLE</a>
-        <a href="#" class="nav-link" data-open-view="remove-title">REMOVE DOCUMENT TITLE</a>
         <a href="#" class="nav-link danger-link" data-logout>LOGOUT</a>
       </nav>
     </aside>
@@ -73,21 +72,16 @@
         <div class="page-head"><div><p class="eyebrow">ADD STUDENT DOCUMENT TITLE</p><h1>Add Academic Requirement</h1><p class="muted">Saved title will appear inside matching student academic upload options.</p></div></div>
         <div class="workspace-grid">
           <div class="upload-card"><h2>New Academic Certificate Title</h2><form class="stack-form" id="addTitleForm"><label>Document Title</label><input name="title" placeholder="Example: TRANSFER CERTIFICATE" required><button class="primary-btn" type="submit">SAVE TITLE</button></form></div>
-          <div class="upload-card soft-card"><h2>Teacher Added Titles</h2><div class="pill-wrap" id="customTitles"></div></div>
-        </div>
-      </section>
-
-      <section data-view="remove-title" hidden>
-        <div class="page-head"><div><p class="eyebrow">REMOVE DOCUMENT TITLE</p><h1>Remove Academic Requirement</h1><p class="muted">Only teacher-added titles in your department and year can be removed.</p></div></div>
-        <div class="table-card">
-          <div class="card-title-row"><h2>Teacher Added Titles</h2></div>
-          <div class="responsive-table">
-            <table>
-              <thead><tr><th>Document Title</th><th>Action</th></tr></thead>
-              <tbody id="removeTitleRows"></tbody>
-            </table>
+          <div class="upload-card soft-card">
+            <h2>Teacher Added Titles</h2>
+            <div class="responsive-table">
+              <table>
+                <thead><tr><th>Document Title</th><th>Action</th></tr></thead>
+                <tbody id="customTitleRows"></tbody>
+              </table>
+            </div>
+            <div class="empty-state" id="customTitleEmpty">No teacher-added titles added yet.</div>
           </div>
-          <div class="empty-state" id="removeTitleEmpty">No teacher-added titles found.</div>
         </div>
       </section>
     </main>

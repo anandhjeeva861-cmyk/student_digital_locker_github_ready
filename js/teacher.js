@@ -16,6 +16,7 @@ import { DEFAULT_ACADEMIC_TITLES, escapeHtml, normalizeTitle, showMessage } from
 let teacher = null;
 let selectedStudentUid = null;
 let detailDocumentCache = [];
+let statusDocumentCache = [];
 
 function text(id, value) {
   const element = document.getElementById(id);
@@ -145,17 +146,8 @@ async function openStoredDocument(documentId, mode) {
 }
 
 async function renderTitles() {
-  const wrap = document.getElementById("customTitles");
-  if (!wrap) return;
-  const custom = await listAcademicTitles(teacher);
-  wrap.innerHTML = !custom.length
-    ? '<div class="empty-state">No custom titles added yet.</div>'
-    : custom.map((item) => `<span class="pill">${escapeHtml(item.title)}</span>`).join("");
-}
-
-async function renderRemoveTitles() {
-  const body = document.getElementById("removeTitleRows");
-  const empty = document.getElementById("removeTitleEmpty");
+  const body = document.getElementById("customTitleRows");
+  const empty = document.getElementById("customTitleEmpty");
   if (!body) return;
   const custom = await listAcademicTitles(teacher);
   body.innerHTML = custom.map((item) => `
@@ -170,6 +162,7 @@ async function renderStatus() {
   const grid = document.getElementById("statusGrid");
   if (!grid) return;
   const status = await teacherStatus(teacher);
+  statusDocumentCache = status.flatMap((row) => row.uploaded.flatMap((student) => student.documents || []));
   grid.innerHTML = "";
   for (const row of status) {
     grid.insertAdjacentHTML("beforeend", `
@@ -185,7 +178,18 @@ async function renderStatus() {
 
 function nameList(students, className, emptyText) {
   if (!students.length) return `<p class="muted">${emptyText}</p>`;
-  return `<ul class="name-list ${className}">${students.map((item) => `<li>${escapeHtml(item.name)} <small>${escapeHtml(item.reg_no || "")}</small></li>`).join("")}</ul>`;
+  return `<ul class="name-list ${className}">${students.map((item) => `
+    <li>
+      <span>${escapeHtml(item.name)} <small>${escapeHtml(item.reg_no || "")}</small></span>
+      ${statusDocumentButtons(item.documents || [])}
+    </li>`).join("")}</ul>`;
+}
+
+function statusDocumentButtons(documents) {
+  if (!documents.length) return "";
+  return `<div class="status-actions">${documents.map((item) => `
+    <button class="small-btn" data-status-view-doc="${escapeHtml(item.id)}">VIEW</button>
+    <button class="small-btn" data-status-download-doc="${escapeHtml(item.id)}">DOWNLOAD</button>`).join("")}</div>`;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -205,7 +209,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (link.dataset.openView === "students") await safeRender("Student list load", renderStudents);
       if (link.dataset.openView === "status") await safeRender("Submission status load", renderStatus);
       if (link.dataset.openView === "add-title") await safeRender("Document title load", renderTitles);
-      if (link.dataset.openView === "remove-title") await safeRender("Remove title list load", renderRemoveTitles);
     });
   });
 
@@ -223,7 +226,6 @@ document.addEventListener("DOMContentLoaded", () => {
       await addAcademicTitle(teacher, title);
       event.currentTarget.reset();
       await renderTitles();
-      await renderRemoveTitles();
       await renderDashboard();
       showMessage("Academic title added.", "success");
     } catch (error) {
@@ -235,6 +237,22 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("click", async (event) => {
     const viewButton = event.target.closest("[data-view-doc]");
     const downloadButton = event.target.closest("[data-download-doc]");
+    const statusViewButton = event.target.closest("[data-status-view-doc]");
+    const statusDownloadButton = event.target.closest("[data-status-download-doc]");
+    if (statusViewButton || statusDownloadButton) {
+      try {
+        const documentId = statusViewButton?.dataset.statusViewDoc || statusDownloadButton?.dataset.statusDownloadDoc;
+        const item = statusDocumentCache.find((documentItem) => documentItem.id === documentId);
+        if (!item) throw new Error("Document not found.");
+        detailDocumentCache = [...detailDocumentCache.filter((documentItem) => documentItem.id !== item.id), item];
+        await openStoredDocument(item.id, statusViewButton ? "view" : "download");
+      } catch (error) {
+        console.error("Teacher status document open failed", error);
+        showMessage(firebaseErrorMessage(error), "danger");
+      }
+      return;
+    }
+
     if (viewButton || downloadButton) {
       try {
         await openStoredDocument(
@@ -262,7 +280,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (removeTitleButton && confirm(`Remove document title "${removeTitleButton.dataset.titleName}"?`)) {
       try {
         await deleteAcademicTitle(teacher, removeTitleButton.dataset.removeTitle);
-        await renderRemoveTitles();
         await renderTitles();
         await renderDashboard();
         await renderStatus();

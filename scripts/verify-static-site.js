@@ -254,11 +254,18 @@ if (/localhost:3000|localhost:8000|127\.0\.0\.1:3000/.test([...htmlFiles, ...jsF
 
 const teacherDashboard = fs.readFileSync(path.join(process.cwd(), "teacher-dashboard.html"), "utf8");
 const teacherJs = fs.readFileSync(path.join(process.cwd(), "js/teacher.js"), "utf8");
-if (!teacherDashboard.includes('data-open-view="remove-title"')
-  || !teacherDashboard.includes('id="removeTitleRows"')
+if (teacherDashboard.includes('data-open-view="remove-title"')
+  || teacherDashboard.includes('id="removeTitleRows"')) {
+  failures.push("Teacher dashboard must not expose remove document title as a separate page.");
+}
+
+if (!teacherDashboard.includes('id="customTitleRows"')
   || !teacherJs.includes("deleteAcademicTitle")
-  || !teacherJs.includes("data-remove-title")) {
-  failures.push("Teacher dashboard must include the remove document title feature.");
+  || !teacherJs.includes("data-remove-title")
+  || !teacherJs.includes("statusDocumentButtons")
+  || !teacherJs.includes("data-status-view-doc")
+  || !teacherJs.includes("data-status-download-doc")) {
+  failures.push("Teacher dashboard must support title removal inside add-title and document view/download inside status.");
 }
 
 if (failures.length) {
