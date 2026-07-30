@@ -1,22 +1,26 @@
 import { protectPage } from "./auth.js";
-import {
-  addAcademicTitle,
-  deleteAcademicTitle,
-  deleteTeacherAcademicDocument,
-  firebaseErrorMessage,
-  getDocumentObjectUrl,
-  getTeacherStudentDetail,
-  listAcademicTitles,
-  listTeacherAcademicDocuments,
-  listTeacherStudents,
-  teacherStatus
-} from "./firebase-service.js";
 import { DEFAULT_ACADEMIC_TITLES, escapeHtml, normalizeTitle, showMessage } from "./validation.js";
 
 let teacher = null;
 let selectedStudentUid = null;
 let detailDocumentCache = [];
 let statusDocumentCache = [];
+let firebaseServicePromise = null;
+
+function loadFirebaseService() {
+  if (!firebaseServicePromise) firebaseServicePromise = import("./firebase-service.js");
+  return firebaseServicePromise;
+}
+
+async function friendlyFirebaseError(error) {
+  try {
+    const { firebaseErrorMessage } = await loadFirebaseService();
+    return firebaseErrorMessage(error);
+  } catch (loadError) {
+    console.error("Firebase service failed to load", loadError);
+    return error?.message || "Dashboard Firebase service failed to load. Refresh after the latest deployment completes.";
+  }
+}
 
 function text(id, value) {
   const element = document.getElementById(id);
@@ -48,15 +52,17 @@ async function safeRender(label, task) {
     await task();
   } catch (error) {
     console.error(`${label} failed`, error);
-    showMessage(firebaseErrorMessage(error), "danger", { duration: 9000 });
+    showMessage(await friendlyFirebaseError(error), "danger", { duration: 9000 });
   }
 }
 
 async function matchingStudents(filter = "") {
+  const { listTeacherStudents } = await loadFirebaseService();
   return listTeacherStudents(teacher, filter);
 }
 
 async function academicDocs(studentUid = null) {
+  const { getTeacherStudentDetail, listTeacherAcademicDocuments } = await loadFirebaseService();
   if (studentUid) {
     return (await getTeacherStudentDetail(teacher, studentUid)).documents || [];
   }
@@ -73,6 +79,7 @@ async function renderDashboard() {
 }
 
 async function allAcademicTitles() {
+  const { listAcademicTitles } = await loadFirebaseService();
   return [
     ...DEFAULT_ACADEMIC_TITLES.map((title) => ({ title })),
     ...(await listAcademicTitles(teacher))
@@ -101,6 +108,7 @@ async function renderStudents(filter = "") {
 
 async function renderStudentDetail(studentUid) {
   selectedStudentUid = studentUid;
+  const { getTeacherStudentDetail } = await loadFirebaseService();
   const data = await getTeacherStudentDetail(teacher, studentUid);
   const student = data.student;
   text("detailName", student.name);
@@ -131,6 +139,7 @@ async function renderStudentDetail(studentUid) {
 async function openStoredDocument(documentId, mode) {
   const item = detailDocumentCache.find((documentItem) => documentItem.id === documentId);
   if (!item) throw new Error("Document not found.");
+  const { getDocumentObjectUrl } = await loadFirebaseService();
   const url = await getDocumentObjectUrl(item);
   if (mode === "view") {
     window.open(url, "_blank", "noopener");
@@ -149,6 +158,7 @@ async function renderTitles() {
   const body = document.getElementById("customTitleRows");
   const empty = document.getElementById("customTitleEmpty");
   if (!body) return;
+  const { listAcademicTitles } = await loadFirebaseService();
   const custom = await listAcademicTitles(teacher);
   body.innerHTML = custom.map((item) => `
     <tr>
@@ -161,6 +171,7 @@ async function renderTitles() {
 async function renderStatus() {
   const grid = document.getElementById("statusGrid");
   if (!grid) return;
+  const { teacherStatus } = await loadFirebaseService();
   const status = await teacherStatus(teacher);
   statusDocumentCache = status.flatMap((row) => row.uploaded.flatMap((student) => student.documents || []));
   grid.innerHTML = "";
@@ -220,6 +231,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const title = normalizeTitle(event.currentTarget.elements.title.value);
     if (!title) return showMessage("Enter document title.", "danger");
     try {
+      const { addAcademicTitle } = await loadFirebaseService();
       await addAcademicTitle(teacher, title);
       event.currentTarget.reset();
       await renderTitles();
@@ -227,7 +239,7 @@ document.addEventListener("DOMContentLoaded", () => {
       showMessage("Academic title added.", "success");
     } catch (error) {
       console.error("Teacher add title failed", error);
-      showMessage(firebaseErrorMessage(error), "danger");
+      showMessage(await friendlyFirebaseError(error), "danger");
     }
   });
 
@@ -245,7 +257,7 @@ document.addEventListener("DOMContentLoaded", () => {
         await openStoredDocument(item.id, statusViewButton ? "view" : "download");
       } catch (error) {
         console.error("Teacher status document open failed", error);
-        showMessage(firebaseErrorMessage(error), "danger");
+        showMessage(await friendlyFirebaseError(error), "danger");
       }
       return;
     }
@@ -258,7 +270,7 @@ document.addEventListener("DOMContentLoaded", () => {
         );
       } catch (error) {
         console.error("Teacher document open failed", error);
-        showMessage(firebaseErrorMessage(error), "danger");
+        showMessage(await friendlyFirebaseError(error), "danger");
       }
       return;
     }
@@ -269,13 +281,14 @@ document.addEventListener("DOMContentLoaded", () => {
         await renderStudentDetail(studentButton.dataset.studentId);
       } catch (error) {
         console.error("Teacher student detail failed", error);
-        showMessage(firebaseErrorMessage(error), "danger");
+        showMessage(await friendlyFirebaseError(error), "danger");
       }
     }
 
     const removeTitleButton = event.target.closest("[data-remove-title]");
     if (removeTitleButton && confirm(`Remove document title "${removeTitleButton.dataset.titleName}"?`)) {
       try {
+        const { deleteAcademicTitle } = await loadFirebaseService();
         await deleteAcademicTitle(teacher, removeTitleButton.dataset.removeTitle);
         await renderTitles();
         await renderDashboard();
@@ -283,20 +296,21 @@ document.addEventListener("DOMContentLoaded", () => {
         showMessage("Document title removed.", "success");
       } catch (error) {
         console.error("Teacher remove title failed", error);
-        showMessage(firebaseErrorMessage(error), "danger");
+        showMessage(await friendlyFirebaseError(error), "danger");
       }
     }
 
     const deleteButton = event.target.closest("[data-delete-doc]");
     if (deleteButton && confirm("Remove this academic document?")) {
       try {
+        const { deleteTeacherAcademicDocument } = await loadFirebaseService();
         await deleteTeacherAcademicDocument(teacher, deleteButton.dataset.deleteDoc);
         if (selectedStudentUid) await renderStudentDetail(selectedStudentUid);
         await renderDashboard();
         showMessage("Academic document removed.", "success");
       } catch (error) {
         console.error("Teacher academic document delete failed", error);
-        showMessage(firebaseErrorMessage(error), "danger");
+        showMessage(await friendlyFirebaseError(error), "danger");
       }
     }
   });

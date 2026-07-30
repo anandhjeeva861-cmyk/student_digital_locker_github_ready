@@ -27,6 +27,7 @@ import {
   documentMimeType,
   isAcademicYear,
   isDepartment,
+  normalizeName,
   photoMimeType
 } from "./validation.js";
 
@@ -63,6 +64,46 @@ function documentId(uid, category, title) {
 function tagFirebaseError(error, operation) {
   if (error && typeof error === "object") error.operation = operation;
   return error;
+}
+
+function uniqueById(items) {
+  const seen = new Set();
+  return items.filter((item) => {
+    const id = item?.id || item?.uid;
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+function profileError(message, missingFields = []) {
+  const error = new Error(message);
+  error.code = "app/profile-incomplete";
+  error.missingProfileFields = missingFields;
+  return error;
+}
+
+function requireProfileScope(profile, expectedRole, action) {
+  const missing = [];
+  if (!profile?.uid) missing.push("uid");
+  if (!profile?.role) missing.push("role");
+  if (expectedRole && profile?.role && profile.role !== expectedRole) {
+    throw profileError(`Only ${expectedRole} accounts can ${action}.`);
+  }
+  if (!profile?.name) missing.push("name");
+  if (!profile?.email) missing.push("email");
+  if (!profile?.department || !isDepartment(profile.department)) missing.push("department");
+  if (!profile?.departmentKey) missing.push("departmentKey");
+  if (!profile?.year || !isAcademicYear(profile.year)) missing.push("year");
+  if (expectedRole === "student" && !profile?.regNo) missing.push("regNo");
+  if (missing.length) {
+    throw profileError(
+      `Your Firestore profile is missing required ${expectedRole || "dashboard"} fields for ${action}: ${missing.join(", ")}. ` +
+        "Fix profiles/{your-user-id} in Firestore or register the account again.",
+      missing
+    );
+  }
+  return profile;
 }
 
 function profileFromDoc(snapshot) {
@@ -209,6 +250,9 @@ export function firebaseErrorMessage(error) {
   console.error("Firebase operation failed", error);
   const code = error?.code || "";
   const message = error?.message || "";
+  if (code === "app/profile-incomplete") {
+    return message || "Your Firestore profile is incomplete. Fix the profiles collection document for this account.";
+  }
   const operationMessages = {
     "firestore-chunks": "Firestore file chunk save denied. Publish Firestore rules and check the logged-in student profile.",
     "firestore-metadata": "Firestore metadata save denied. Publish Firestore rules and check the logged-in student profile.",
@@ -347,6 +391,7 @@ export async function getCurrentProfile() {
 }
 
 export async function uploadProfilePhoto(profile, file) {
+  requireProfileScope(profile, null, "upload a profile photo");
   await requireCurrentUser(profile.uid);
   const mimeType = photoMimeType(file);
   if (!mimeType) throw new Error("This file type is not supported.");
@@ -398,6 +443,7 @@ export async function getProfilePhotoUrl(profile) {
 }
 
 export async function listStudentDocuments(profile, category) {
+  requireProfileScope(profile, "student", "load student documents");
   const docsQuery = query(
     collection(db, documentsCollection),
     where("ownerId", "==", profile.uid),
@@ -408,6 +454,7 @@ export async function listStudentDocuments(profile, category) {
 }
 
 export async function uploadStudentDocument(profile, category, title, file) {
+  requireProfileScope(profile, "student", "upload documents");
   await requireCurrentUser(profile.uid);
   if (!documentCategories.includes(category)) throw new Error("Invalid document category.");
   if (!file) throw new Error("Please select a file.");
@@ -481,6 +528,7 @@ export async function getDocumentObjectUrl(documentItem) {
 }
 
 export async function deleteStudentDocument(profile, documentIdValue) {
+  requireProfileScope(profile, "student", "delete documents");
   await requireCurrentUser(profile.uid);
   const docRef = doc(db, documentsCollection, documentIdValue);
   const snapshot = await getDoc(docRef);
@@ -492,6 +540,7 @@ export async function deleteStudentDocument(profile, documentIdValue) {
 }
 
 export async function listAcademicTitles(profile) {
+  requireProfileScope(profile, null, "load academic titles");
   const titleQuery = query(
     collection(db, titlesCollection),
     where("departmentKey", "==", profile.departmentKey),
@@ -502,6 +551,8 @@ export async function listAcademicTitles(profile) {
 }
 
 export async function addAcademicTitle(profile, title) {
+  requireProfileScope(profile, "teacher", "add document titles");
+  await requireCurrentUser(profile.uid);
   await setDoc(doc(db, titlesCollection, titleId(profile, title)), {
     title,
     department: profile.department,
@@ -514,6 +565,7 @@ export async function addAcademicTitle(profile, title) {
 }
 
 export async function deleteAcademicTitle(profile, titleIdValue) {
+  requireProfileScope(profile, "teacher", "remove document titles");
   await requireCurrentUser(profile.uid);
   const titleRef = doc(db, titlesCollection, titleIdValue);
   const snapshot = await getDoc(titleRef);
@@ -526,26 +578,40 @@ export async function deleteAcademicTitle(profile, titleIdValue) {
 }
 
 export async function listTeacherStudents(profile, filter = "") {
-  const studentsQuery = query(
+  requireProfileScope(profile, "teacher", "load students");
+  const byDepartmentKeyQuery = query(
     collection(db, profileCollection),
     where("role", "==", "student"),
     where("departmentKey", "==", profile.departmentKey),
     where("year", "==", profile.year)
   );
-  const snapshots = await getDocs(studentsQuery);
+  const byDepartmentQuery = query(
+    collection(db, profileCollection),
+    where("role", "==", "student"),
+    where("department", "==", profile.department),
+    where("year", "==", profile.year)
+  );
+  const [departmentKeySnapshots, departmentSnapshots] = await Promise.all([
+    getDocs(byDepartmentKeyQuery),
+    getDocs(byDepartmentQuery)
+  ]);
   const search = String(filter || "").trim().toUpperCase();
-  const students = snapshots.docs.map(profileFromDoc);
+  const students = uniqueById([
+    ...departmentKeySnapshots.docs.map(profileFromDoc),
+    ...departmentSnapshots.docs.map(profileFromDoc)
+  ]);
   const academicDocs = await listTeacherAcademicDocuments(profile);
   return students
     .map((student) => ({
       ...student,
       academic_count: academicDocs.filter((item) => item.ownerId === student.uid).length
     }))
-    .filter((student) => !search || student.name.includes(search) || student.reg_no.includes(search))
+    .filter((student) => !search || normalizeName(student.name).includes(search) || student.reg_no.includes(search))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getTeacherStudentDetail(profile, studentUid) {
+  requireProfileScope(profile, "teacher", "load student details");
   const student = await getProfile(studentUid);
   if (!student || student.role !== "student") throw new Error("Student not found.");
   if (student.departmentKey !== profile.departmentKey || student.year !== profile.year) {
@@ -556,17 +622,31 @@ export async function getTeacherStudentDetail(profile, studentUid) {
 }
 
 export async function listTeacherAcademicDocuments(profile) {
-  const docsQuery = query(
+  requireProfileScope(profile, "teacher", "load academic documents");
+  const byDepartmentKeyQuery = query(
     collection(db, documentsCollection),
     where("category", "==", "academic"),
     where("departmentKey", "==", profile.departmentKey),
     where("year", "==", profile.year)
   );
-  const snapshots = await getDocs(docsQuery);
-  return snapshots.docs.map(documentFromDoc).sort((a, b) => a.ownerName.localeCompare(b.ownerName));
+  const byDepartmentQuery = query(
+    collection(db, documentsCollection),
+    where("category", "==", "academic"),
+    where("department", "==", profile.department),
+    where("year", "==", profile.year)
+  );
+  const [departmentKeySnapshots, departmentSnapshots] = await Promise.all([
+    getDocs(byDepartmentKeyQuery),
+    getDocs(byDepartmentQuery)
+  ]);
+  return uniqueById([
+    ...departmentKeySnapshots.docs.map(documentFromDoc),
+    ...departmentSnapshots.docs.map(documentFromDoc)
+  ]).sort((a, b) => a.ownerName.localeCompare(b.ownerName));
 }
 
 export async function deleteTeacherAcademicDocument(profile, documentIdValue) {
+  requireProfileScope(profile, "teacher", "delete academic documents");
   await requireCurrentUser(profile.uid);
   const docRef = doc(db, documentsCollection, documentIdValue);
   const snapshot = await getDoc(docRef);
@@ -580,6 +660,7 @@ export async function deleteTeacherAcademicDocument(profile, documentIdValue) {
 }
 
 export async function teacherStatus(profile) {
+  requireProfileScope(profile, "teacher", "load document submission status");
   const students = await listTeacherStudents(profile);
   const docs = await listTeacherAcademicDocuments(profile);
   const titles = [

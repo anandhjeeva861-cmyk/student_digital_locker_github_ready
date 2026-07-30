@@ -63,6 +63,11 @@ service cloud.firestore {
       return profile.regNo == regNo || profile.reg_no == regNo;
     }
 
+    function matchesCurrentProfileScope(data) {
+      return profileDepartmentKeyMatches(currentProfile(), data.departmentKey)
+        || data.department == currentProfile().department;
+    }
+
     function validProfileCreate(uid) {
       return request.resource.data.uid == uid
         && request.resource.data.role in ["student", "teacher"]
@@ -269,7 +274,7 @@ service cloud.firestore {
     function isTeacherFor(data) {
       return signedIn()
         && currentProfile().role == "teacher"
-        && profileDepartmentKeyMatches(currentProfile(), data.departmentKey)
+        && matchesCurrentProfileScope(data)
         && currentProfile().year == data.year;
     }
 
@@ -281,7 +286,7 @@ service cloud.firestore {
 
     function isSameScope(data) {
       return signedIn()
-        && profileDepartmentKeyMatches(currentProfile(), data.departmentKey)
+        && matchesCurrentProfileScope(data)
         && currentProfile().year == data.year;
     }
 

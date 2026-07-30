@@ -94,6 +94,8 @@ for (const file of [...jsFiles, ".github/workflows/pages.yml"]) {
 const firebaseJs = fs.readFileSync(path.join(process.cwd(), "js/firebase.js"), "utf8");
 const firebaseServiceJs = fs.readFileSync(path.join(process.cwd(), "js/firebase-service.js"), "utf8");
 const authJs = fs.readFileSync(path.join(process.cwd(), "js/auth.js"), "utf8");
+const studentJs = fs.readFileSync(path.join(process.cwd(), "js/student.js"), "utf8");
+const teacherJs = fs.readFileSync(path.join(process.cwd(), "js/teacher.js"), "utf8");
 const firestoreRules = fs.readFileSync(path.join(process.cwd(), "firebase/firestore.rules"), "utf8");
 const firebaseJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), "firebase.json"), "utf8"));
 
@@ -128,6 +130,12 @@ for (const file of ["student-register.html", "teacher-register.html"]) {
 
 if (/from\s+["']\.\/firebase-service\.js["']/.test(authJs) || !authJs.includes("loadFirebaseService")) {
   failures.push("js/auth.js must lazy-load Firebase service after submit handlers attach.");
+}
+
+for (const [file, content] of [["js/student.js", studentJs], ["js/teacher.js", teacherJs]]) {
+  if (/from\s+["']\.\/firebase-service\.js["']/.test(content) || !content.includes("loadFirebaseService")) {
+    failures.push(`${file} must lazy-load Firebase service so dashboard click and submit handlers attach before Firebase data calls.`);
+  }
 }
 
 for (const file of ["student-dashboard.html", "teacher-dashboard.html"]) {
@@ -190,7 +198,9 @@ if (!/validAcademicTitleWrite/.test(firestoreRules)
 
 if (!/profileDepartmentKeyMatches/.test(firestoreRules)
   || !/profileRegNoMatches/.test(firestoreRules)
-  || !/data\.regNo \|\| data\.reg_no/.test(firebaseServiceJs)) {
+  || !/matchesCurrentProfileScope/.test(firestoreRules)
+  || !/data\.regNo \|\| data\.reg_no/.test(firebaseServiceJs)
+  || !/byDepartmentQuery/.test(firebaseServiceJs)) {
   failures.push("Dashboard code and Firestore rules must support older profile field shapes.");
 }
 
@@ -272,7 +282,6 @@ if (/localhost:3000|localhost:8000|127\.0\.0\.1:3000/.test([...htmlFiles, ...jsF
 }
 
 const teacherDashboard = fs.readFileSync(path.join(process.cwd(), "teacher-dashboard.html"), "utf8");
-const teacherJs = fs.readFileSync(path.join(process.cwd(), "js/teacher.js"), "utf8");
 if (teacherDashboard.includes('data-open-view="remove-title"')
   || teacherDashboard.includes('id="removeTitleRows"')) {
   failures.push("Teacher dashboard must not expose remove document title as a separate page.");

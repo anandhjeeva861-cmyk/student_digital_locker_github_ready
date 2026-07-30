@@ -1,15 +1,5 @@
 import { protectPage } from "./auth.js";
 import {
-  deleteStudentDocument,
-  firebaseErrorMessage,
-  getDocumentObjectUrl,
-  listAcademicTitles,
-  getProfilePhotoUrl,
-  listStudentDocuments,
-  uploadProfilePhoto,
-  uploadStudentDocument
-} from "./firebase-service.js";
-import {
   DEFAULT_ACADEMIC_TITLES,
   escapeHtml,
   normalizeTitle,
@@ -20,6 +10,22 @@ import {
 
 let profile = null;
 let documentCache = { online: [], personal: [], academic: [] };
+let firebaseServicePromise = null;
+
+function loadFirebaseService() {
+  if (!firebaseServicePromise) firebaseServicePromise = import("./firebase-service.js");
+  return firebaseServicePromise;
+}
+
+async function friendlyFirebaseError(error) {
+  try {
+    const { firebaseErrorMessage } = await loadFirebaseService();
+    return firebaseErrorMessage(error);
+  } catch (loadError) {
+    console.error("Firebase service failed to load", loadError);
+    return error?.message || "Dashboard Firebase service failed to load. Refresh after the latest deployment completes.";
+  }
+}
 
 function text(id, value) {
   const element = document.getElementById(id);
@@ -38,9 +44,9 @@ function showView(name) {
 
 function onViewChange(name) {
   if (name === "academic") {
-    refreshAcademicTitles().catch((error) => {
+    refreshAcademicTitles().catch(async (error) => {
       console.error("Academic titles failed", error);
-      showMessage(firebaseErrorMessage(error), "danger");
+      showMessage(await friendlyFirebaseError(error), "danger");
     });
   }
 }
@@ -67,6 +73,7 @@ async function refreshProfilePhoto() {
   const photo = document.getElementById("studentPhoto");
   const avatar = document.getElementById("studentAvatar");
   if (!photo) return;
+  const { getProfilePhotoUrl } = await loadFirebaseService();
   const url = await getProfilePhotoUrl(profile);
   if (!url) return;
   photo.src = url;
@@ -75,6 +82,7 @@ async function refreshProfilePhoto() {
 }
 
 async function loadDocuments(category) {
+  const { listStudentDocuments } = await loadFirebaseService();
   documentCache[category] = await listStudentDocuments(profile, category);
   return documentCache[category];
 }
@@ -112,6 +120,7 @@ function documentRow(item) {
 }
 
 async function getAcademicTitles() {
+  const { listAcademicTitles } = await loadFirebaseService();
   return [
     ...DEFAULT_ACADEMIC_TITLES.map((title) => ({ title })),
     ...(await listAcademicTitles(profile))
@@ -149,6 +158,7 @@ async function uploadDocument(form, category) {
   const title = normalizeTitle(form.elements.title.value);
   if (!title) throw new Error("Enter or select a document title.");
 
+  const { uploadStudentDocument } = await loadFirebaseService();
   await uploadStudentDocument(profile, category, title, file);
 
   form.reset();
@@ -160,6 +170,7 @@ async function uploadPhoto(form) {
   const result = validatePhotoFile(file);
   if (!result.ok) throw new Error(result.message);
 
+  const { uploadProfilePhoto } = await loadFirebaseService();
   profile = await uploadProfilePhoto(profile, file);
   fillProfile();
   await refreshProfilePhoto();
@@ -175,13 +186,14 @@ async function safeRefresh(label, task) {
     await task();
   } catch (error) {
     console.error(`${label} failed`, error);
-    showMessage(firebaseErrorMessage(error), "danger", { duration: 9000 });
+    showMessage(await friendlyFirebaseError(error), "danger", { duration: 9000 });
   }
 }
 
 async function openStoredDocument(documentId, mode) {
   const item = findDocument(documentId);
   if (!item) throw new Error("Document not found.");
+  const { getDocumentObjectUrl } = await loadFirebaseService();
   const url = await getDocumentObjectUrl(item);
   if (mode === "view") {
     window.open(url, "_blank", "noopener");
@@ -221,7 +233,7 @@ document.addEventListener("DOMContentLoaded", () => {
         showMessage("Document uploaded successfully.", "success");
       } catch (error) {
         console.error("Student document upload failed", error);
-        showMessage(firebaseErrorMessage(error), "danger");
+        showMessage(await friendlyFirebaseError(error), "danger");
       } finally {
         button?.removeAttribute("disabled");
       }
@@ -237,7 +249,7 @@ document.addEventListener("DOMContentLoaded", () => {
       showMessage("Profile photo updated.", "success");
     } catch (error) {
       console.error("Student profile photo upload failed", error);
-      showMessage(firebaseErrorMessage(error), "danger");
+      showMessage(await friendlyFirebaseError(error), "danger");
     } finally {
       button?.removeAttribute("disabled");
     }
@@ -254,7 +266,7 @@ document.addEventListener("DOMContentLoaded", () => {
         );
       } catch (error) {
         console.error("Student document open failed", error);
-        showMessage(firebaseErrorMessage(error), "danger");
+        showMessage(await friendlyFirebaseError(error), "danger");
       }
       return;
     }
@@ -262,12 +274,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const button = event.target.closest("[data-delete-doc]");
     if (!button || !confirm("Remove this document?")) return;
     try {
+      const { deleteStudentDocument } = await loadFirebaseService();
       await deleteStudentDocument(profile, button.dataset.deleteDoc);
       await refreshDocuments(button.dataset.category);
       showMessage("Document removed.", "success");
     } catch (error) {
       console.error("Student document delete failed", error);
-      showMessage(firebaseErrorMessage(error), "danger");
+      showMessage(await friendlyFirebaseError(error), "danger");
     }
   });
 });
