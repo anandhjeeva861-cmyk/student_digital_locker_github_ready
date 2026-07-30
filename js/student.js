@@ -34,7 +34,12 @@ function showView(name) {
   document.querySelectorAll("[data-view]").forEach((view) => {
     view.hidden = view.dataset.view !== name;
   });
-  if (name === "academic") refreshAcademicTitles();
+  if (name === "academic") {
+    refreshAcademicTitles().catch((error) => {
+      console.error("Academic titles failed", error);
+      showMessage(firebaseErrorMessage(error), "danger");
+    });
+  }
 }
 
 function fillProfile() {
@@ -162,6 +167,15 @@ function findDocument(documentId) {
   return Object.values(documentCache).flat().find((item) => item.id === documentId);
 }
 
+async function safeRefresh(label, task) {
+  try {
+    await task();
+  } catch (error) {
+    console.error(`${label} failed`, error);
+    showMessage(firebaseErrorMessage(error), "danger", { duration: 9000 });
+  }
+}
+
 async function openStoredDocument(documentId, mode) {
   const item = findDocument(documentId);
   if (!item) throw new Error("Document not found.");
@@ -183,9 +197,11 @@ document.addEventListener("DOMContentLoaded", () => {
   protectPage("student", async (_currentUser, currentProfile) => {
     profile = currentProfile;
     fillProfile();
-    await refreshProfilePhoto();
-    for (const category of ["online", "personal", "academic"]) await refreshDocuments(category);
-    await refreshAcademicTitles();
+    await safeRefresh("Profile photo load", refreshProfilePhoto);
+    for (const category of ["online", "personal", "academic"]) {
+      await safeRefresh(`${category} documents load`, () => refreshDocuments(category));
+    }
+    await safeRefresh("Academic titles load", refreshAcademicTitles);
   });
 
   document.querySelectorAll("[data-open-view]").forEach((link) => {

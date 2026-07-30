@@ -42,6 +42,15 @@ function fillProfile() {
   text("teacherScope", `${teacher.department} - Year ${teacher.year}`);
 }
 
+async function safeRender(label, task) {
+  try {
+    await task();
+  } catch (error) {
+    console.error(`${label} failed`, error);
+    showMessage(firebaseErrorMessage(error), "danger", { duration: 9000 });
+  }
+}
+
 async function matchingStudents(filter = "") {
   return listTeacherStudents(teacher, filter);
 }
@@ -183,26 +192,26 @@ document.addEventListener("DOMContentLoaded", () => {
   protectPage("teacher", async (_currentUser, currentProfile) => {
     teacher = currentProfile;
     fillProfile();
-    await renderDashboard();
-    await renderStudents();
-    await renderStatus();
-    await renderTitles();
+    await safeRender("Teacher dashboard load", renderDashboard);
+    await safeRender("Student list load", renderStudents);
+    await safeRender("Submission status load", renderStatus);
+    await safeRender("Document title load", renderTitles);
   });
 
   document.querySelectorAll("[data-open-view]").forEach((link) => {
     link.addEventListener("click", async (event) => {
       event.preventDefault();
       showView(link.dataset.openView);
-      if (link.dataset.openView === "students") await renderStudents();
-      if (link.dataset.openView === "status") await renderStatus();
-      if (link.dataset.openView === "add-title") await renderTitles();
-      if (link.dataset.openView === "remove-title") await renderRemoveTitles();
+      if (link.dataset.openView === "students") await safeRender("Student list load", renderStudents);
+      if (link.dataset.openView === "status") await safeRender("Submission status load", renderStatus);
+      if (link.dataset.openView === "add-title") await safeRender("Document title load", renderTitles);
+      if (link.dataset.openView === "remove-title") await safeRender("Remove title list load", renderRemoveTitles);
     });
   });
 
   document.getElementById("searchForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    await renderStudents(event.currentTarget.elements.q.value);
+    await safeRender("Student search", () => renderStudents(event.currentTarget.elements.q.value));
     showView("students");
   });
 

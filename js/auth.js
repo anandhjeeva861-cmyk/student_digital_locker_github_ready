@@ -104,15 +104,15 @@ export async function fetchProfile() {
 
 export async function protectPage(role, callback) {
   let service = null;
+  let profile = null;
   try {
     service = await loadFirebaseService();
-    const profile = await service.getCurrentProfile();
+    profile = await service.getCurrentProfile();
     if (!profile || profile.role !== role) {
       await service.logout().catch(() => {});
       location.href = pages.login;
       return;
     }
-    await Promise.resolve(callback?.({ id: profile.uid }, profile));
   } catch (error) {
     console.error("Protected page failed", error);
     await service?.logout?.().catch(() => {});
@@ -120,6 +120,14 @@ export async function protectPage(role, callback) {
     window.setTimeout(() => {
       location.href = pages.login;
     }, 1800);
+    return;
+  }
+
+  try {
+    await Promise.resolve(callback?.({ id: profile.uid }, profile));
+  } catch (error) {
+    console.error("Dashboard data failed", error);
+    showMessage(await friendlyError(error), "danger", { duration: 9000 });
   }
 }
 
