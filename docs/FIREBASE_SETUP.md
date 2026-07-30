@@ -43,20 +43,28 @@ FIREBASE_MEASUREMENT_ID
 
 The GitHub Actions workflow requires the API key from an Actions repository variable or secret named `FIREBASE_API_KEY`. Without that value, config generation fails instead of deploying a broken or placeholder config.
 
-## Firebase Console
+## Firebase Console (required manual steps)
 
-1. Enable Authentication -> Sign-in method -> Email/Password.
-2. Create Firestore Database.
-3. Publish `firebase/firestore.rules` in Firestore Rules.
-4. Import or create indexes from `firebase/firestore.indexes.json`.
-5. Optional hardening: publish `firebase/storage.rules` only if you later enable Firebase Storage.
-6. Add authorized domain for GitHub Pages:
+1. Open the Firebase project `student-digi-locker-2-3293a` in Firebase Console.
+2. Go to **Build > Authentication > Get started > Sign-in method**. Select **Email/Password**, enable **Email/Password** (leave Email link disabled unless deliberately needed), and click **Save**.
+3. In **Authentication > Settings > Authorized domains**, click **Add domain**, enter only `anandhjeeva861-cmyk.github.io`, and save. Do not include `https://` or the repository path.
+4. Go to **Build > Firestore Database** and create the database if it does not exist. Choose the region intentionally because it cannot be changed later.
+5. Deploy the tracked rules and indexes from the repository with `npm run deploy:firebase` after authenticating the Firebase CLI (`npx firebase-tools login`). Alternatively, paste the complete contents of `firebase/firestore.rules` into **Firestore Database > Rules** and click **Publish**, then create the indexes described by `firebase/firestore.indexes.json`.
+6. In GitHub, go to **Repository Settings > Secrets and variables > Actions**. Under **Variables** (preferred for the Firebase Web API key) or **Secrets**, create `FIREBASE_API_KEY`. Never put its value in workflow YAML or tracked files.
+7. Go to **Repository Settings > Pages** and set **Source** to **GitHub Actions**, then run the **Deploy GitHub Pages** workflow.
+8. Optional hardening: publish `firebase/storage.rules` only if Firebase Storage is enabled later; the current app stores file chunks in Firestore.
+
+Authorized domain value:
 
 ```text
 anandhjeeva861-cmyk.github.io
 ```
 
 Only add the host name, not the repository path. For a custom domain, add that host name too.
+
+## Previously committed keys
+
+If secret scanning reports a Firebase API key from repository history, restricting or deleting the current file is not enough. In Google Cloud Console, restrict the browser key to the required Firebase APIs and HTTP referrers, rotate it if exposure is unacceptable, update the GitHub Actions variable/secret, and purge the old generated file from Git history with `git filter-repo --path js/firebase-config.js --invert-paths`. History rewriting changes commit IDs and requires coordinating a force-push with every collaborator; do it deliberately, then revoke the old key.
 
 ## Deploy Firebase Rules
 

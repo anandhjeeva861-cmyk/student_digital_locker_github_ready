@@ -44,4 +44,28 @@ if (unsafe.length) {
   process.exit(1);
 }
 
+const generatedConfig = path.join(dist, "js", "firebase-config.js");
+if (!fs.existsSync(generatedConfig)) {
+  console.error("Pages artifact is missing dist/js/firebase-config.js.");
+  process.exit(1);
+}
+
+const artifactFiles = [];
+function collectFiles(directory) {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) collectFiles(fullPath);
+    else artifactFiles.push(path.relative(dist, fullPath).replaceAll("\\", "/"));
+  }
+}
+collectFiles(dist);
+
+const forbiddenArtifactFiles = artifactFiles.filter((file) =>
+  /(^|\/)(\.env(?:\..*)?|.*(?:service[-_]?account|serviceAccount|firebase-admin|firebase-adminsdk).*\.json|.*\.(?:pem|key|p12|pfx))$/i.test(file)
+);
+if (forbiddenArtifactFiles.length) {
+  console.error(`Credential files found in Pages artifact: ${forbiddenArtifactFiles.join(", ")}`);
+  process.exit(1);
+}
+
 console.log("Prepared GitHub Pages artifact in dist.");

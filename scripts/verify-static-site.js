@@ -84,6 +84,21 @@ if (!/import\((?:["']\.\/firebase-config\.js["']|firebaseConfigUrl)\)/.test(fire
   failures.push("js/firebase.js must load the generated Firebase browser config.");
 }
 
+for (const file of ["student-login.html", "teacher-login.html"]) {
+  const content = fs.readFileSync(path.join(process.cwd(), file), "utf8");
+  if (!/<script\s+type="module"\s+src="\.\/js\/auth\.js"><\/script>/.test(content)) {
+    failures.push(`${file} must load ./js/auth.js as a JavaScript module.`);
+  }
+}
+
+if (!/const profileCollection = ["']profiles["']/.test(firebaseServiceJs)
+  || !/loginWithEmail[\s\S]*getProfile\(credential\.user\.uid\)/.test(firebaseServiceJs)) {
+  failures.push("loginWithEmail must read the signed-in user's document from the profiles collection.");
+}
+if (!/loginWithEmail[\s\S]*Profile not found\./.test(firebaseServiceJs)) {
+  failures.push("loginWithEmail must provide a clear error when the Firestore profile is missing.");
+}
+
 for (const expected of ["browserSessionPersistence", "inMemoryPersistence"]) {
   if (!firebaseJs.includes(expected)) failures.push(`js/firebase.js is missing auth persistence fallback: ${expected}`);
 }
@@ -163,6 +178,17 @@ if (unsafeSecretExpressions.length) {
 
 if (!/\$\{\{\s*vars\.FIREBASE_API_KEY\s*\|\|\s*secrets\.FIREBASE_API_KEY\s*\}\}/.test(workflow)) {
   failures.push("GitHub Pages workflow must read FIREBASE_API_KEY from a repository variable or secret.");
+}
+
+const workflowOrder = [
+  "npm run config:firebase",
+  "npm run build",
+  "npm run pages:artifact",
+  "actions/upload-pages-artifact@v3"
+].map((item) => workflow.indexOf(item));
+if (workflowOrder.some((position) => position < 0)
+  || workflowOrder.some((position, index) => index > 0 && position <= workflowOrder[index - 1])) {
+  failures.push("GitHub Pages workflow must generate config, verify, prepare, and upload the artifact in that order.");
 }
 
 if (/path:\s*\./.test(workflow)) {

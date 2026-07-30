@@ -35,10 +35,9 @@ See `.env.example`. Local real values belong in ignored `.env.local` and `.env.p
 
 ## GitHub Pages
 
-The workflow `.github/workflows/pages.yml` deploys the root static frontend and generates `js/firebase-config.js` during the build.
-It installs dependencies with `npm ci`, runs `npm run build`, prepares a clean `dist/` artifact, then deploys that artifact to GitHub Pages.
+The workflow `.github/workflows/pages.yml` generates `js/firebase-config.js`, verifies the static frontend, prepares a clean `dist/` artifact, and deploys only that artifact to GitHub Pages. It preserves every HTML page; it does not rewrite routes to `index.html`.
 
-`js/firebase-config.js` is generated locally and during GitHub Actions, but it is ignored by Git so API keys are not committed. Use GitHub Actions Pages deployment; branch/root Pages mode will not have Firebase config unless the generated artifact is deployed.
+`js/firebase-config.js` exists only as ignored build output locally and in the GitHub Pages artifact. It must never be committed. Use GitHub Actions Pages deployment; branch/root Pages mode will not have Firebase config unless the generated artifact is deployed.
 
 Local `.env.local` may supply the browser config with either `FIREBASE_CONFIG_JSON` or the individual values:
 
