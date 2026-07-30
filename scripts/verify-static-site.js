@@ -135,6 +135,12 @@ for (const file of ["student-dashboard.html", "teacher-dashboard.html"]) {
   if (!/<script\s+type="module"\s+src="\.\/js\/dashboard-nav\.js"><\/script>/.test(content)) {
     failures.push(`${file} must load ./js/dashboard-nav.js before dashboard data scripts.`);
   }
+  if (/href="#"/.test(content)) {
+    failures.push(`${file} must not use href="#" for dashboard controls.`);
+  }
+  if (/<a[^>]+data-open-view=/.test(content) || /<a[^>]+data-logout/.test(content)) {
+    failures.push(`${file} dashboard controls must be buttons, not hash links.`);
+  }
 }
 
 const dashboardNavJs = fs.readFileSync(path.join(process.cwd(), "js/dashboard-nav.js"), "utf8");

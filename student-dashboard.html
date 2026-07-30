@@ -11,16 +11,16 @@
     <aside class="sidebar">
       <div class="brand"><img class="brand-logo" src="./images/sankara-logo.png" alt="Sankara Educational Institutions logo"><div><b>STUDENT</b><small>DIGITAL LOCKER</small></div></div>
       <nav>
-        <a href="#" class="nav-link" data-open-view="profile">PROFILE</a>
-        <a href="#" class="nav-link" data-open-view="online">ONLINE CERTIFICATE</a>
-        <a href="#" class="nav-link" data-open-view="personal">PERSONAL CERTIFICATE</a>
-        <a href="#" class="nav-link" data-open-view="academic">ACADEMIC CERTIFICATE</a>
-        <a href="#" class="nav-link danger-link" data-logout>LOGOUT</a>
+        <button type="button" class="nav-link" data-open-view="profile">PROFILE</button>
+        <button type="button" class="nav-link" data-open-view="online">ONLINE CERTIFICATE</button>
+        <button type="button" class="nav-link" data-open-view="personal">PERSONAL CERTIFICATE</button>
+        <button type="button" class="nav-link" data-open-view="academic">ACADEMIC CERTIFICATE</button>
+        <button type="button" class="nav-link danger-link" data-logout>LOGOUT</button>
       </nav>
     </aside>
     <main class="main-panel">
       <header class="topbar">
-        <a href="#" class="welcome" data-open-view="dashboard">WELCOME, <span id="welcomeName">STUDENT</span></a>
+        <button type="button" class="welcome" data-open-view="dashboard">WELCOME, <span id="welcomeName">STUDENT</span></button>
         <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
       </header>
 
@@ -29,9 +29,9 @@
           <div><p class="eyebrow">STUDENT PORTAL</p><h1>Dashboard</h1><p class="muted">Manage your certificates in one secure locker.</p></div>
         </div>
         <div class="stats-grid">
-          <a href="#" class="stat-card" data-open-view="online"><span>ONLINE CERTIFICATE</span><strong id="onlineCount">0</strong><small>Student private documents</small></a>
-          <a href="#" class="stat-card" data-open-view="personal"><span>PERSONAL CERTIFICATE</span><strong id="personalCount">0</strong><small>Student private documents</small></a>
-          <a href="#" class="stat-card important" data-open-view="academic"><span>ACADEMIC CERTIFICATE</span><strong id="academicCount">0</strong><small>Teacher can access this section</small></a>
+          <button type="button" class="stat-card" data-open-view="online"><span>ONLINE CERTIFICATE</span><strong id="onlineCount">0</strong><small>Student private documents</small></button>
+          <button type="button" class="stat-card" data-open-view="personal"><span>PERSONAL CERTIFICATE</span><strong id="personalCount">0</strong><small>Student private documents</small></button>
+          <button type="button" class="stat-card important" data-open-view="academic"><span>ACADEMIC CERTIFICATE</span><strong id="academicCount">0</strong><small>Teacher can access this section</small></button>
         </div>
         <div class="info-strip"><b>Academic access rule:</b> Teachers can view, download, and remove only your academic certificates when their department and year match yours.</div>
       </section>

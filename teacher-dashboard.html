@@ -11,26 +11,26 @@
     <aside class="sidebar teacher-side">
       <div class="brand"><img class="brand-logo" src="./images/sankara-logo.png" alt="Sankara Educational Institutions logo"><div><b>TEACHER</b><small>DIGITAL LOCKER</small></div></div>
       <nav>
-        <a href="#" class="nav-link" data-open-view="profile">PROFILE</a>
-        <a href="#" class="nav-link" data-open-view="students">STUDENT LIST</a>
-        <a href="#" class="nav-link" data-open-view="students">SEARCH STUDENT</a>
-        <a href="#" class="nav-link" data-open-view="status">DOCUMENT SUBMISSION STATUS</a>
-        <a href="#" class="nav-link" data-open-view="add-title">ADD STUDENT DOCUMENT TITLE</a>
-        <a href="#" class="nav-link danger-link" data-logout>LOGOUT</a>
+        <button type="button" class="nav-link" data-open-view="profile">PROFILE</button>
+        <button type="button" class="nav-link" data-open-view="students">STUDENT LIST</button>
+        <button type="button" class="nav-link" data-open-view="students">SEARCH STUDENT</button>
+        <button type="button" class="nav-link" data-open-view="status">DOCUMENT SUBMISSION STATUS</button>
+        <button type="button" class="nav-link" data-open-view="add-title">ADD STUDENT DOCUMENT TITLE</button>
+        <button type="button" class="nav-link danger-link" data-logout>LOGOUT</button>
       </nav>
     </aside>
     <main class="main-panel">
       <header class="topbar">
-        <a href="#" class="welcome" data-open-view="dashboard">WELCOME, <span id="welcomeName">TEACHER</span></a>
+        <button type="button" class="welcome" data-open-view="dashboard">WELCOME, <span id="welcomeName">TEACHER</span></button>
         <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
       </header>
 
       <section data-view="dashboard">
         <div class="page-head"><div><p class="eyebrow">TEACHER PORTAL</p><h1>Dashboard</h1><p class="muted">Access is limited to <span id="teacherScope"></span> students.</p></div></div>
         <div class="stats-grid">
-          <a href="#" class="stat-card" data-open-view="students"><span>STUDENT LIST</span><strong id="studentCount">0</strong><small>Same department and year</small></a>
-          <a href="#" class="stat-card important" data-open-view="status"><span>ACADEMIC DOCUMENTS</span><strong id="academicCount">0</strong><small>Uploaded certificates</small></a>
-          <a href="#" class="stat-card" data-open-view="add-title"><span>DOCUMENT TITLES</span><strong id="titleCount">0</strong><small>Default + teacher-added</small></a>
+          <button type="button" class="stat-card" data-open-view="students"><span>STUDENT LIST</span><strong id="studentCount">0</strong><small>Same department and year</small></button>
+          <button type="button" class="stat-card important" data-open-view="status"><span>ACADEMIC DOCUMENTS</span><strong id="academicCount">0</strong><small>Uploaded certificates</small></button>
+          <button type="button" class="stat-card" data-open-view="add-title"><span>DOCUMENT TITLES</span><strong id="titleCount">0</strong><small>Default + teacher-added</small></button>
         </div>
       </section>
 

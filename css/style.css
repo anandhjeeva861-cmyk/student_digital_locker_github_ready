@@ -87,6 +87,26 @@ button, input, select {
     font: inherit;
 }
 
+button.nav-link,
+button.welcome,
+button.stat-card {
+    appearance: none;
+    font: inherit;
+    text-align: left;
+}
+
+button.welcome,
+button.stat-card {
+    cursor: pointer;
+    color: inherit;
+}
+
+button.welcome {
+    border: 0;
+    padding: 0;
+    background: transparent;
+}
+
 input, select {
     width: 100%;
     border: 1px solid var(--line);
