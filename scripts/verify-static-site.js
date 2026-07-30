@@ -149,11 +149,21 @@ for (const file of ["student-dashboard.html", "teacher-dashboard.html"]) {
   if (/<a[^>]+data-open-view=/.test(content) || /<a[^>]+data-logout/.test(content)) {
     failures.push(`${file} dashboard controls must be buttons, not hash links.`);
   }
+  if (!content.includes('data-menu-toggle')
+    || !content.includes('data-menu-close')
+    || !content.includes('id="dashboardSidebar"')) {
+    failures.push(`${file} must keep the dashboard menu hidden until the MENU button is touched.`);
+  }
 }
 
 const dashboardNavJs = fs.readFileSync(path.join(process.cwd(), "js/dashboard-nav.js"), "utf8");
 if (!dashboardNavJs.includes("dashboard:view-change") || !dashboardNavJs.includes("event.preventDefault()")) {
   failures.push("js/dashboard-nav.js must prevent # navigation and emit dashboard view changes.");
+}
+if (!dashboardNavJs.includes("data-menu-toggle")
+  || !dashboardNavJs.includes("menu-open")
+  || !dashboardNavJs.includes("Escape")) {
+  failures.push("js/dashboard-nav.js must open/close the dashboard menu from the MENU button.");
 }
 
 if (!/const profileCollection = ["']profiles["']/.test(firebaseServiceJs)

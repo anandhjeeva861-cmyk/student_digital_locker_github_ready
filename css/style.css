@@ -113,10 +113,10 @@ button, input, select {
 
 button.nav-link,
 button.welcome,
-button.stat-card {
+button.stat-card,
+button.menu-toggle {
     appearance: none;
     font: inherit;
-    text-align: left;
 }
 
 button.welcome,
@@ -444,14 +444,16 @@ label {
     z-index: 1;
     min-height: 100vh;
     display: grid;
-    grid-template-columns: 292px 1fr;
-    gap: 24px;
+    grid-template-columns: 1fr;
     padding: 24px;
 }
 
 .sidebar {
-    position: sticky;
+    position: fixed;
     top: 24px;
+    left: 24px;
+    z-index: 40;
+    width: min(292px, calc(100vw - 48px));
     height: calc(100vh - 48px);
     padding: 22px;
     border-radius: 30px;
@@ -460,6 +462,34 @@ label {
     box-shadow: var(--shadow);
     overflow: auto;
     isolation: isolate;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(calc(-100% - 36px)) scale(0.98);
+    transition: transform 0.32s var(--ease-spring), opacity 0.22s ease, visibility 0.22s ease;
+}
+
+.app-shell.menu-open .sidebar {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0) scale(1);
+}
+
+.menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: rgba(7, 17, 31, 0.36);
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.22s ease, visibility 0.22s ease;
+}
+
+.app-shell.menu-open .menu-backdrop {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
 }
 
 .teacher-side {
@@ -508,6 +538,7 @@ label {
 .nav-link {
     display: flex;
     align-items: center;
+    text-align: left;
     min-height: 46px;
     margin: 8px 0;
     padding: 12px 14px;
@@ -574,8 +605,54 @@ label {
 }
 
 .welcome {
+    flex: 1;
+    text-align: left;
     font-weight: 950;
     letter-spacing: 0.02em;
+}
+
+.menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 46px;
+    padding: 12px 16px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    cursor: pointer;
+    color: #fff;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    box-shadow: 0 16px 30px rgba(11, 104, 209, 0.20);
+    font-weight: 950;
+    letter-spacing: 0.05em;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.22s var(--ease-spring), box-shadow 0.22s ease, filter 0.22s ease;
+}
+
+.menu-toggle::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.34), transparent);
+    transform: translateX(-120%);
+    transition: transform 0.55s ease;
+}
+
+.menu-toggle:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.03);
+    box-shadow: 0 20px 38px rgba(11, 104, 209, 0.25);
+}
+
+.menu-toggle:hover::before {
+    transform: translateX(120%);
+}
+
+body.menu-open {
+    overflow: hidden;
 }
 
 .theme-toggle {
@@ -1034,17 +1111,17 @@ tbody tr {
         grid-template-columns: 1fr;
     }
     .sidebar {
-        position: relative;
-        top: 0;
-        height: auto;
+        position: fixed;
+        top: 18px;
+        left: 18px;
+        width: min(292px, calc(100vw - 36px));
+        height: calc(100vh - 36px);
     }
     .sidebar nav {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
+        display: block;
     }
     .nav-link {
-        margin: 0;
+        margin: 8px 0;
     }
     .stats-grid, .action-grid, .workspace-grid, .profile-layout, .status-grid {
         grid-template-columns: 1fr;
@@ -1077,6 +1154,25 @@ tbody tr {
     }
     .topbar {
         top: 14px;
+        gap: 10px;
+    }
+    .menu-toggle {
+        min-height: 42px;
+        padding: 10px 12px;
+        font-size: 0.82rem;
+    }
+    .welcome {
+        font-size: 0.82rem;
+    }
+    .theme-toggle {
+        width: 42px;
+        height: 42px;
+    }
+    .sidebar {
+        top: 14px;
+        left: 14px;
+        width: min(292px, calc(100vw - 28px));
+        height: calc(100vh - 28px);
     }
     .sidebar nav {
         grid-template-columns: 1fr;

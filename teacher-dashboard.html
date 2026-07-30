@@ -8,7 +8,7 @@
 </head>
 <body>
   <div class="app-shell">
-    <aside class="sidebar teacher-side">
+    <aside class="sidebar teacher-side" id="dashboardSidebar">
       <div class="brand"><img class="brand-logo" src="./images/sankara-logo.png" alt="Sankara Educational Institutions logo"><div><b>TEACHER</b><small>DIGITAL LOCKER</small></div></div>
       <nav>
         <button type="button" class="nav-link" data-open-view="profile">PROFILE</button>
@@ -18,8 +18,10 @@
         <button type="button" class="nav-link danger-link" data-logout>LOGOUT</button>
       </nav>
     </aside>
+    <div class="menu-backdrop" data-menu-close></div>
     <main class="main-panel">
       <header class="topbar">
+        <button type="button" class="menu-toggle" data-menu-toggle aria-controls="dashboardSidebar" aria-expanded="false">☰ MENU</button>
         <button type="button" class="welcome" data-open-view="dashboard">WELCOME, <span id="welcomeName">TEACHER</span></button>
         <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
       </header>
