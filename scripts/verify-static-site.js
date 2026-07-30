@@ -165,8 +165,14 @@ if (!/request\.resource\.data\.storageProvider == "firestore"/.test(firestoreRul
 
 if (!/validAcademicTitleWrite/.test(firestoreRules)
   || !/resource\.data\.createdBy == request\.auth\.uid/.test(firestoreRules)
-  || !/resource\.data\.departmentKey == currentProfile\(\)\.departmentKey/.test(firestoreRules)) {
+  || !/profileDepartmentKeyMatches\(currentProfile\(\), resource\.data\.departmentKey\)/.test(firestoreRules)) {
   failures.push("firebase/firestore.rules must protect teacher-added academic title writes and deletes.");
+}
+
+if (!/profileDepartmentKeyMatches/.test(firestoreRules)
+  || !/profileRegNoMatches/.test(firestoreRules)
+  || !/data\.regNo \|\| data\.reg_no/.test(firebaseServiceJs)) {
+  failures.push("Dashboard code and Firestore rules must support older profile field shapes.");
 }
 
 const example = fs.readFileSync(path.join(process.cwd(), ".env.example"), "utf8");

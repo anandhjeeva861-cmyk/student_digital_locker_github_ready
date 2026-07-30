@@ -44,6 +44,25 @@ service cloud.firestore {
         || (data.department == "BBA" && data.departmentKey == "BBA");
     }
 
+    function profileDepartmentKeyMatches(profile, departmentKey) {
+      return profile.departmentKey == departmentKey
+        || (profile.department == "BSC CS" && departmentKey == "BSCCS")
+        || (profile.department == "BSC AI&ML" && departmentKey == "BSCAIML")
+        || (profile.department == "BSC IT" && departmentKey == "BSCIT")
+        || (profile.department == "CSDA" && departmentKey == "CSDA")
+        || (profile.department == "BCOM" && departmentKey == "BCOM")
+        || (profile.department == "BCOM CA" && departmentKey == "BCOMCA")
+        || (profile.department == "BCOM PA" && departmentKey == "BCOMPA")
+        || (profile.department == "CS&HM" && departmentKey == "CSHM")
+        || (profile.department == "BCOM IT" && departmentKey == "BCOMIT")
+        || (profile.department == "MBA" && departmentKey == "MBA")
+        || (profile.department == "BBA" && departmentKey == "BBA");
+    }
+
+    function profileRegNoMatches(profile, regNo) {
+      return profile.regNo == regNo || profile.reg_no == regNo;
+    }
+
     function validProfileCreate(uid) {
       return request.resource.data.uid == uid
         && request.resource.data.role in ["student", "teacher"]
@@ -127,7 +146,7 @@ service cloud.firestore {
         && request.resource.data.uploadedUserId == request.auth.uid
         && request.resource.data.uploadedUserEmail == request.auth.token.email
         && request.resource.data.ownerName == currentProfile().name
-        && request.resource.data.ownerRegNo == currentProfile().regNo
+        && profileRegNoMatches(currentProfile(), request.resource.data.ownerRegNo)
         && validDocumentIdForCategory(documentId, request.resource.data.category)
         && request.resource.data.title is string
         && request.resource.data.title.size() > 0
@@ -179,7 +198,7 @@ service cloud.firestore {
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.category in ["online", "personal", "academic"]
         && validDocumentIdForCategory(documentId, request.resource.data.category)
-        && request.resource.data.departmentKey == currentProfile().departmentKey
+        && profileDepartmentKeyMatches(currentProfile(), request.resource.data.departmentKey)
         && request.resource.data.year == currentProfile().year
         && request.resource.data.fileDataVersion is string
         && request.resource.data.fileDataVersion.size() > 0
@@ -250,7 +269,7 @@ service cloud.firestore {
     function isTeacherFor(data) {
       return signedIn()
         && currentProfile().role == "teacher"
-        && currentProfile().departmentKey == data.departmentKey
+        && profileDepartmentKeyMatches(currentProfile(), data.departmentKey)
         && currentProfile().year == data.year;
     }
 
@@ -262,7 +281,7 @@ service cloud.firestore {
 
     function isSameScope(data) {
       return signedIn()
-        && currentProfile().departmentKey == data.departmentKey
+        && profileDepartmentKeyMatches(currentProfile(), data.departmentKey)
         && currentProfile().year == data.year;
     }
 
@@ -281,7 +300,7 @@ service cloud.firestore {
         && request.resource.data.title.size() <= 120
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.department == currentProfile().department
-        && request.resource.data.departmentKey == currentProfile().departmentKey
+        && profileDepartmentKeyMatches(currentProfile(), request.resource.data.departmentKey)
         && request.resource.data.year == currentProfile().year
         && allowedDepartment(request.resource.data.department)
         && allowedYear(request.resource.data.year)
@@ -318,7 +337,7 @@ service cloud.firestore {
         && currentProfile().role == "student"
         && validDocumentCreate(documentId)
         && request.resource.data.department == currentProfile().department
-        && request.resource.data.departmentKey == currentProfile().departmentKey
+        && profileDepartmentKeyMatches(currentProfile(), request.resource.data.departmentKey)
         && request.resource.data.year == currentProfile().year
         && allowedDepartment(request.resource.data.department)
         && allowedYear(request.resource.data.year)
@@ -331,7 +350,7 @@ service cloud.firestore {
         && currentProfile().role == "student"
         && validDocumentUpdate(documentId)
         && request.resource.data.department == currentProfile().department
-        && request.resource.data.departmentKey == currentProfile().departmentKey
+        && profileDepartmentKeyMatches(currentProfile(), request.resource.data.departmentKey)
         && request.resource.data.year == currentProfile().year
         && allowedDepartment(request.resource.data.department)
         && allowedYear(request.resource.data.year)
@@ -370,7 +389,7 @@ service cloud.firestore {
       allow delete: if signedIn()
         && currentProfile().role == "teacher"
         && resource.data.createdBy == request.auth.uid
-        && resource.data.departmentKey == currentProfile().departmentKey
+        && profileDepartmentKeyMatches(currentProfile(), resource.data.departmentKey)
         && resource.data.year == currentProfile().year;
     }
 

@@ -23,6 +23,7 @@ import {
 import { auth, authReady, db } from "./firebase.js";
 import {
   DEFAULT_ACADEMIC_TITLES,
+  departmentKey,
   documentMimeType,
   isAcademicYear,
   isDepartment,
@@ -67,11 +68,15 @@ function tagFirebaseError(error, operation) {
 function profileFromDoc(snapshot) {
   if (!snapshot.exists()) return null;
   const data = snapshot.data();
+  const regNo = data.regNo || data.reg_no || "";
+  const normalizedDepartmentKey = data.departmentKey || departmentKey(data.department);
   return {
     id: snapshot.id,
     uid: snapshot.id,
     ...data,
-    reg_no: data.regNo || "",
+    regNo,
+    reg_no: regNo,
+    departmentKey: normalizedDepartmentKey,
     photo_url: data.photoProvider === "firestore" ? "" : (data.photoUrl || ""),
     photo_provider: data.photoProvider || ""
   };
