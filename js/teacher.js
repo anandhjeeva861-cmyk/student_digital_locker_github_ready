@@ -222,18 +222,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("searchForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    await safeRender("Student search", () => renderStudents(event.currentTarget.elements.q.value));
+    const form = event.currentTarget;
+    await safeRender("Student search", () => renderStudents(form.elements.q.value));
     showView("students");
   });
 
   document.getElementById("addTitleForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const title = normalizeTitle(event.currentTarget.elements.title.value);
+    const form = event.currentTarget;
+    const title = normalizeTitle(form.elements.title.value);
     if (!title) return showMessage("Enter document title.", "danger");
     try {
       const { addAcademicTitle } = await loadFirebaseService();
       await addAcademicTitle(teacher, title);
-      event.currentTarget.reset();
+      form.reset();
       await renderTitles();
       await renderDashboard();
       showMessage("Academic title added.", "success");
