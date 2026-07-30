@@ -508,6 +508,18 @@ export async function addAcademicTitle(profile, title) {
   });
 }
 
+export async function deleteAcademicTitle(profile, titleIdValue) {
+  await requireCurrentUser(profile.uid);
+  const titleRef = doc(db, titlesCollection, titleIdValue);
+  const snapshot = await getDoc(titleRef);
+  if (!snapshot.exists()) throw new Error("Document title not found.");
+  const data = snapshot.data();
+  if (data.createdBy !== profile.uid || data.departmentKey !== profile.departmentKey || data.year !== profile.year) {
+    throw new Error("You can remove only your own matching document titles.");
+  }
+  await deleteDoc(titleRef);
+}
+
 export async function listTeacherStudents(profile, filter = "") {
   const studentsQuery = query(
     collection(db, profileCollection),

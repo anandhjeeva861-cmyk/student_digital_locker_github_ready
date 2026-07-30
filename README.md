@@ -18,9 +18,9 @@ Uploaded files are base64 encoded and split into Firestore chunk subcollections.
 
 ```bash
 npm install
-npm run config:firebase
-npm run build
-npm run dev
+npm.cmd run config:firebase
+npm.cmd run build
+npm.cmd run dev
 ```
 
 Open:
@@ -28,6 +28,8 @@ Open:
 ```text
 http://localhost:5173
 ```
+
+On Windows PowerShell, use `npm.cmd` if plain `npm` is blocked by the execution policy.
 
 ## Environment Variables
 

@@ -139,7 +139,7 @@ label {
 .hero-logo {
     width: clamp(104px, 16vw, 156px);
     height: auto;
-    margin: 0 0 20px;
+    margin: 0 auto 20px;
     border-radius: 22px;
     box-shadow: 0 18px 38px rgba(11, 104, 209, 0.18);
 }

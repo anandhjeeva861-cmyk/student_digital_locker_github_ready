@@ -15,6 +15,7 @@ const requiredFiles = [
   "js/auth.js",
   "js/student.js",
   "js/teacher.js",
+  "scripts/local-server.js",
   ".firebaserc",
   "firebase.json",
   "firebase/firestore.rules",
@@ -147,6 +148,12 @@ if (!/request\.resource\.data\.storageProvider == "firestore"/.test(firestoreRul
   failures.push("firebase/firestore.rules must accept Firestore chunk metadata and first-upload document checks.");
 }
 
+if (!/validAcademicTitleWrite/.test(firestoreRules)
+  || !/resource\.data\.createdBy == request\.auth\.uid/.test(firestoreRules)
+  || !/resource\.data\.departmentKey == currentProfile\(\)\.departmentKey/.test(firestoreRules)) {
+  failures.push("firebase/firestore.rules must protect teacher-added academic title writes and deletes.");
+}
+
 const example = fs.readFileSync(path.join(process.cwd(), ".env.example"), "utf8");
 if (/AIza|student-digi-locker-2-3293a|G-3Y5T34K732/.test(example)) {
   failures.push(".env.example must contain placeholders only.");
@@ -222,6 +229,15 @@ for (const scriptName of ["config:firebase", "build", "pages:artifact", "dev"]) 
 
 if (/localhost:3000|localhost:8000|127\.0\.0\.1:3000/.test([...htmlFiles, ...jsFiles].map((file) => fs.readFileSync(path.join(process.cwd(), file), "utf8")).join("\n"))) {
   failures.push("Frontend contains hardcoded local backend URLs.");
+}
+
+const teacherDashboard = fs.readFileSync(path.join(process.cwd(), "teacher-dashboard.html"), "utf8");
+const teacherJs = fs.readFileSync(path.join(process.cwd(), "js/teacher.js"), "utf8");
+if (!teacherDashboard.includes('data-open-view="remove-title"')
+  || !teacherDashboard.includes('id="removeTitleRows"')
+  || !teacherJs.includes("deleteAcademicTitle")
+  || !teacherJs.includes("data-remove-title")) {
+  failures.push("Teacher dashboard must include the remove document title feature.");
 }
 
 if (failures.length) {

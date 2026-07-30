@@ -1,6 +1,7 @@
 import { protectPage } from "./auth.js";
 import {
   addAcademicTitle,
+  deleteAcademicTitle,
   deleteTeacherAcademicDocument,
   firebaseErrorMessage,
   getDocumentObjectUrl,
@@ -143,6 +144,19 @@ async function renderTitles() {
     : custom.map((item) => `<span class="pill">${escapeHtml(item.title)}</span>`).join("");
 }
 
+async function renderRemoveTitles() {
+  const body = document.getElementById("removeTitleRows");
+  const empty = document.getElementById("removeTitleEmpty");
+  if (!body) return;
+  const custom = await listAcademicTitles(teacher);
+  body.innerHTML = custom.map((item) => `
+    <tr>
+      <td><b>${escapeHtml(item.title)}</b></td>
+      <td><button class="small-btn danger" data-remove-title="${escapeHtml(item.id)}" data-title-name="${escapeHtml(item.title)}">REMOVE</button></td>
+    </tr>`).join("");
+  if (empty) empty.hidden = custom.length > 0;
+}
+
 async function renderStatus() {
   const grid = document.getElementById("statusGrid");
   if (!grid) return;
@@ -182,6 +196,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (link.dataset.openView === "students") await renderStudents();
       if (link.dataset.openView === "status") await renderStatus();
       if (link.dataset.openView === "add-title") await renderTitles();
+      if (link.dataset.openView === "remove-title") await renderRemoveTitles();
     });
   });
 
@@ -199,6 +214,7 @@ document.addEventListener("DOMContentLoaded", () => {
       await addAcademicTitle(teacher, title);
       event.currentTarget.reset();
       await renderTitles();
+      await renderRemoveTitles();
       await renderDashboard();
       showMessage("Academic title added.", "success");
     } catch (error) {
@@ -229,6 +245,21 @@ document.addEventListener("DOMContentLoaded", () => {
         await renderStudentDetail(studentButton.dataset.studentId);
       } catch (error) {
         console.error("Teacher student detail failed", error);
+        showMessage(firebaseErrorMessage(error), "danger");
+      }
+    }
+
+    const removeTitleButton = event.target.closest("[data-remove-title]");
+    if (removeTitleButton && confirm(`Remove document title "${removeTitleButton.dataset.titleName}"?`)) {
+      try {
+        await deleteAcademicTitle(teacher, removeTitleButton.dataset.removeTitle);
+        await renderRemoveTitles();
+        await renderTitles();
+        await renderDashboard();
+        await renderStatus();
+        showMessage("Document title removed.", "success");
+      } catch (error) {
+        console.error("Teacher remove title failed", error);
         showMessage(firebaseErrorMessage(error), "danger");
       }
     }
