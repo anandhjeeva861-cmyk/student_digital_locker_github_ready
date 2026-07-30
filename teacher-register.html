@@ -8,17 +8,17 @@
 </head>
 <body>
   <section class="auth-wrap">
-    <form class="auth-card wide-card animate-pop" id="teacherRegisterForm">
+    <form class="auth-card wide-card animate-pop" id="teacherRegisterForm" method="post" action="./teacher-register.html">
       <a href="./teacher-login.html" class="back-link">← Teacher login</a>
       <img class="site-logo auth-logo" src="./images/sankara-logo.png" alt="Sankara Educational Institutions logo">
       <h1>REGISTER AS A TEACHER</h1>
       <div class="form-grid">
-        <div><label>Name (Caps only)</label><input class="caps-input" name="name" placeholder="PRIYA R" required></div>
-        <div><label>Email</label><input type="email" name="email" placeholder="teacher@example.com" required></div>
+        <div><label>Name (Caps only)</label><input class="caps-input" name="name" placeholder="PRIYA R" autocomplete="name" required></div>
+        <div><label>Email</label><input type="email" name="email" placeholder="teacher@example.com" autocomplete="username" required></div>
         <div><label>Department</label><select name="department" data-options="departments" required></select></div>
         <div><label>Year</label><select name="year" data-options="years" required></select></div>
-        <div><label>Mobile Number</label><input name="mobile" placeholder="9876543210" required></div>
-        <div><label>Create Password</label><input type="password" name="password" placeholder="Minimum 6 characters" required minlength="6"></div>
+        <div><label>Mobile Number</label><input name="mobile" placeholder="9876543210" autocomplete="tel" required></div>
+        <div><label>Create Password</label><input type="password" name="password" placeholder="Minimum 6 characters" autocomplete="new-password" required minlength="6"></div>
       </div>
       <button class="primary-btn" type="submit">CREATE TEACHER ACCOUNT</button>
     </form>

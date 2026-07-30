@@ -8,18 +8,18 @@
 </head>
 <body>
   <section class="auth-wrap">
-    <form class="auth-card wide-card animate-pop" id="studentRegisterForm">
+    <form class="auth-card wide-card animate-pop" id="studentRegisterForm" method="post" action="./student-register.html">
       <a href="./student-login.html" class="back-link">← Student login</a>
       <img class="site-logo auth-logo" src="./images/sankara-logo.png" alt="Sankara Educational Institutions logo">
       <h1>REGISTER AS A STUDENT</h1>
       <div class="form-grid">
-        <div><label>Name (Caps only)</label><input class="caps-input" name="name" placeholder="RAJA S" required></div>
+        <div><label>Name (Caps only)</label><input class="caps-input" name="name" placeholder="RAJA S" autocomplete="name" required></div>
         <div><label>Register Number</label><input class="caps-input" name="regNo" placeholder="25BSC003" required></div>
-        <div><label>Email</label><input type="email" name="email" placeholder="student@example.com" required></div>
+        <div><label>Email</label><input type="email" name="email" placeholder="student@example.com" autocomplete="username" required></div>
         <div><label>Year</label><select name="year" data-options="years" required></select></div>
         <div><label>Department</label><select name="department" data-options="departments" required></select></div>
-        <div><label>Mobile Number</label><input name="mobile" placeholder="9876543210" required></div>
-        <div class="full-span"><label>Create Password</label><input type="password" name="password" placeholder="Minimum 6 characters" required minlength="6"></div>
+        <div><label>Mobile Number</label><input name="mobile" placeholder="9876543210" autocomplete="tel" required></div>
+        <div class="full-span"><label>Create Password</label><input type="password" name="password" placeholder="Minimum 6 characters" autocomplete="new-password" required minlength="6"></div>
       </div>
       <button class="primary-btn" type="submit">CREATE STUDENT ACCOUNT</button>
     </form>

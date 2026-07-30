@@ -8,14 +8,14 @@
 </head>
 <body>
   <section class="auth-wrap">
-    <form class="auth-card animate-pop" id="studentLoginForm">
+    <form class="auth-card animate-pop" id="studentLoginForm" method="post" action="./student-login.html">
       <a href="./index.html" class="back-link">← Back</a>
       <img class="site-logo auth-logo" src="./images/sankara-logo.png" alt="Sankara Educational Institutions logo">
       <h1>STUDENT LOGIN</h1>
       <label>Email</label>
-      <input type="email" name="email" placeholder="student@example.com" required>
+      <input type="email" name="email" placeholder="student@example.com" autocomplete="username" required>
       <label>Password</label>
-      <input type="password" name="password" placeholder="Enter password" required>
+      <input type="password" name="password" placeholder="Enter password" autocomplete="current-password" required>
       <button class="primary-btn" type="submit">LOGIN</button>
       <p class="auth-note">New student? <a href="./student-register.html">Register as a Student</a></p>
     </form>

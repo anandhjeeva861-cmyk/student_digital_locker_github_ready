@@ -1,12 +1,4 @@
 import {
-  firebaseErrorMessage,
-  getCurrentProfile,
-  loginWithEmail,
-  logout,
-  registerStudent as firebaseRegisterStudent,
-  registerTeacher as firebaseRegisterTeacher
-} from "./firebase-service.js";
-import {
   departmentKey,
   isCapsName,
   isMobile,
@@ -23,12 +15,24 @@ const pages = {
   login: "./index.html"
 };
 
+let firebaseServicePromise = null;
+
+function loadFirebaseService() {
+  if (!firebaseServicePromise) firebaseServicePromise = import("./firebase-service.js");
+  return firebaseServicePromise;
+}
+
 function value(form, name) {
   return form.elements[name]?.value || "";
 }
 
-function friendlyError(error) {
-  return firebaseErrorMessage(error);
+async function friendlyError(error) {
+  try {
+    const { firebaseErrorMessage } = await loadFirebaseService();
+    return firebaseErrorMessage(error);
+  } catch (_loadError) {
+    return error?.message || "Firebase request failed. Check the browser console.";
+  }
 }
 
 function studentPayload(form) {
@@ -68,16 +72,19 @@ function teacherPayload(form) {
 }
 
 async function registerStudent(form) {
+  const { registerStudent: firebaseRegisterStudent } = await loadFirebaseService();
   await firebaseRegisterStudent(studentPayload(form));
   location.href = pages.student;
 }
 
 async function registerTeacher(form) {
+  const { registerTeacher: firebaseRegisterTeacher } = await loadFirebaseService();
   await firebaseRegisterTeacher(teacherPayload(form));
   location.href = pages.teacher;
 }
 
 async function login(form, role) {
+  const { loginWithEmail, logout } = await loadFirebaseService();
   const profile = await loginWithEmail(
     value(form, "email").trim().toLowerCase(),
     value(form, "password")
@@ -91,22 +98,25 @@ async function login(form, role) {
 }
 
 export async function fetchProfile() {
+  const { getCurrentProfile } = await loadFirebaseService();
   return getCurrentProfile();
 }
 
 export async function protectPage(role, callback) {
+  let service = null;
   try {
-    const profile = await fetchProfile();
+    service = await loadFirebaseService();
+    const profile = await service.getCurrentProfile();
     if (!profile || profile.role !== role) {
-      await logout().catch(() => {});
+      await service.logout().catch(() => {});
       location.href = pages.login;
       return;
     }
     await Promise.resolve(callback?.({ id: profile.uid }, profile));
   } catch (error) {
     console.error("Protected page failed", error);
-    await logout().catch(() => {});
-    showMessage(friendlyError(error), "danger");
+    await service?.logout?.().catch(() => {});
+    showMessage(await friendlyError(error), "danger");
     window.setTimeout(() => {
       location.href = pages.login;
     }, 1800);
@@ -131,7 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
         await handler(form);
       } catch (error) {
         console.error(`${id} failed`, error);
-        showMessage(friendlyError(error), "danger", { duration: 9000 });
+        showMessage(await friendlyError(error), "danger", { duration: 9000 });
       } finally {
         button?.removeAttribute("disabled");
       }
@@ -141,6 +151,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-logout]").forEach((button) => {
     button.addEventListener("click", async (event) => {
       event.preventDefault();
+      const { logout } = await loadFirebaseService();
       await logout().catch((error) => console.error("Logout failed", error));
       location.href = pages.login;
     });

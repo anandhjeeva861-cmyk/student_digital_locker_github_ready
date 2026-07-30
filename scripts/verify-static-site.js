@@ -92,6 +92,7 @@ for (const file of [...jsFiles, ".github/workflows/pages.yml"]) {
 
 const firebaseJs = fs.readFileSync(path.join(process.cwd(), "js/firebase.js"), "utf8");
 const firebaseServiceJs = fs.readFileSync(path.join(process.cwd(), "js/firebase-service.js"), "utf8");
+const authJs = fs.readFileSync(path.join(process.cwd(), "js/auth.js"), "utf8");
 const firestoreRules = fs.readFileSync(path.join(process.cwd(), "firebase/firestore.rules"), "utf8");
 const firebaseJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), "firebase.json"), "utf8"));
 
@@ -112,6 +113,20 @@ for (const file of ["student-login.html", "teacher-login.html"]) {
   if (!/<script\s+type="module"\s+src="\.\/js\/auth\.js"><\/script>/.test(content)) {
     failures.push(`${file} must load ./js/auth.js as a JavaScript module.`);
   }
+  if (!/<form[^>]+method="post"[^>]+action="\.\/[^"]+\.html"/.test(content)) {
+    failures.push(`${file} login form must use method="post" so passwords cannot leak into the URL if JavaScript fails.`);
+  }
+}
+
+for (const file of ["student-register.html", "teacher-register.html"]) {
+  const content = fs.readFileSync(path.join(process.cwd(), file), "utf8");
+  if (!/<form[^>]+method="post"[^>]+action="\.\/[^"]+\.html"/.test(content)) {
+    failures.push(`${file} register form must use method="post" so passwords cannot leak into the URL if JavaScript fails.`);
+  }
+}
+
+if (/from\s+["']\.\/firebase-service\.js["']/.test(authJs) || !authJs.includes("loadFirebaseService")) {
+  failures.push("js/auth.js must lazy-load Firebase service after submit handlers attach.");
 }
 
 if (!/const profileCollection = ["']profiles["']/.test(firebaseServiceJs)
