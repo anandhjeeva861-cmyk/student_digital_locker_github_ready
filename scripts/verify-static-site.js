@@ -149,6 +149,9 @@ for (const file of ["student-dashboard.html", "teacher-dashboard.html"]) {
   if (/<a[^>]+data-open-view=/.test(content) || /<a[^>]+data-logout/.test(content)) {
     failures.push(`${file} dashboard controls must be buttons, not hash links.`);
   }
+  if (!content.includes("data-remove-account")) {
+    failures.push(`${file} must include a REMOVE ACCOUNT menu option.`);
+  }
   if (!content.includes('data-menu-toggle')
     || !content.includes('data-menu-close')
     || !content.includes('id="dashboardSidebar"')) {
@@ -192,6 +195,10 @@ if (/firebase-storage\.js|getStorage\(|uploadBytes|uploadBytesResumable|deleteOb
   failures.push("Firebase Storage is not configured for this project; uploads must stay in Firestore.");
 }
 
+if (!authJs.includes("data-remove-account") || !firebaseServiceJs.includes("deleteCurrentAccount")) {
+  failures.push("Dashboard must support removing the signed-in account and owned data.");
+}
+
 for (const expected of ["writeChunks", "buildObjectUrl", "storageProvider: \"firestore\"", "fileChunksCollection"]) {
   if (!firebaseServiceJs.includes(expected)) failures.push(`js/firebase-service.js is missing Firestore chunk upload support: ${expected}`);
 }
@@ -214,6 +221,13 @@ if (!/profileDepartmentKeyMatches/.test(firestoreRules)
   failures.push("Dashboard code and Firestore rules must support older profile field shapes.");
 }
 
+if (!/validAcademicYear/.test(firestoreRules)
+  || !/uniqueTeacherScopes/.test(firestoreRules)
+  || !/getAfter\(/.test(firestoreRules)
+  || !/teacherScopeId/.test(firebaseServiceJs)) {
+  failures.push("Registration must enforce academic-year format and one teacher per department/academic-year scope.");
+}
+
 const example = fs.readFileSync(path.join(process.cwd(), ".env.example"), "utf8");
 if (/AIza|student-digi-locker-2-3293a|G-3Y5T34K732/.test(example)) {
   failures.push(".env.example must contain placeholders only.");
@@ -225,7 +239,7 @@ if (/YOUR_FIREBASE_/.test(firebaseConfig)) {
 }
 
 const options = fs.readFileSync(path.join(process.cwd(), "js/options.js"), "utf8");
-for (const expected of ["BSC CS", "BSC AI&ML", "BSC IT", "CSDA", "BCOM", "BCOM CA", "BCOM PA", "CS&HM", "BCOM IT", "MBA", "BBA", "I", "II", "III"]) {
+for (const expected of ["BSC CS", "BSC AI&ML", "BSC IT", "CSDA", "BCOM", "BCOM CA", "BCOM PA", "CS&HM", "BCOM IT", "MBA", "BBA", "2025-2028"]) {
   if (!options.includes(`"${expected}"`)) failures.push(`js/options.js is missing option: ${expected}`);
 }
 
@@ -234,8 +248,8 @@ for (const file of ["student-register.html", "teacher-register.html"]) {
   if (!/select name="department" data-options="departments" required/.test(content)) {
     failures.push(`${file} must use the shared department select.`);
   }
-  if (!/select name="year" data-options="years" required/.test(content)) {
-    failures.push(`${file} must use the shared year select.`);
+  if (!/<label>Academic Year<\/label><input name="year" data-academic-year placeholder="2025-2028" pattern="20\[0-9\]\{2\}-20\[0-9\]\{2\}"[^>]*required>/.test(content)) {
+    failures.push(`${file} must use an Academic Year input like 2025-2028.`);
   }
 }
 

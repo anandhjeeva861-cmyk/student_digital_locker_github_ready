@@ -26,6 +26,8 @@ const PHOTO_MIME_BY_EXTENSION = {
   webp: "image/webp"
 };
 
+const ACADEMIC_YEAR_PATTERN = /^20\d{2}-20\d{2}$/;
+
 export function normalizeName(value) {
   return String(value || "").trim().replace(/\s+/g, " ").toUpperCase();
 }
@@ -42,12 +44,19 @@ export function normalizeYear(value) {
   return String(value || "").trim().toUpperCase();
 }
 
+export function isAcademicYearRange(value) {
+  const normalized = normalizeYear(value);
+  if (!ACADEMIC_YEAR_PATTERN.test(normalized)) return false;
+  const [start, end] = normalized.split("-").map(Number);
+  return end - start === 3;
+}
+
 export function isDepartment(value) {
   return DEPARTMENT_OPTIONS.includes(value);
 }
 
 export function isAcademicYear(value) {
-  return YEAR_OPTIONS.includes(value);
+  return isAcademicYearRange(value) || YEAR_OPTIONS.includes(normalizeYear(value));
 }
 
 export function parseDepartment(value) {
@@ -61,8 +70,10 @@ export function parseDepartment(value) {
 export function parseYear(value) {
   const raw = String(value || "");
   const normalized = normalizeYear(raw);
-  if (!normalized) throw new Error("Please select a year.");
-  if (raw !== normalized || !isAcademicYear(normalized)) throw new Error("Invalid academic year selected.");
+  if (!normalized) throw new Error("Please enter academic year.");
+  if (raw !== normalized || !isAcademicYearRange(normalized)) {
+    throw new Error("Academic year must be like 2025-2028.");
+  }
   return normalized;
 }
 

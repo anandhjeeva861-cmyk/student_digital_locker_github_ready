@@ -1,4 +1,4 @@
-import { DEPARTMENT_OPTIONS, YEAR_OPTIONS } from "./options.js";
+import { ACADEMIC_YEAR_EXAMPLE, DEPARTMENT_OPTIONS } from "./options.js";
 
 function fillSelect(select, options, placeholder) {
   const selected = select.value;
@@ -23,8 +23,9 @@ document.addEventListener("DOMContentLoaded", () => {
     fillSelect(select, DEPARTMENT_OPTIONS, "Select Department");
   });
 
-  document.querySelectorAll("select[data-options='years']").forEach((select) => {
-    fillSelect(select, YEAR_OPTIONS, "Select Year");
+  document.querySelectorAll("[data-academic-year]").forEach((input) => {
+    input.placeholder = input.placeholder || ACADEMIC_YEAR_EXAMPLE;
+    input.title = `Enter academic year like ${ACADEMIC_YEAR_EXAMPLE}.`;
   });
 
   document.querySelectorAll(".caps-input").forEach((input) => {

@@ -26,7 +26,15 @@ service cloud.firestore {
       ];
     }
 
+    function validAcademicYear(value) {
+      return value is string && value.matches("^20[0-9]{2}-20[0-9]{2}$");
+    }
+
     function allowedYear(value) {
+      return validAcademicYear(value) || allowedLegacyYear(value);
+    }
+
+    function allowedLegacyYear(value) {
       return value in ["I", "II", "III"];
     }
 
@@ -77,7 +85,7 @@ service cloud.firestore {
         && request.resource.data.mobile is string
         && request.resource.data.mobile.matches("^[6-9][0-9]{9}$")
         && allowedDepartment(request.resource.data.department)
-        && allowedYear(request.resource.data.year)
+        && validAcademicYear(request.resource.data.year)
         && validDepartmentKey(request.resource.data)
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time
@@ -86,7 +94,11 @@ service cloud.firestore {
             && request.resource.data.regNo is string
             && request.resource.data.regNo.matches("^[0-9]{2}[A-Z]{3}[0-9]{3}$"))
           || (request.resource.data.role == "teacher"
-            && request.resource.data.keys().hasOnly(["uid", "role", "name", "email", "year", "department", "departmentKey", "mobile", "createdAt", "updatedAt"])));
+            && request.resource.data.keys().hasOnly(["uid", "role", "name", "email", "year", "department", "departmentKey", "mobile", "createdAt", "updatedAt"])
+            && existsAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.year))
+            && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.year)).data.uid == uid
+            && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.year)).data.departmentKey == request.resource.data.departmentKey
+            && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.year)).data.year == request.resource.data.year));
     }
 
     function allowedDocumentMimeType(value) {
@@ -323,7 +335,9 @@ service cloud.firestore {
       allow update: if signedIn()
         && request.auth.uid == uid
         && validPhotoUpdate();
-      allow delete: if false;
+      allow delete: if signedIn()
+        && request.auth.uid == uid
+        && resource.data.uid == request.auth.uid;
 
       match /photoChunks/{chunkId} {
         allow read: if signedIn() && request.auth.uid == uid;
@@ -407,7 +421,9 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.role in ["student", "teacher"]
         && request.resource.data.createdAt == request.time;
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if signedIn()
+        && resource.data.uid == request.auth.uid;
     }
 
     match /uniqueRegisterNumbers/{regNo} {
@@ -419,7 +435,28 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid
         && regNo.matches("^[0-9]{2}[A-Z]{3}[0-9]{3}$")
         && request.resource.data.createdAt == request.time;
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if signedIn()
+        && resource.data.uid == request.auth.uid;
+    }
+
+    match /uniqueTeacherScopes/{scopeId} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && !exists(/databases/$(database)/documents/uniqueTeacherScopes/$(scopeId))
+        && request.resource.data.keys().hasOnly(["uid", "department", "departmentKey", "year", "createdAt"])
+        && request.resource.data.uid == request.auth.uid
+        && existsAfter(/databases/$(database)/documents/profiles/$(request.auth.uid))
+        && getAfter(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == "teacher"
+        && allowedDepartment(request.resource.data.department)
+        && validAcademicYear(request.resource.data.year)
+        && validDepartmentKey(request.resource.data)
+        && scopeId == request.resource.data.departmentKey + "_" + request.resource.data.year
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn()
+        && resource.data.uid == request.auth.uid;
     }
   }
 }

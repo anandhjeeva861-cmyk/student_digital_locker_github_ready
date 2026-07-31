@@ -94,15 +94,13 @@ MBA
 BBA
 ```
 
-Years:
+Academic Year:
 
 ```text
-I
-II
-III
+2025-2028
 ```
 
-These values are shared from `js/options.js` in the frontend and enforced in `firebase/firestore.rules`.
+Department values are shared from `js/options.js`. New registrations must enter Academic Year in `YYYY-YYYY` shape; the frontend requires a 3-year range like `2025-2028`, and Firestore rules enforce the stored shape for new profile creates.
 
 ## Firestore Collections
 
@@ -110,9 +108,10 @@ These values are shared from `js/options.js` in the frontend and enforced in `fi
 - `profiles/{uid}/photoChunks`: profile photo base64 chunks stored in Firestore.
 - `documents`: uploaded certificate metadata.
 - `documents/{documentId}/fileChunks`: uploaded certificate base64 chunks stored in Firestore.
-- `academicTitles`: teacher-added academic certificate requirements per department/year.
+- `academicTitles`: teacher-added academic certificate requirements per department/academic year.
 - `uniqueMobileNumbers`: mobile uniqueness guard.
 - `uniqueRegisterNumbers`: student register number uniqueness guard.
+- `uniqueTeacherScopes`: one teacher per department and academic year guard.
 
 ## Uploaded File Data
 
@@ -122,7 +121,7 @@ Uploaded binary files are base64 encoded and split into Firestore chunks. Firest
 - `ownerId`, `userId`, `uploadedUserId`
 - `uploadedUserEmail`
 - `ownerName`, `ownerRegNo`
-- `department`, `departmentKey`, `year`
+- `department`, `departmentKey`, `year` (`year` stores the Academic Year, for example `2025-2028`)
 - `category`
 - `title`
 - `originalName`

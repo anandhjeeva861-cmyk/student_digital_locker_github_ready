@@ -15,6 +15,7 @@
         <button type="button" class="nav-link" data-open-view="students">STUDENT LIST</button>
         <button type="button" class="nav-link" data-open-view="status">DOCUMENT SUBMISSION STATUS</button>
         <button type="button" class="nav-link" data-open-view="add-title">ADD STUDENT DOCUMENT TITLE</button>
+        <button type="button" class="nav-link remove-account-link" data-remove-account>REMOVE ACCOUNT</button>
         <button type="button" class="nav-link danger-link" data-logout>LOGOUT</button>
       </nav>
     </aside>
@@ -29,27 +30,27 @@
       <section data-view="dashboard">
         <div class="page-head"><div><p class="eyebrow">TEACHER PORTAL</p><h1>Dashboard</h1><p class="muted">Access is limited to <span id="teacherScope"></span> students.</p></div></div>
         <div class="stats-grid">
-          <button type="button" class="stat-card" data-open-view="students"><span>STUDENT LIST</span><strong id="studentCount">0</strong><small>Same department and year</small></button>
+          <button type="button" class="stat-card" data-open-view="students"><span>STUDENT LIST</span><strong id="studentCount">0</strong><small>Same department and academic year</small></button>
           <button type="button" class="stat-card important" data-open-view="status"><span>ACADEMIC DOCUMENTS</span><strong id="academicCount">0</strong><small>Uploaded certificates</small></button>
           <button type="button" class="stat-card" data-open-view="add-title"><span>DOCUMENT TITLES</span><strong id="titleCount">0</strong><small>Default + teacher-added</small></button>
         </div>
       </section>
 
       <section data-view="profile" hidden>
-        <div class="page-head"><div><p class="eyebrow">PROFILE</p><h1>Teacher Details</h1><p class="muted">Teacher academic access is based on department and year.</p></div></div>
+        <div class="page-head"><div><p class="eyebrow">PROFILE</p><h1>Teacher Details</h1><p class="muted">Teacher academic access is based on department and academic year.</p></div></div>
         <div class="detail-card">
           <div class="detail-row"><span>Name</span><b id="teacherName"></b></div>
           <div class="detail-row"><span>Email</span><b id="teacherEmail"></b></div>
           <div class="detail-row"><span>Department</span><b id="teacherDepartment"></b></div>
-          <div class="detail-row"><span>Year</span><b id="teacherYear"></b></div>
+          <div class="detail-row"><span>Academic Year</span><b id="teacherYear"></b></div>
           <div class="detail-row"><span>Mobile</span><b id="teacherMobile"></b></div>
         </div>
       </section>
 
       <section data-view="students" hidden>
-        <div class="page-head"><div><p class="eyebrow">STUDENT LIST</p><h1>Students</h1><p class="muted">Showing only same department and same year students.</p></div></div>
+        <div class="page-head"><div><p class="eyebrow">STUDENT LIST</p><h1>Students</h1><p class="muted">Showing only same department and same academic year students.</p></div></div>
         <div class="search-card"><form class="search-form" id="searchForm"><input id="studentSearch" name="q" placeholder="Search by student name or reg no"><button class="primary-btn" type="submit">SEARCH</button></form></div>
-        <div class="table-card"><div class="card-title-row"><h2>Students</h2></div><div class="responsive-table"><table><thead><tr><th>Name</th><th>Reg No</th><th>Department</th><th>Year</th><th>Academic Files</th><th>Action</th></tr></thead><tbody id="studentRows"></tbody></table></div><div class="empty-state" id="studentEmpty">No matching student found.</div></div>
+        <div class="table-card"><div class="card-title-row"><h2>Students</h2></div><div class="responsive-table"><table><thead><tr><th>Name</th><th>Reg No</th><th>Department</th><th>Academic Year</th><th>Academic Files</th><th>Action</th></tr></thead><tbody id="studentRows"></tbody></table></div><div class="empty-state" id="studentEmpty">No matching student found.</div></div>
       </section>
 
       <section data-view="student-detail" hidden>
@@ -58,7 +59,7 @@
           <div class="detail-row"><span>Register No</span><b id="detailRegNo"></b></div>
           <div class="detail-row"><span>Email</span><b id="detailEmail"></b></div>
           <div class="detail-row"><span>Department</span><b id="detailDepartment"></b></div>
-          <div class="detail-row"><span>Year</span><b id="detailYear"></b></div>
+          <div class="detail-row"><span>Academic Year</span><b id="detailYear"></b></div>
           <div class="detail-row"><span>Mobile</span><b id="detailMobile"></b></div>
         </div>
         <div class="table-card"><div class="card-title-row"><h2>Academic Certificates</h2></div><div class="responsive-table"><table><thead><tr><th>Document Title</th><th>File</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody id="academicRows"></tbody></table></div></div>

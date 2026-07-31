@@ -44,7 +44,7 @@ function fillProfile() {
   text("teacherDepartment", teacher.department);
   text("teacherYear", teacher.year);
   text("teacherMobile", teacher.mobile);
-  text("teacherScope", `${teacher.department} - Year ${teacher.year}`);
+  text("teacherScope", `${teacher.department} - Academic Year ${teacher.year}`);
 }
 
 async function safeRender(label, task) {

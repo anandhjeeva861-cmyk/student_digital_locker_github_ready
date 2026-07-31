@@ -60,7 +60,9 @@ See `docs/FIREBASE_SETUP.md`.
 
 ## Academic Options
 
-Department and year values are defined once in `js/options.js`. Registration forms use selects populated from that file, and Firestore rules enforce the same allowed values.
+Department values are defined once in `js/options.js`. Registration forms require an Academic Year typed like `2025-2028`; client validation requires the end year to be 3 years after the start year, and Firestore rules enforce the `YYYY-YYYY` shape for new accounts.
+
+Teacher registration also reserves one department + academic-year scope, so a second teacher cannot create another teacher account for the same class scope.
 
 ## Commands
 

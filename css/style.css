@@ -468,6 +468,11 @@ label {
     transition: transform 0.32s var(--ease-spring), opacity 0.22s ease, visibility 0.22s ease;
 }
 
+.sidebar nav {
+    display: grid;
+    gap: 10px;
+}
+
 .app-shell.menu-open .sidebar {
     opacity: 1;
     visibility: visible;
@@ -539,8 +544,9 @@ label {
     display: flex;
     align-items: center;
     text-align: left;
+    width: 100%;
     min-height: 46px;
-    margin: 8px 0;
+    margin: 0;
     padding: 12px 14px;
     border-radius: 16px;
     color: rgba(255, 255, 255, 0.92);
@@ -578,8 +584,14 @@ label {
 }
 
 .danger-link {
-    margin-top: 22px;
+    margin-top: 6px;
     background: rgba(255, 80, 80, 0.20);
+}
+
+.remove-account-link {
+    margin-top: 6px;
+    background: rgba(255, 185, 70, 0.18);
+    border-color: rgba(255, 205, 105, 0.24);
 }
 
 .main-panel {
@@ -1119,10 +1131,11 @@ tbody tr {
         height: calc(100vh - 36px);
     }
     .sidebar nav {
-        display: block;
+        display: grid;
+        gap: 10px;
     }
     .nav-link {
-        margin: 8px 0;
+        margin: 0;
     }
     .stats-grid, .action-grid, .workspace-grid, .profile-layout, .status-grid {
         grid-template-columns: 1fr;

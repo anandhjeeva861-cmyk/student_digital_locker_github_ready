@@ -34,6 +34,9 @@ import {
 const profileCollection = "profiles";
 const documentsCollection = "documents";
 const titlesCollection = "academicTitles";
+const uniqueMobileCollection = "uniqueMobileNumbers";
+const uniqueRegisterCollection = "uniqueRegisterNumbers";
+const uniqueTeacherScopeCollection = "uniqueTeacherScopes";
 const documentCategories = ["online", "personal", "academic"];
 const fileChunksCollection = "fileChunks";
 const photoChunksCollection = "photoChunks";
@@ -55,6 +58,10 @@ function safeSegment(value) {
 
 function titleId(profile, title) {
   return `${profile.departmentKey}_${profile.year}_${safeSegment(title).toUpperCase()}`;
+}
+
+function teacherScopeId(profile) {
+  return `${profile.departmentKey}_${safeSegment(profile.year).toUpperCase()}`;
 }
 
 function documentId(uid, category, title) {
@@ -183,6 +190,10 @@ async function commitBatches(operations) {
   }
 }
 
+async function deleteSnapshots(snapshots) {
+  await commitBatches(snapshots.map((snapshot) => (batch) => batch.delete(snapshot.ref)));
+}
+
 async function listChunkSnapshots(parentRef, collectionName) {
   const snapshot = await getDocs(collection(parentRef, collectionName));
   return snapshot.docs;
@@ -190,7 +201,7 @@ async function listChunkSnapshots(parentRef, collectionName) {
 
 async function deleteChunks(parentRef, collectionName, filter = () => true) {
   const chunks = (await listChunkSnapshots(parentRef, collectionName)).filter((snapshot) => filter(snapshot.data()));
-  await commitBatches(chunks.map((snapshot) => (batch) => batch.delete(snapshot.ref)));
+  await deleteSnapshots(chunks);
 }
 
 async function writeChunks(parentRef, collectionName, chunks, metadata) {
@@ -233,6 +244,15 @@ async function requireCurrentUser(expectedUid) {
   return user;
 }
 
+function requireRecentAccountLogin(user) {
+  const lastSignIn = Date.parse(user?.metadata?.lastSignInTime || "");
+  if (!lastSignIn || Date.now() - lastSignIn > 4 * 60 * 1000) {
+    const error = new Error("For safety, log out and log in again, then remove the account within 4 minutes.");
+    error.code = "auth/requires-recent-login";
+    throw error;
+  }
+}
+
 async function getOwnedDocumentForReplace(docRef, ownerId) {
   try {
     const snapshot = await getDoc(docRef);
@@ -273,6 +293,7 @@ export function firebaseErrorMessage(error) {
     "auth/invalid-api-key": "Firebase configuration is invalid. Check the deployed Firebase config.",
     "auth/api-key-not-valid.-please-pass-a-valid-api-key.": "Firebase configuration is invalid. Check the deployed Firebase config.",
     "auth/operation-not-allowed": "Email/password login is not enabled in Firebase Authentication.",
+    "auth/requires-recent-login": "For safety, log out and log in again, then remove the account within 4 minutes.",
     "auth/too-many-requests": "Too many failed attempts. Try again later.",
     "auth/unauthorized-domain": "This website domain is not authorized in Firebase Authentication settings.",
     "auth/network-request-failed": "Network error. Check your internet connection.",
@@ -332,15 +353,23 @@ async function createProfileWithUniqueKeys(uid, profile) {
   if (!profile.departmentKey) throw new Error("Invalid department selected.");
 
   await runTransaction(db, async (transaction) => {
-    const mobileRef = doc(db, "uniqueMobileNumbers", profile.mobile);
+    const mobileRef = doc(db, uniqueMobileCollection, profile.mobile);
     const mobileSnap = await transaction.get(mobileRef);
     if (mobileSnap.exists()) throw new Error("This mobile number is already registered.");
 
     let regRef = null;
+    let teacherScopeRef = null;
     if (profile.role === "student") {
-      regRef = doc(db, "uniqueRegisterNumbers", profile.regNo);
+      regRef = doc(db, uniqueRegisterCollection, profile.regNo);
       const regSnap = await transaction.get(regRef);
       if (regSnap.exists()) throw new Error("This register number is already registered.");
+    }
+    if (profile.role === "teacher") {
+      teacherScopeRef = doc(db, uniqueTeacherScopeCollection, teacherScopeId(profile));
+      const teacherScopeSnap = await transaction.get(teacherScopeRef);
+      if (teacherScopeSnap.exists()) {
+        throw new Error("A teacher is already registered for this department and academic year.");
+      }
     }
 
     transaction.set(doc(db, profileCollection, uid), {
@@ -351,6 +380,15 @@ async function createProfileWithUniqueKeys(uid, profile) {
     });
     transaction.set(mobileRef, { uid, role: profile.role, createdAt: serverTimestamp() });
     if (regRef) transaction.set(regRef, { uid, createdAt: serverTimestamp() });
+    if (teacherScopeRef) {
+      transaction.set(teacherScopeRef, {
+        uid,
+        department: profile.department,
+        departmentKey: profile.departmentKey,
+        year: profile.year,
+        createdAt: serverTimestamp()
+      });
+    }
   });
 }
 
@@ -367,6 +405,55 @@ export async function loginWithEmail(email, password) {
 
 export function logout() {
   return authReady.then(() => signOut(auth));
+}
+
+export async function deleteCurrentAccount(profile = null) {
+  await authReady;
+  const user = await requireCurrentUser(profile?.uid);
+  const accountProfile = profile || await getProfile(user.uid);
+  if (!accountProfile) throw new Error("Profile not found. Log in again before removing the account.");
+  requireRecentAccountLogin(user);
+
+  if (accountProfile.role === "student") {
+    const ownedDocs = await getDocs(query(
+      collection(db, documentsCollection),
+      where("ownerId", "==", accountProfile.uid)
+    ));
+    for (const snapshot of ownedDocs.docs) {
+      await deleteChunks(snapshot.ref, fileChunksCollection).catch((error) => {
+        console.warn("Document file chunk cleanup failed", error);
+      });
+      await deleteDoc(snapshot.ref);
+    }
+  }
+
+  if (accountProfile.role === "teacher") {
+    const titles = await getDocs(query(
+      collection(db, titlesCollection),
+      where("createdBy", "==", accountProfile.uid)
+    ));
+    await deleteSnapshots(titles.docs);
+    await deleteDoc(doc(db, uniqueTeacherScopeCollection, teacherScopeId(accountProfile))).catch((error) => {
+      console.warn("Teacher scope cleanup failed", error);
+    });
+  }
+
+  const profileRef = doc(db, profileCollection, accountProfile.uid);
+  await deleteChunks(profileRef, photoChunksCollection).catch((error) => {
+    console.warn("Profile photo chunk cleanup failed", error);
+  });
+  if (accountProfile.mobile) {
+    await deleteDoc(doc(db, uniqueMobileCollection, accountProfile.mobile)).catch((error) => {
+      console.warn("Mobile uniqueness cleanup failed", error);
+    });
+  }
+  if (accountProfile.role === "student" && accountProfile.regNo) {
+    await deleteDoc(doc(db, uniqueRegisterCollection, accountProfile.regNo)).catch((error) => {
+      console.warn("Register number uniqueness cleanup failed", error);
+    });
+  }
+  await deleteDoc(profileRef);
+  await deleteUser(user);
 }
 
 export async function waitForUser() {

@@ -164,4 +164,25 @@ document.addEventListener("DOMContentLoaded", () => {
       location.href = pages.login;
     });
   });
+
+  document.querySelectorAll("[data-remove-account]").forEach((button) => {
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+      if (!confirm("Remove this account and all your stored data? This cannot be undone.")) return;
+      button.setAttribute("disabled", "disabled");
+      try {
+        const { deleteCurrentAccount } = await loadFirebaseService();
+        await deleteCurrentAccount();
+        showMessage("Account removed successfully.", "success");
+        window.setTimeout(() => {
+          location.href = pages.login;
+        }, 700);
+      } catch (error) {
+        console.error("Account remove failed", error);
+        showMessage(await friendlyError(error), "danger", { duration: 9000 });
+      } finally {
+        button.removeAttribute("disabled");
+      }
+    });
+  });
 });

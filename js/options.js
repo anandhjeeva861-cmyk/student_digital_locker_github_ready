@@ -18,3 +18,4 @@ export const YEAR_OPTIONS = [
   "III"
 ];
 
+export const ACADEMIC_YEAR_EXAMPLE = "2025-2028";
