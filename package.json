@@ -12,7 +12,6 @@
     "start": "npm run dev"
   },
   "dependencies": {
-    "docx": "^9.7.1",
     "exceljs": "^4.4.0",
     "firebase": "^12.16.0"
   }
