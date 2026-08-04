@@ -48,29 +48,29 @@ async function downloadStatusReport() {
   if (!teacher) throw new Error("Teacher profile not loaded.");
   const status = statusReportRows.length ? statusReportRows : await (await loadFirebaseService()).teacherStatus(teacher);
   statusReportRows = status;
-  const rows = status.flatMap((titleBlock) => {
-    return [
-      ...titleBlock.uploaded.map((student) => ({
-        studentName: student.name,
-        registerNo: student.reg_no || "",
-        department: student.department || "",
-        year: student.year || "",
-        documentTitle: titleBlock.title,
-        status: "submitted",
-        submittedDate: student.documents?.[0]?.uploaded_at ? dateText(student.documents[0].uploaded_at) : ""
-      })),
-      ...titleBlock.pending.map((student) => ({
-        studentName: student.name,
-        registerNo: student.reg_no || "",
-        department: student.department || "",
-        year: student.year || "",
-        documentTitle: titleBlock.title,
-        status: "pending"
-      }))
-    ];
-  });
+  const documentTitles = status.map((titleBlock) => titleBlock.title);
+  const studentsByUid = new Map();
 
-  const blob = await buildDocumentSubmissionStatusDocxBlob(rows, teacher);
+  for (const titleBlock of status) {
+    for (const [submitted, titleStudents] of [[true, titleBlock.uploaded], [false, titleBlock.pending]]) {
+      for (const student of titleStudents) {
+        const studentKey = student.uid || student.id || `${student.reg_no || ""}:${student.name || ""}`;
+        if (!studentsByUid.has(studentKey)) {
+          studentsByUid.set(studentKey, {
+            studentName: student.name,
+            registerNo: student.reg_no || "",
+            department: student.department || "",
+            year: student.year || "",
+            submittedByTitle: {}
+          });
+        }
+        studentsByUid.get(studentKey).submittedByTitle[titleBlock.title] = submitted;
+      }
+    }
+  }
+
+  const reportData = { documentTitles, students: [...studentsByUid.values()] };
+  const blob = await buildDocumentSubmissionStatusDocxBlob(reportData, teacher);
   downloadReportBlob(blob, "document-submission-status-report.docx");
 }
 
@@ -78,6 +78,10 @@ function showView(name) {
   document.querySelectorAll("[data-view]").forEach((view) => {
     view.hidden = view.dataset.view !== name;
   });
+}
+
+function findClosestAction(target, selector) {
+  return target instanceof Element ? target.closest(selector) : null;
 }
 
 function fillProfile() {
@@ -298,10 +302,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.addEventListener("click", async (event) => {
-    const viewButton = event.target.closest("[data-view-doc]");
-    const downloadButton = event.target.closest("[data-download-doc]");
-    const statusViewButton = event.target.closest("[data-status-view-doc]");
-    const statusDownloadButton = event.target.closest("[data-status-download-doc]");
+    const viewButton = findClosestAction(event.target, "[data-view-doc]");
+    const downloadButton = findClosestAction(event.target, "[data-download-doc]");
+    const statusViewButton = findClosestAction(event.target, "[data-status-view-doc]");
+    const statusDownloadButton = findClosestAction(event.target, "[data-status-download-doc]");
     if (statusViewButton || statusDownloadButton) {
       try {
         const documentId = statusViewButton?.dataset.statusViewDoc || statusDownloadButton?.dataset.statusDownloadDoc;
@@ -329,7 +333,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const studentButton = event.target.closest("[data-student-id]");
+    const studentButton = findClosestAction(event.target, "[data-student-id]");
     if (studentButton) {
       try {
         await renderStudentDetail(studentButton.dataset.studentId);
@@ -339,7 +343,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    const removeTitleButton = event.target.closest("[data-remove-title]");
+    const removeTitleButton = findClosestAction(event.target, "[data-remove-title]");
     if (removeTitleButton && confirm(`Remove document title "${removeTitleButton.dataset.titleName}"?`)) {
       try {
         const { deleteAcademicTitle } = await loadFirebaseService();

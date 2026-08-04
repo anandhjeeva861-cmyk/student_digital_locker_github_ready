@@ -1,102 +1,98 @@
-import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType, BorderStyle } from '../node_modules/docx/dist/index.mjs';
+async function loadDocxModule() {
+  return import('./vendor/docx/index.mjs');
+}
 
 function formatValue(value) {
   return String(value ?? '').trim();
 }
 
-function formatStatus(status, submittedDate) {
-  if (status === 'submitted') return '✅ Submitted';
-  if (status === 'pending') return '❌ Not Submitted';
-  return '❌ Not Submitted';
-}
-
-function formatSubmittedDate(submittedDate) {
-  if (!submittedDate) return '—';
-  return submittedDate;
-}
-
-function buildMetadataParagraph(label, value) {
-  return new Paragraph({
+function buildMetadataParagraph(docx, label, value) {
+  return new docx.Paragraph({
     children: [
-      new TextRun({ text: `${label}: `, bold: true }),
-      new TextRun({ text: formatValue(value) })
+      new docx.TextRun({ text: `${label}: `, bold: true }),
+      new docx.TextRun({ text: formatValue(value) })
     ],
     spacing: { after: 120 }
   });
 }
 
-function buildTable(rows, teacherProfile) {
+function buildTableCell(docx, value, { bold = false, shading, centered = false } = {}) {
+  return new docx.TableCell({
+    children: [new docx.Paragraph({
+      children: [new docx.TextRun({ text: formatValue(value), bold, size: 18 })],
+      alignment: centered ? docx.AlignmentType.CENTER : docx.AlignmentType.LEFT,
+      spacing: { after: 40 }
+    })],
+    shading: shading ? { fill: shading } : undefined
+  });
+}
+
+function buildTable(docx, reportData) {
+  const documentTitles = Array.isArray(reportData?.documentTitles) ? reportData.documentTitles : [];
+  const students = Array.isArray(reportData?.students) ? reportData.students : [];
   const headerCells = [
     'S.No',
     'Student Name',
     'Register Number',
     'Department',
     'Year',
-    'Required Document',
-    'Submission Status',
-    'Submitted Date'
+    ...documentTitles
   ];
 
-  const headerRow = new TableRow({
-    children: headerCells.map((cellText) => new TableCell({
-      children: [new Paragraph({ children: [new TextRun({ text: cellText, bold: true, size: 24 })], spacing: { after: 60 } })],
-      borders: {
-        top: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
-        bottom: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
-        left: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
-        right: { style: BorderStyle.SINGLE, size: 1, color: '000000' }
-      },
-      shading: { fill: 'D9EAF7' }
-    })),
+  const headerRow = new docx.TableRow({
+    children: headerCells.map((cellText) => buildTableCell(docx, cellText, { bold: true, shading: 'D9EAF7', centered: true })),
     tableHeader: true
   });
 
-  const bodyRows = rows.map((row, index) => new TableRow({
+  const bodyRows = students.map((student, index) => new docx.TableRow({
     children: [
-      new TableCell({ children: [new Paragraph(String(index + 1))], borders: { top: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, bottom: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, left: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, right: { style: BorderStyle.SINGLE, size: 1, color: '000000' } } }),
-      new TableCell({ children: [new Paragraph(formatValue(row.studentName))], borders: { top: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, bottom: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, left: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, right: { style: BorderStyle.SINGLE, size: 1, color: '000000' } } }),
-      new TableCell({ children: [new Paragraph(formatValue(row.registerNo))], borders: { top: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, bottom: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, left: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, right: { style: BorderStyle.SINGLE, size: 1, color: '000000' } } }),
-      new TableCell({ children: [new Paragraph(formatValue(row.department))], borders: { top: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, bottom: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, left: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, right: { style: BorderStyle.SINGLE, size: 1, color: '000000' } } }),
-      new TableCell({ children: [new Paragraph(formatValue(row.year))], borders: { top: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, bottom: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, left: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, right: { style: BorderStyle.SINGLE, size: 1, color: '000000' } } }),
-      new TableCell({ children: [new Paragraph(formatValue(row.documentTitle))], borders: { top: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, bottom: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, left: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, right: { style: BorderStyle.SINGLE, size: 1, color: '000000' } } }),
-      new TableCell({ children: [new Paragraph(formatStatus(row.status, row.submittedDate))], borders: { top: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, bottom: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, left: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, right: { style: BorderStyle.SINGLE, size: 1, color: '000000' } } }),
-      new TableCell({ children: [new Paragraph(formatSubmittedDate(row.submittedDate))], borders: { top: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, bottom: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, left: { style: BorderStyle.SINGLE, size: 1, color: '000000' }, right: { style: BorderStyle.SINGLE, size: 1, color: '000000' } } })
+      buildTableCell(docx, index + 1, { centered: true }),
+      buildTableCell(docx, student.studentName),
+      buildTableCell(docx, student.registerNo),
+      buildTableCell(docx, student.department),
+      buildTableCell(docx, student.year),
+      ...documentTitles.map((title) => buildTableCell(
+        docx,
+        student.submittedByTitle?.[title] ? '\u2705' : '\u274c',
+        { centered: true }
+      ))
     ]
   }));
 
-  return new Table({
+  return new docx.Table({
     rows: [headerRow, ...bodyRows],
-    width: { size: 100, type: WidthType.PERCENTAGE },
+    width: { size: 100, type: docx.WidthType.PERCENTAGE },
     borders: {
-      top: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
-      bottom: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
-      left: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
-      right: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
-      insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
-      insideVertical: { style: BorderStyle.SINGLE, size: 1, color: '000000' }
+      top: { style: docx.BorderStyle.SINGLE, size: 1, color: '000000' },
+      bottom: { style: docx.BorderStyle.SINGLE, size: 1, color: '000000' },
+      left: { style: docx.BorderStyle.SINGLE, size: 1, color: '000000' },
+      right: { style: docx.BorderStyle.SINGLE, size: 1, color: '000000' },
+      insideHorizontal: { style: docx.BorderStyle.SINGLE, size: 1, color: '000000' },
+      insideVertical: { style: docx.BorderStyle.SINGLE, size: 1, color: '000000' }
     }
   });
 }
 
-export async function buildDocumentSubmissionStatusDocxBlob(reportRows, teacherProfile) {
+export async function buildDocumentSubmissionStatusDocxBlob(reportData, teacherProfile) {
+  const docx = await loadDocxModule();
   const generatedAt = new Date().toLocaleString();
-  const doc = new Document({
+  const doc = new docx.Document({
     sections: [{
       properties: {},
       children: [
-        new Paragraph({
-          children: [new TextRun({ text: 'Document Submission Status Report', bold: true, size: 32 })],
+        new docx.Paragraph({
+          children: [new docx.TextRun({ text: 'Document Submission Status Report', bold: true, size: 32 })],
           spacing: { after: 240 }
         }),
-        buildMetadataParagraph('Generated', generatedAt),
-        buildMetadataParagraph('Teacher Name', teacherProfile?.name || ''),
-        buildMetadataParagraph('Teacher Department', teacherProfile?.department || ''),
-        buildMetadataParagraph('Teacher Year/Class Filter', teacherProfile?.year || ''),
-        new Paragraph({ children: [new TextRun({ text: '' })], spacing: { after: 240 } }),
-        buildTable(reportRows, teacherProfile)
+        buildMetadataParagraph(docx, 'Generated', generatedAt),
+        buildMetadataParagraph(docx, 'Teacher Name', teacherProfile?.name || ''),
+        buildMetadataParagraph(docx, 'Teacher Department', teacherProfile?.department || ''),
+        buildMetadataParagraph(docx, 'Teacher Year/Class Filter', teacherProfile?.year || ''),
+        new docx.Paragraph({ children: [new docx.TextRun({ text: '' })], spacing: { after: 240 } }),
+        buildTable(docx, reportData)
       ]
     }]
   });
 
-  return Packer.toBlob(doc);
+  return docx.Packer.toBlob(doc);
 }
