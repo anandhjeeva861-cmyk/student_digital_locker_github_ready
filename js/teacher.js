@@ -1,10 +1,12 @@
 import { protectPage } from "./auth.js";
 import { DEFAULT_ACADEMIC_TITLES, escapeHtml, normalizeTitle, showMessage } from "./validation.js";
+import { buildDocumentSubmissionStatusDocxBlob } from "./docx-report.mjs";
 
 let teacher = null;
 let selectedStudentUid = null;
 let detailDocumentCache = [];
 let statusDocumentCache = [];
+let statusReportRows = [];
 let firebaseServicePromise = null;
 
 function loadFirebaseService() {
@@ -29,6 +31,47 @@ function text(id, value) {
 
 function dateText(value) {
   return value ? new Date(value).toLocaleString() : "";
+}
+
+function downloadReportBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+async function downloadStatusReport() {
+  if (!teacher) throw new Error("Teacher profile not loaded.");
+  const status = statusReportRows.length ? statusReportRows : await (await loadFirebaseService()).teacherStatus(teacher);
+  statusReportRows = status;
+  const rows = status.flatMap((titleBlock) => {
+    return [
+      ...titleBlock.uploaded.map((student) => ({
+        studentName: student.name,
+        registerNo: student.reg_no || "",
+        department: student.department || "",
+        year: student.year || "",
+        documentTitle: titleBlock.title,
+        status: "submitted",
+        submittedDate: student.documents?.[0]?.uploaded_at ? dateText(student.documents[0].uploaded_at) : ""
+      })),
+      ...titleBlock.pending.map((student) => ({
+        studentName: student.name,
+        registerNo: student.reg_no || "",
+        department: student.department || "",
+        year: student.year || "",
+        documentTitle: titleBlock.title,
+        status: "pending"
+      }))
+    ];
+  });
+
+  const blob = await buildDocumentSubmissionStatusDocxBlob(rows, teacher);
+  downloadReportBlob(blob, "document-submission-status-report.docx");
 }
 
 function showView(name) {
@@ -129,7 +172,6 @@ async function renderStudentDetail(studentUid) {
       <td class="action-cell">
         <button class="small-btn" data-view-doc="${escapeHtml(item.id)}">VIEW</button>
         <button class="small-btn" data-download-doc="${escapeHtml(item.id)}">DOWNLOAD</button>
-        <button class="small-btn danger" data-delete-doc="${escapeHtml(item.id)}">REMOVE</button>
       </td>
     </tr>`;
   }).join("");
@@ -173,6 +215,7 @@ async function renderStatus() {
   if (!grid) return;
   const { teacherStatus } = await loadFirebaseService();
   const status = await teacherStatus(teacher);
+  statusReportRows = status;
   statusDocumentCache = status.flatMap((row) => row.uploaded.flatMap((student) => student.documents || []));
   grid.innerHTML = "";
   for (const row of status) {
@@ -245,6 +288,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  document.getElementById("downloadStatusReportButton")?.addEventListener("click", async () => {
+    try {
+      await safeRender("Report download", downloadStatusReport);
+    } catch (error) {
+      console.error("Teacher report download failed", error);
+      showMessage(await friendlyFirebaseError(error), "danger");
+    }
+  });
+
   document.addEventListener("click", async (event) => {
     const viewButton = event.target.closest("[data-view-doc]");
     const downloadButton = event.target.closest("[data-download-doc]");
@@ -298,20 +350,6 @@ document.addEventListener("DOMContentLoaded", () => {
         showMessage("Document title removed.", "success");
       } catch (error) {
         console.error("Teacher remove title failed", error);
-        showMessage(await friendlyFirebaseError(error), "danger");
-      }
-    }
-
-    const deleteButton = event.target.closest("[data-delete-doc]");
-    if (deleteButton && confirm("Remove this academic document?")) {
-      try {
-        const { deleteTeacherAcademicDocument } = await loadFirebaseService();
-        await deleteTeacherAcademicDocument(teacher, deleteButton.dataset.deleteDoc);
-        if (selectedStudentUid) await renderStudentDetail(selectedStudentUid);
-        await renderDashboard();
-        showMessage("Academic document removed.", "success");
-      } catch (error) {
-        console.error("Teacher academic document delete failed", error);
         showMessage(await friendlyFirebaseError(error), "danger");
       }
     }
