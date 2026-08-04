@@ -1,6 +1,6 @@
 import { protectPage } from "./auth.js";
 import { DEFAULT_ACADEMIC_TITLES, escapeHtml, normalizeTitle, showMessage } from "./validation.js";
-import { buildDocumentSubmissionStatusDocxBlob } from "./docx-report.mjs";
+import { buildDocumentSubmissionStatusExcelBlob } from "./excel-report.mjs";
 
 let teacher = null;
 let selectedStudentUid = null;
@@ -70,8 +70,8 @@ async function downloadStatusReport() {
   }
 
   const reportData = { documentTitles, students: [...studentsByUid.values()] };
-  const blob = await buildDocumentSubmissionStatusDocxBlob(reportData, teacher);
-  downloadReportBlob(blob, "document-submission-status-report.docx");
+  const blob = await buildDocumentSubmissionStatusExcelBlob(reportData);
+  downloadReportBlob(blob, "document-submission-status-report.xlsx");
 }
 
 function showView(name) {

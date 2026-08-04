@@ -6,16 +6,6 @@ function formatValue(value) {
   return String(value ?? '').trim();
 }
 
-function buildMetadataParagraph(docx, label, value) {
-  return new docx.Paragraph({
-    children: [
-      new docx.TextRun({ text: `${label}: `, bold: true, size: 20, font: 'Arial' }),
-      new docx.TextRun({ text: formatValue(value), size: 20, font: 'Arial' })
-    ],
-    spacing: { after: 120 }
-  });
-}
-
 const PAGE_WIDTH_TWIPS = 16838;
 const PAGE_HEIGHT_TWIPS = 11906;
 const NARROW_MARGIN_TWIPS = 360;
@@ -125,9 +115,8 @@ function buildTable(docx, reportData) {
   });
 }
 
-export async function buildDocumentSubmissionStatusDocxBlob(reportData, teacherProfile) {
+export async function buildDocumentSubmissionStatusDocxBlob(reportData) {
   const docx = await loadDocxModule();
-  const generatedAt = new Date().toLocaleString();
   const doc = new docx.Document({
     sections: [{
       properties: {
@@ -148,15 +137,6 @@ export async function buildDocumentSubmissionStatusDocxBlob(reportData, teacherP
         }
       },
       children: [
-        new docx.Paragraph({
-          children: [new docx.TextRun({ text: 'Document Submission Status Report', bold: true, size: 28, font: 'Arial' })],
-          spacing: { after: 180 }
-        }),
-        buildMetadataParagraph(docx, 'Generated', generatedAt),
-        buildMetadataParagraph(docx, 'Teacher Name', teacherProfile?.name || ''),
-        buildMetadataParagraph(docx, 'Teacher Department', teacherProfile?.department || ''),
-        buildMetadataParagraph(docx, 'Teacher Year/Class Filter', teacherProfile?.year || ''),
-        new docx.Paragraph({ children: [new docx.TextRun({ text: '' })], spacing: { after: 120 } }),
         buildTable(docx, reportData)
       ]
     }]
