@@ -74,13 +74,13 @@ function teacherPayload(form) {
 async function registerStudent(form) {
   const { registerStudent: firebaseRegisterStudent } = await loadFirebaseService();
   await firebaseRegisterStudent(studentPayload(form));
-  location.href = pages.student;
+  location.replace(pages.student);
 }
 
 async function registerTeacher(form) {
   const { registerTeacher: firebaseRegisterTeacher } = await loadFirebaseService();
   await firebaseRegisterTeacher(teacherPayload(form));
-  location.href = pages.teacher;
+  location.replace(pages.teacher);
 }
 
 async function login(form, role) {
@@ -94,12 +94,7 @@ async function login(form, role) {
     await logout();
     throw new Error(`This is not a ${role} account.`);
   }
-  location.href = pages[role];
-}
-
-export async function fetchProfile() {
-  const { getCurrentProfile } = await loadFirebaseService();
-  return getCurrentProfile();
+  location.replace(pages[role]);
 }
 
 export async function protectPage(role, callback) {
@@ -110,7 +105,7 @@ export async function protectPage(role, callback) {
     profile = await service.getCurrentProfile();
     if (!profile || profile.role !== role) {
       await service.logout().catch(() => {});
-      location.href = pages.login;
+      location.replace(pages.login);
       return;
     }
   } catch (error) {
@@ -118,7 +113,7 @@ export async function protectPage(role, callback) {
     await service?.logout?.().catch(() => {});
     showMessage(await friendlyError(error), "danger");
     window.setTimeout(() => {
-      location.href = pages.login;
+      location.replace(pages.login);
     }, 1800);
     return;
   }
@@ -161,7 +156,7 @@ document.addEventListener("DOMContentLoaded", () => {
       event.preventDefault();
       const { logout } = await loadFirebaseService();
       await logout().catch((error) => console.error("Logout failed", error));
-      location.href = pages.login;
+      location.replace(pages.login);
     });
   });
 
@@ -175,7 +170,7 @@ document.addEventListener("DOMContentLoaded", () => {
         await deleteCurrentAccount();
         showMessage("Account removed successfully.", "success");
         window.setTimeout(() => {
-          location.href = pages.login;
+          location.replace(pages.login);
         }, 700);
       } catch (error) {
         console.error("Account remove failed", error);

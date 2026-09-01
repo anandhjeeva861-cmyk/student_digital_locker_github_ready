@@ -11,6 +11,9 @@ import {
 let profile = null;
 let documentCache = { online: [], personal: [], academic: [] };
 let firebaseServicePromise = null;
+let profilePhotoLoadAttempted = false;
+let profilePhotoObjectUrl = "";
+let profilePhotoRequestId = 0;
 
 function loadFirebaseService() {
   if (!firebaseServicePromise) firebaseServicePromise = import("./firebase-service.js");
@@ -33,22 +36,19 @@ function text(id, value) {
 }
 
 function dateText(value) {
-  return value ? new Date(value).toLocaleString() : "";
-}
-
-function showView(name) {
-  document.querySelectorAll("[data-view]").forEach((view) => {
-    view.hidden = view.dataset.view !== name;
-  });
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date.toLocaleString() : "";
 }
 
 function onViewChange(name) {
+  if (!profile) return;
   if (name === "academic") {
     refreshAcademicTitles().catch(async (error) => {
       console.error("Academic titles failed", error);
       showMessage(await friendlyFirebaseError(error), "danger");
     });
   }
+  if (name === "profile") loadProfilePhotoForProfileView();
 }
 
 function fillProfile() {
@@ -60,25 +60,87 @@ function fillProfile() {
   text("studentDepartment", profile.department);
   text("studentMobile", profile.mobile);
   const avatar = document.getElementById("studentAvatar");
-  if (avatar) avatar.textContent = profile.name?.slice(0, 1) || "S";
-  const photo = document.getElementById("studentPhoto");
-  if (photo && profile.photo_url) {
-    photo.src = profile.photo_url;
-    photo.hidden = false;
-    if (avatar) avatar.hidden = true;
+  if (avatar) {
+    avatar.textContent = profile.name?.slice(0, 1) || "S";
+    avatar.setAttribute("aria-label", `${profile.name || "Student"} profile placeholder`);
   }
 }
 
-async function refreshProfilePhoto() {
+function showProfilePhotoFallback() {
+  const photo = document.getElementById("studentPhoto");
+  const avatar = document.getElementById("studentAvatar");
+  if (photo) {
+    photo.removeAttribute("src");
+    photo.hidden = true;
+  }
+  if (avatar) avatar.hidden = false;
+  releaseProfilePhotoObjectUrl();
+}
+
+function releaseProfilePhotoObjectUrl() {
+  if (profilePhotoObjectUrl) URL.revokeObjectURL(profilePhotoObjectUrl);
+  profilePhotoObjectUrl = "";
+}
+
+async function refreshProfilePhoto({ force = false } = {}) {
   const photo = document.getElementById("studentPhoto");
   const avatar = document.getElementById("studentAvatar");
   if (!photo) return;
-  const { getProfilePhotoUrl } = await loadFirebaseService();
-  const url = await getProfilePhotoUrl(profile);
-  if (!url) return;
+  if (profilePhotoLoadAttempted && !force) return;
+  const requestId = ++profilePhotoRequestId;
+  profilePhotoLoadAttempted = true;
+  let url = "";
+  try {
+    const { getProfilePhotoUrl } = await loadFirebaseService();
+    url = await getProfilePhotoUrl(profile);
+  } catch (error) {
+    if (requestId !== profilePhotoRequestId) return;
+    throw error;
+  }
+  if (requestId !== profilePhotoRequestId) {
+    if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+    return;
+  }
+  if (!url) {
+    showProfilePhotoFallback();
+    return;
+  }
+
+  showProfilePhotoFallback();
+  await new Promise((resolve, reject) => {
+    const loader = new Image();
+    loader.addEventListener("load", resolve, { once: true });
+    loader.addEventListener("error", () => reject(new Error("The saved profile image could not be displayed.")), {
+      once: true
+    });
+    loader.src = url;
+  }).catch((error) => {
+    if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+    if (requestId !== profilePhotoRequestId) return;
+    throw error;
+  });
+
+  if (requestId !== profilePhotoRequestId) {
+    if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+    return;
+  }
+  releaseProfilePhotoObjectUrl();
+  if (url.startsWith("blob:")) profilePhotoObjectUrl = url;
   photo.src = url;
   photo.hidden = false;
   if (avatar) avatar.hidden = true;
+}
+
+async function loadProfilePhotoForProfileView() {
+  try {
+    await refreshProfilePhoto();
+  } catch (error) {
+    console.warn("Stored profile photo could not be loaded", error);
+    showProfilePhotoFallback();
+    showMessage("Your saved profile photo is unavailable. Upload a new photo to replace it.", "warning", {
+      duration: 7000
+    });
+  }
 }
 
 async function loadDocuments(category) {
@@ -87,20 +149,53 @@ async function loadDocuments(category) {
   return documentCache[category];
 }
 
+async function loadAllDocuments() {
+  const { listStudentDocuments } = await loadFirebaseService();
+  const documents = await listStudentDocuments(profile);
+  documentCache = { online: [], personal: [], academic: [] };
+  for (const item of documents) {
+    if (documentCache[item.category]) documentCache[item.category].push(item);
+  }
+}
+
 function refreshCounts() {
   for (const category of ["online", "personal", "academic"]) {
     text(`${category}Count`, String(documentCache[category]?.length || 0));
   }
+  renderRecentDocuments();
 }
 
-async function refreshDocuments(category) {
+function renderRecentDocuments() {
+  const body = document.getElementById("recentDocuments");
+  const empty = document.getElementById("recentDocumentsEmpty");
+  if (!body) return;
+  const rows = Object.values(documentCache)
+    .flat()
+    .sort((a, b) => String(b.uploaded_at).localeCompare(String(a.uploaded_at)))
+    .slice(0, 5);
+  body.innerHTML = rows.map((item) => `
+    <tr>
+      <td><b>${escapeHtml(item.title)}</b></td>
+      <td>${escapeHtml(String(item.category || "document").toUpperCase())}</td>
+      <td>${escapeHtml(item.file_name)}</td>
+      <td>${escapeHtml(dateText(item.uploaded_at))}</td>
+      <td><button type="button" class="small-btn" data-view-doc="${escapeHtml(item.id)}">VIEW</button></td>
+    </tr>`).join("");
+  if (empty) empty.hidden = rows.length > 0;
+}
+
+function renderCachedDocuments(category) {
   const body = document.getElementById(`${category}Documents`);
   const empty = document.getElementById(`${category}Empty`);
   if (!body) return;
-
-  const rows = await loadDocuments(category);
+  const rows = documentCache[category] || [];
   body.innerHTML = rows.map((item) => documentRow(item)).join("");
   if (empty) empty.hidden = rows.length > 0;
+}
+
+async function refreshDocuments(category) {
+  await loadDocuments(category);
+  renderCachedDocuments(category);
   refreshCounts();
   if (category === "academic") await refreshAcademicTitles();
 }
@@ -112,9 +207,9 @@ function documentRow(item) {
       <td>${escapeHtml(item.file_name)}</td>
       <td>${escapeHtml(dateText(item.uploaded_at))}</td>
       <td class="action-cell">
-        <button class="small-btn" data-view-doc="${escapeHtml(item.id)}">VIEW</button>
-        <button class="small-btn" data-download-doc="${escapeHtml(item.id)}">DOWNLOAD</button>
-        <button class="small-btn danger" data-delete-doc="${escapeHtml(item.id)}" data-category="${escapeHtml(item.category)}">REMOVE</button>
+        <button type="button" class="small-btn" data-view-doc="${escapeHtml(item.id)}">VIEW</button>
+        <button type="button" class="small-btn" data-download-doc="${escapeHtml(item.id)}">DOWNLOAD</button>
+        <button type="button" class="small-btn danger" data-delete-doc="${escapeHtml(item.id)}" data-category="${escapeHtml(item.category)}">REMOVE</button>
       </td>
     </tr>`;
 }
@@ -172,8 +267,9 @@ async function uploadPhoto(form) {
 
   const { uploadProfilePhoto } = await loadFirebaseService();
   profile = await uploadProfilePhoto(profile, file);
+  profilePhotoLoadAttempted = false;
   fillProfile();
-  await refreshProfilePhoto();
+  await refreshProfilePhoto({ force: true });
   form.reset();
 }
 
@@ -193,17 +289,30 @@ async function safeRefresh(label, task) {
 async function openStoredDocument(documentId, mode) {
   const item = findDocument(documentId);
   if (!item) throw new Error("Document not found.");
-  const { getDocumentObjectUrl } = await loadFirebaseService();
-  const url = await getDocumentObjectUrl(item);
-  if (mode === "view") {
-    window.open(url, "_blank", "noopener");
-  } else {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = item.file_name || "document";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+  const previewWindow = mode === "view" ? window.open("about:blank", "_blank") : null;
+  if (mode === "view" && !previewWindow) {
+    throw new Error("Document preview was blocked. Allow pop-ups for this site and try again.");
+  }
+  if (previewWindow) previewWindow.opener = null;
+
+  let url = "";
+  try {
+    const { getDocumentObjectUrl } = await loadFirebaseService();
+    url = await getDocumentObjectUrl(item);
+    if (previewWindow) {
+      previewWindow.location.replace(url);
+    } else {
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = item.file_name || "document";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+  } catch (error) {
+    previewWindow?.close();
+    if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+    throw error;
   }
   if (url.startsWith("blob:")) window.setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
@@ -212,11 +321,12 @@ document.addEventListener("DOMContentLoaded", () => {
   protectPage("student", async (_currentUser, currentProfile) => {
     profile = currentProfile;
     fillProfile();
-    await safeRefresh("Profile photo load", refreshProfilePhoto);
-    for (const category of ["online", "personal", "academic"]) {
-      await safeRefresh(`${category} documents load`, () => refreshDocuments(category));
-    }
+    await safeRefresh("Student documents load", loadAllDocuments);
+    for (const category of ["online", "personal", "academic"]) renderCachedDocuments(category);
+    refreshCounts();
     await safeRefresh("Academic titles load", refreshAcademicTitles);
+    const visibleView = document.querySelector("[data-view]:not([hidden])")?.dataset.view;
+    if (visibleView === "profile") loadProfilePhotoForProfileView();
   });
 
   document.addEventListener("dashboard:view-change", (event) => {
@@ -256,6 +366,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.addEventListener("click", async (event) => {
+    if (!(event.target instanceof Element)) return;
     const viewButton = event.target.closest("[data-view-doc]");
     const downloadButton = event.target.closest("[data-download-doc]");
     if (viewButton || downloadButton) {
@@ -284,3 +395,5 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
+
+window.addEventListener("pagehide", releaseProfilePhotoObjectUrl);

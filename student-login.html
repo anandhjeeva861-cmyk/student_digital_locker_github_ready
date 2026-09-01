@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Student Login</title>
+  <meta name="description" content="Sign in to the Student Digital Locker student portal.">
+  <meta name="robots" content="noindex, follow">
+  <link rel="canonical" href="https://anandhjeeva861-cmyk.github.io/student_digital_locker_github_ready/student-login.html">
+  <link rel="icon" type="image/png" href="./images/sankara-logo.png">
+  <title>Student Login | Student Digital Locker</title>
   <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
@@ -12,10 +16,10 @@
       <a href="./index.html" class="back-link">← Back</a>
       <img class="site-logo auth-logo" src="./images/sankara-logo.png" alt="Sankara Educational Institutions logo">
       <h1>STUDENT LOGIN</h1>
-      <label>Email</label>
-      <input type="email" name="email" placeholder="student@example.com" autocomplete="username" required>
-      <label>Password</label>
-      <input type="password" name="password" placeholder="Enter password" autocomplete="current-password" required>
+      <label for="studentLoginEmail">Email</label>
+      <input id="studentLoginEmail" type="email" name="email" placeholder="student@example.com" autocomplete="username" required>
+      <label for="studentLoginPassword">Password</label>
+      <input id="studentLoginPassword" type="password" name="password" placeholder="Enter password" autocomplete="current-password" required>
       <button class="primary-btn" type="submit">LOGIN</button>
       <p class="auth-note">New student? <a href="./student-register.html">Register as a Student</a></p>
     </form>

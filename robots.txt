@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://anandhjeeva861-cmyk.github.io/student_digital_locker_github_ready/sitemap.xml

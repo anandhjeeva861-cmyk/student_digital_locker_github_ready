@@ -3,14 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Teacher Dashboard</title>
+  <meta name="description" content="Teacher Digital Locker dashboard for reviewing students and academic certificate submission status.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://anandhjeeva861-cmyk.github.io/student_digital_locker_github_ready/teacher-dashboard.html">
+  <link rel="icon" type="image/png" href="./images/sankara-logo.png">
+  <title>Teacher Dashboard | Student Digital Locker</title>
   <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar teacher-side" id="dashboardSidebar">
       <div class="brand"><img class="brand-logo" src="./images/sankara-logo.png" alt="Sankara Educational Institutions logo"><div><b>TEACHER</b><small>DIGITAL LOCKER</small></div></div>
-      <nav>
+      <nav aria-label="Teacher portal navigation">
+        <button type="button" class="nav-link" data-open-view="dashboard">DASHBOARD</button>
         <button type="button" class="nav-link" data-open-view="profile">PROFILE</button>
         <button type="button" class="nav-link" data-open-view="students">STUDENT LIST</button>
         <button type="button" class="nav-link" data-open-view="status">DOCUMENT SUBMISSION STATUS</button>
@@ -24,7 +29,7 @@
       <header class="topbar">
         <button type="button" class="menu-toggle" data-menu-toggle aria-controls="dashboardSidebar" aria-expanded="false">☰ MENU</button>
         <button type="button" class="welcome" data-open-view="dashboard">WELCOME, <span id="welcomeName">TEACHER</span></button>
-        <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
+        <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
       </header>
 
       <section data-view="dashboard">
@@ -49,11 +54,11 @@
 
       <section data-view="students" hidden>
         <div class="page-head"><div><p class="eyebrow">STUDENT LIST</p><h1>Students</h1><p class="muted">Showing only same department and same academic year students.</p></div></div>
-        <div class="search-card"><form class="search-form" id="searchForm"><input id="studentSearch" name="q" placeholder="Search by student name or reg no"><button class="primary-btn" type="submit">SEARCH</button></form></div>
+        <div class="search-card"><form class="search-form" id="searchForm"><label class="visually-hidden" for="studentSearch">Search students</label><input id="studentSearch" name="q" placeholder="Search by student name or reg no"><button class="primary-btn" type="submit">SEARCH</button></form></div>
         <div class="table-card"><div class="card-title-row"><h2>Students</h2></div><div class="responsive-table"><table><thead><tr><th>Name</th><th>Reg No</th><th>Department</th><th>Academic Year</th><th>Academic Files</th><th>Action</th></tr></thead><tbody id="studentRows"></tbody></table></div><div class="empty-state" id="studentEmpty">No matching student found.</div></div>
       </section>
 
-      <section data-view="student-detail" hidden>
+      <section data-view="student-detail" data-nav-view="students" data-transient-view hidden>
         <div class="page-head"><div><p class="eyebrow">STUDENT DATA</p><h1 id="detailName"></h1><p class="muted">Academic certificates only. Online and personal certificates are private to student.</p></div></div>
         <div class="detail-card">
           <div class="detail-row"><span>Register No</span><b id="detailRegNo"></b></div>
@@ -74,7 +79,7 @@
       <section data-view="add-title" hidden>
         <div class="page-head"><div><p class="eyebrow">ADD STUDENT DOCUMENT TITLE</p><h1>Add Academic Requirement</h1><p class="muted">Saved title will appear inside matching student academic upload options.</p></div></div>
         <div class="workspace-grid">
-          <div class="upload-card"><h2>New Academic Certificate Title</h2><form class="stack-form" id="addTitleForm"><label>Document Title</label><input name="title" placeholder="Example: TRANSFER CERTIFICATE" required><button class="primary-btn" type="submit">SAVE TITLE</button></form></div>
+          <div class="upload-card"><h2>New Academic Certificate Title</h2><form class="stack-form" id="addTitleForm"><label for="academicRequirementTitle">Document Title</label><input id="academicRequirementTitle" name="title" placeholder="Example: TRANSFER CERTIFICATE" required><button class="primary-btn" type="submit">SAVE TITLE</button></form></div>
           <div class="upload-card soft-card">
             <h2>Teacher Added Titles</h2>
             <div class="responsive-table">

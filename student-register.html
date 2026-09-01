@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Student Registration</title>
+  <meta name="description" content="Create a Student Digital Locker student account.">
+  <meta name="robots" content="noindex, follow">
+  <link rel="canonical" href="https://anandhjeeva861-cmyk.github.io/student_digital_locker_github_ready/student-register.html">
+  <link rel="icon" type="image/png" href="./images/sankara-logo.png">
+  <title>Student Registration | Student Digital Locker</title>
   <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
@@ -13,13 +17,13 @@
       <img class="site-logo auth-logo" src="./images/sankara-logo.png" alt="Sankara Educational Institutions logo">
       <h1>REGISTER AS A STUDENT</h1>
       <div class="form-grid">
-        <div><label>Name (Caps only)</label><input class="caps-input" name="name" placeholder="RAJA S" autocomplete="name" required></div>
-        <div><label>Register Number</label><input class="caps-input" name="regNo" placeholder="25BSC003" required></div>
-        <div><label>Email</label><input type="email" name="email" placeholder="student@example.com" autocomplete="username" required></div>
-        <div><label>Academic Year</label><input name="year" data-academic-year placeholder="2025-2028" pattern="20[0-9]{2}-20[0-9]{2}" title="Enter academic year like 2025-2028" required></div>
-        <div><label>Department</label><select name="department" data-options="departments" required></select></div>
-        <div><label>Mobile Number</label><input name="mobile" placeholder="9876543210" autocomplete="tel" required></div>
-        <div class="full-span"><label>Create Password</label><input type="password" name="password" placeholder="Minimum 6 characters" autocomplete="new-password" required minlength="6"></div>
+        <div><label for="studentNameInput">Name (Caps only)</label><input id="studentNameInput" class="caps-input" name="name" placeholder="RAJA S" autocomplete="name" required></div>
+        <div><label for="studentRegNoInput">Register Number</label><input id="studentRegNoInput" class="caps-input" name="regNo" placeholder="25BSC003" required></div>
+        <div><label for="studentEmailInput">Email</label><input id="studentEmailInput" type="email" name="email" placeholder="student@example.com" autocomplete="username" required></div>
+        <div><label for="studentYearInput">Academic Year</label><input id="studentYearInput" name="year" data-academic-year placeholder="2025-2028" pattern="20[0-9]{2}-20[0-9]{2}" title="Enter academic year like 2025-2028" required></div>
+        <div><label for="studentDepartmentInput">Department</label><select id="studentDepartmentInput" name="department" data-options="departments" required></select></div>
+        <div><label for="studentMobileInput">Mobile Number</label><input id="studentMobileInput" name="mobile" placeholder="9876543210" autocomplete="tel" required></div>
+        <div class="full-span"><label for="studentPasswordInput">Create Password</label><input id="studentPasswordInput" type="password" name="password" placeholder="Minimum 6 characters" autocomplete="new-password" required minlength="6"></div>
       </div>
       <button class="primary-btn" type="submit">CREATE STUDENT ACCOUNT</button>
     </form>

@@ -1,5 +1,5 @@
 import { protectPage } from "./auth.js";
-import { DEFAULT_ACADEMIC_TITLES, escapeHtml, normalizeTitle, showMessage } from "./validation.js";
+import { escapeHtml, normalizeTitle, showMessage } from "./validation.js";
 import { buildDocumentSubmissionStatusExcelBlob } from "./excel-report.mjs";
 
 let teacher = null;
@@ -30,7 +30,8 @@ function text(id, value) {
 }
 
 function dateText(value) {
-  return value ? new Date(value).toLocaleString() : "";
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date.toLocaleString() : "";
 }
 
 function downloadReportBlob(blob, filename) {
@@ -74,12 +75,6 @@ async function downloadStatusReport() {
   downloadReportBlob(blob, "document-submission-status-report.xlsx");
 }
 
-function showView(name) {
-  document.querySelectorAll("[data-view]").forEach((view) => {
-    view.hidden = view.dataset.view !== name;
-  });
-}
-
 function findClosestAction(target, selector) {
   return target instanceof Element ? target.closest(selector) : null;
 }
@@ -108,29 +103,12 @@ async function matchingStudents(filter = "") {
   return listTeacherStudents(teacher, filter);
 }
 
-async function academicDocs(studentUid = null) {
-  const { getTeacherStudentDetail, listTeacherAcademicDocuments } = await loadFirebaseService();
-  if (studentUid) {
-    return (await getTeacherStudentDetail(teacher, studentUid)).documents || [];
-  }
-  return listTeacherAcademicDocuments(teacher);
-}
-
 async function renderDashboard() {
-  const students = await matchingStudents();
-  const docs = await academicDocs();
-  const titles = await allAcademicTitles();
-  text("studentCount", String(students.length));
-  text("academicCount", String(docs.length));
-  text("titleCount", String(titles.length));
-}
-
-async function allAcademicTitles() {
-  const { listAcademicTitles } = await loadFirebaseService();
-  return [
-    ...DEFAULT_ACADEMIC_TITLES.map((title) => ({ title })),
-    ...(await listAcademicTitles(teacher))
-  ].filter((item, index, rows) => rows.findIndex((row) => row.title === item.title) === index);
+  const { getTeacherDashboardSummary } = await loadFirebaseService();
+  const summary = await getTeacherDashboardSummary(teacher);
+  text("studentCount", String(summary.studentCount));
+  text("academicCount", String(summary.academicCount));
+  text("titleCount", String(summary.titleCount));
 }
 
 async function renderStudents(filter = "") {
@@ -147,7 +125,7 @@ async function renderStudents(filter = "") {
         <td>${escapeHtml(student.department)}</td>
         <td>${escapeHtml(student.year)}</td>
         <td>${student.academic_count || 0}</td>
-        <td><button class="small-btn" data-student-id="${escapeHtml(student.id)}">VIEW DATA</button></td>
+        <td><button type="button" class="small-btn" data-student-id="${escapeHtml(student.id)}">VIEW DATA</button></td>
       </tr>`);
   }
   if (empty) empty.hidden = students.length > 0;
@@ -174,28 +152,44 @@ async function renderStudentDetail(studentUid) {
       <td>${escapeHtml(item.file_name)}</td>
       <td>${escapeHtml(dateText(item.uploaded_at))}</td>
       <td class="action-cell">
-        <button class="small-btn" data-view-doc="${escapeHtml(item.id)}">VIEW</button>
-        <button class="small-btn" data-download-doc="${escapeHtml(item.id)}">DOWNLOAD</button>
+        <button type="button" class="small-btn" data-view-doc="${escapeHtml(item.id)}">VIEW</button>
+        <button type="button" class="small-btn" data-download-doc="${escapeHtml(item.id)}">DOWNLOAD</button>
+        <button type="button" class="small-btn danger" data-remove-doc="${escapeHtml(item.id)}">REMOVE</button>
       </td>
     </tr>`;
   }).join("");
-  showView("student-detail");
+  document.dispatchEvent(new CustomEvent("dashboard:navigate", {
+    detail: { view: "student-detail" }
+  }));
 }
 
 async function openStoredDocument(documentId, mode) {
   const item = detailDocumentCache.find((documentItem) => documentItem.id === documentId);
   if (!item) throw new Error("Document not found.");
-  const { getDocumentObjectUrl } = await loadFirebaseService();
-  const url = await getDocumentObjectUrl(item);
-  if (mode === "view") {
-    window.open(url, "_blank", "noopener");
-  } else {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = item.file_name || "document";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+  const previewWindow = mode === "view" ? window.open("about:blank", "_blank") : null;
+  if (mode === "view" && !previewWindow) {
+    throw new Error("Document preview was blocked. Allow pop-ups for this site and try again.");
+  }
+  if (previewWindow) previewWindow.opener = null;
+
+  let url = "";
+  try {
+    const { getDocumentObjectUrl } = await loadFirebaseService();
+    url = await getDocumentObjectUrl(item);
+    if (previewWindow) {
+      previewWindow.location.replace(url);
+    } else {
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = item.file_name || "document";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+  } catch (error) {
+    previewWindow?.close();
+    if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+    throw error;
   }
   if (url.startsWith("blob:")) window.setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
@@ -209,7 +203,7 @@ async function renderTitles() {
   body.innerHTML = custom.map((item) => `
     <tr>
       <td><b>${escapeHtml(item.title)}</b></td>
-      <td><button class="small-btn danger" data-remove-title="${escapeHtml(item.id)}" data-title-name="${escapeHtml(item.title)}">REMOVE</button></td>
+      <td><button type="button" class="small-btn danger" data-remove-title="${escapeHtml(item.id)}" data-title-name="${escapeHtml(item.title)}">REMOVE</button></td>
     </tr>`).join("");
   if (empty) empty.hidden = custom.length > 0;
 }
@@ -234,6 +228,13 @@ async function renderStatus() {
   }
 }
 
+async function renderViewData(view) {
+  if (!teacher) return;
+  if (view === "students") await safeRender("Student list load", renderStudents);
+  if (view === "status") await safeRender("Submission status load", renderStatus);
+  if (view === "add-title") await safeRender("Document title load", renderTitles);
+}
+
 function nameList(students, className, emptyText) {
   if (!students.length) return `<p class="muted">${emptyText}</p>`;
   return `<ul class="name-list ${className}">${students.map((item) => `
@@ -246,8 +247,8 @@ function nameList(students, className, emptyText) {
 function statusDocumentButtons(documents) {
   if (!documents.length) return "";
   return `<div class="status-actions">${documents.map((item) => `
-    <button class="small-btn" data-status-view-doc="${escapeHtml(item.id)}">VIEW</button>
-    <button class="small-btn" data-status-download-doc="${escapeHtml(item.id)}">DOWNLOAD</button>`).join("")}</div>`;
+    <button type="button" class="small-btn" data-status-view-doc="${escapeHtml(item.id)}">VIEW</button>
+    <button type="button" class="small-btn" data-status-download-doc="${escapeHtml(item.id)}">DOWNLOAD</button>`).join("")}</div>`;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -255,23 +256,18 @@ document.addEventListener("DOMContentLoaded", () => {
     teacher = currentProfile;
     fillProfile();
     await safeRender("Teacher dashboard load", renderDashboard);
-    await safeRender("Student list load", renderStudents);
-    await safeRender("Submission status load", renderStatus);
-    await safeRender("Document title load", renderTitles);
+    const visibleView = document.querySelector("[data-view]:not([hidden])")?.dataset.view;
+    if (visibleView && visibleView !== "dashboard") await renderViewData(visibleView);
   });
 
   document.addEventListener("dashboard:view-change", async (event) => {
-    const view = event.detail?.view;
-    if (view === "students") await safeRender("Student list load", renderStudents);
-    if (view === "status") await safeRender("Submission status load", renderStatus);
-    if (view === "add-title") await safeRender("Document title load", renderTitles);
+    await renderViewData(event.detail?.view);
   });
 
   document.getElementById("searchForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     await safeRender("Student search", () => renderStudents(form.elements.q.value));
-    showView("students");
   });
 
   document.getElementById("addTitleForm")?.addEventListener("submit", async (event) => {
@@ -293,17 +289,13 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("downloadStatusReportButton")?.addEventListener("click", async () => {
-    try {
-      await safeRender("Report download", downloadStatusReport);
-    } catch (error) {
-      console.error("Teacher report download failed", error);
-      showMessage(await friendlyFirebaseError(error), "danger");
-    }
+    await safeRender("Report download", downloadStatusReport);
   });
 
   document.addEventListener("click", async (event) => {
     const viewButton = findClosestAction(event.target, "[data-view-doc]");
     const downloadButton = findClosestAction(event.target, "[data-download-doc]");
+    const removeDocumentButton = findClosestAction(event.target, "[data-remove-doc]");
     const statusViewButton = findClosestAction(event.target, "[data-status-view-doc]");
     const statusDownloadButton = findClosestAction(event.target, "[data-status-download-doc]");
     if (statusViewButton || statusDownloadButton) {
@@ -333,6 +325,24 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    if (removeDocumentButton) {
+      if (!confirm("Remove this academic document?")) return;
+      try {
+        const { deleteTeacherAcademicDocument } = await loadFirebaseService();
+        await deleteTeacherAcademicDocument(teacher, removeDocumentButton.dataset.removeDoc);
+        detailDocumentCache = detailDocumentCache.filter((item) => item.id !== removeDocumentButton.dataset.removeDoc);
+        statusDocumentCache = [];
+        statusReportRows = [];
+        if (selectedStudentUid) await renderStudentDetail(selectedStudentUid);
+        await renderDashboard();
+        showMessage("Academic document removed.", "success");
+      } catch (error) {
+        console.error("Teacher document remove failed", error);
+        showMessage(await friendlyFirebaseError(error), "danger");
+      }
+      return;
+    }
+
     const studentButton = findClosestAction(event.target, "[data-student-id]");
     if (studentButton) {
       try {
@@ -350,7 +360,8 @@ document.addEventListener("DOMContentLoaded", () => {
         await deleteAcademicTitle(teacher, removeTitleButton.dataset.removeTitle);
         await renderTitles();
         await renderDashboard();
-        await renderStatus();
+        statusDocumentCache = [];
+        statusReportRows = [];
         showMessage("Document title removed.", "success");
       } catch (error) {
         console.error("Teacher remove title failed", error);

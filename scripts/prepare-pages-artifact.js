@@ -6,6 +6,8 @@ const dist = path.join(root, "dist");
 
 const files = [
   ".nojekyll",
+  "robots.txt",
+  "sitemap.xml",
   "index.html",
   "student-login.html",
   "student-register.html",

@@ -12,6 +12,8 @@ const mimeTypes = {
   ".mjs": "text/javascript; charset=utf-8",
   ".cjs": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
+  ".xml": "application/xml; charset=utf-8",
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
@@ -20,7 +22,12 @@ const mimeTypes = {
 };
 
 function resolveRequestPath(url) {
-  const pathname = decodeURIComponent(new URL(url, `http://localhost:${port}`).pathname);
+  let pathname = "";
+  try {
+    pathname = decodeURIComponent(new URL(url, `http://localhost:${port}`).pathname);
+  } catch (_error) {
+    return null;
+  }
   const relativePath = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
   const fullPath = path.resolve(root, relativePath);
   if (!fullPath.startsWith(root + path.sep) && fullPath !== root) return null;

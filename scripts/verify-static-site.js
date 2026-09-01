@@ -4,6 +4,8 @@ const { execFileSync } = require("child_process");
 
 const requiredFiles = [
   "index.html",
+  "robots.txt",
+  "sitemap.xml",
   ".nojekyll",
   "css/style.css",
   "images/sankara-logo.png",
@@ -70,11 +72,46 @@ if (forbiddenTrackedFiles.length) {
 
 for (const file of htmlFiles) {
   const content = fs.readFileSync(path.join(process.cwd(), file), "utf8");
+  if ((content.match(/<title>[^<]+<\/title>/g) || []).length !== 1) {
+    failures.push(`${file} must contain exactly one non-empty title.`);
+  }
+  if (!/<meta name="description" content="[^"]+">/.test(content)) {
+    failures.push(`${file} is missing a meta description.`);
+  }
+  if (!/<link rel="canonical" href="https:\/\/[^\"]+">/.test(content)) {
+    failures.push(`${file} is missing an HTTPS canonical URL.`);
+  }
+  if (!/<link rel="icon"[^>]+href="\.\/images\/sankara-logo\.png">/.test(content)) {
+    failures.push(`${file} is missing the site favicon.`);
+  }
+
+  const ids = [...content.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
+  const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
+  if (duplicateIds.length) {
+    failures.push(`${file} contains duplicate IDs: ${[...new Set(duplicateIds)].join(", ")}`);
+  }
+
+  const idSet = new Set(ids);
+  for (const match of content.matchAll(/<label[^>]*\sfor="([^"]+)"[^>]*>/g)) {
+    if (!idSet.has(match[1])) failures.push(`${file} has a label for missing ID: ${match[1]}`);
+  }
+  if (/<label(?![^>]*\sfor=)[^>]*>/i.test(content)) {
+    failures.push(`${file} has a form label without an associated control.`);
+  }
+
+  for (const match of content.matchAll(/(?:src|href)="\.\/([^"?#]+)(?:[?#][^"]*)?"/g)) {
+    if (!fs.existsSync(path.join(process.cwd(), match[1]))) {
+      failures.push(`${file} references a missing local file: ${match[1]}`);
+    }
+  }
   if (/src="\/js\//.test(content) || /href="\/css\//.test(content) || /src="\/images\//.test(content)) {
     failures.push(`${file} contains an absolute GitHub Pages path.`);
   }
   if (/<script(?![^>]*type="module")[^>]*src="\.\/js\//.test(content)) {
     failures.push(`${file} has a local JS script without type="module".`);
+  }
+  if (/<button(?![^>]*\btype=)/i.test(content)) {
+    failures.push(`${file} contains a button without an explicit type.`);
   }
   if (/ð|â|�/.test(content)) {
     failures.push(`${file} contains mojibake/corrupted visible characters.`);
@@ -96,8 +133,15 @@ const firebaseServiceJs = fs.readFileSync(path.join(process.cwd(), "js/firebase-
 const authJs = fs.readFileSync(path.join(process.cwd(), "js/auth.js"), "utf8");
 const studentJs = fs.readFileSync(path.join(process.cwd(), "js/student.js"), "utf8");
 const teacherJs = fs.readFileSync(path.join(process.cwd(), "js/teacher.js"), "utf8");
+const styleCss = fs.readFileSync(path.join(process.cwd(), "css/style.css"), "utf8");
 const firestoreRules = fs.readFileSync(path.join(process.cwd(), "firebase/firestore.rules"), "utf8");
 const firebaseJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), "firebase.json"), "utf8"));
+
+for (const [file, content] of [["js/student.js", studentJs], ["js/teacher.js", teacherJs]]) {
+  if (/<button(?![^>]*\btype=)/i.test(content)) {
+    failures.push(`${file} renders a button without an explicit type.`);
+  }
+}
 
 if (firebaseJson.hosting || JSON.stringify(firebaseJson).includes("rewrites")) {
   failures.push("firebase.json must not contain Firebase Hosting rewrites for the GitHub Pages app.");
@@ -152,6 +196,9 @@ for (const file of ["student-dashboard.html", "teacher-dashboard.html"]) {
   if (!content.includes("data-remove-account")) {
     failures.push(`${file} must include a REMOVE ACCOUNT menu option.`);
   }
+  if (!/<button[^>]+class="nav-link"[^>]+data-open-view="dashboard">DASHBOARD<\/button>/.test(content)) {
+    failures.push(`${file} must include one Dashboard sidebar button.`);
+  }
   if (!content.includes('data-menu-toggle')
     || !content.includes('data-menu-close')
     || !content.includes('id="dashboardSidebar"')) {
@@ -167,6 +214,11 @@ if (!dashboardNavJs.includes("data-menu-toggle")
   || !dashboardNavJs.includes("menu-open")
   || !dashboardNavJs.includes("Escape")) {
   failures.push("js/dashboard-nav.js must open/close the dashboard menu from the MENU button.");
+}
+if (!dashboardNavJs.includes("aria-current")
+  || !dashboardNavJs.includes("pushState")
+  || !dashboardNavJs.includes("popstate")) {
+  failures.push("js/dashboard-nav.js must maintain active state and browser back navigation.");
 }
 
 if (!/const profileCollection = ["']profiles["']/.test(firebaseServiceJs)
@@ -245,12 +297,39 @@ for (const expected of ["BSC CS", "BSC AI&ML", "BSC IT", "CSDA", "BCOM", "BCOM C
 
 for (const file of ["student-register.html", "teacher-register.html"]) {
   const content = fs.readFileSync(path.join(process.cwd(), file), "utf8");
-  if (!/select name="department" data-options="departments" required/.test(content)) {
+  if (!/select[^>]*name="department" data-options="departments" required/.test(content)) {
     failures.push(`${file} must use the shared department select.`);
   }
-  if (!/<label>Academic Year<\/label><input name="year" data-academic-year placeholder="2025-2028" pattern="20\[0-9\]\{2\}-20\[0-9\]\{2\}"[^>]*required>/.test(content)) {
+  if (!/<label[^>]*>Academic Year<\/label><input[^>]*name="year" data-academic-year placeholder="2025-2028" pattern="20\[0-9\]\{2\}-20\[0-9\]\{2\}"[^>]*required>/.test(content)) {
     failures.push(`${file} must use an Academic Year input like 2025-2028.`);
   }
+}
+
+const studentDashboard = fs.readFileSync(path.join(process.cwd(), "student-dashboard.html"), "utf8");
+if (!studentDashboard.includes('id="recentDocuments"')
+  || !studentJs.includes("loadAllDocuments")
+  || /fillProfile\(\);\s*await safeRefresh\("Profile photo load"/.test(studentJs)) {
+  failures.push("Student dashboard must use real document data and must not eagerly load profile photo chunks during login.");
+}
+
+if ((studentDashboard.match(/id="studentPhoto"/g) || []).length !== 1
+  || (studentDashboard.match(/id="studentAvatar"/g) || []).length !== 1
+  || !/\.avatar-placeholder:not\(\[hidden\]\)\s*\{[^}]*display:\s*grid/.test(styleCss)
+  || /\.avatar-placeholder\s*\{[^}]*display:\s*grid/.test(styleCss)
+  || !studentJs.includes("profilePhotoRequestId")
+  || !studentJs.includes("new Image()")) {
+  failures.push("Student profile must render exactly one photo or one fallback avatar without overriding the hidden state.");
+}
+
+if (!firebaseServiceJs.includes('error.code = "app/stored-file-incomplete"')
+  || !firebaseServiceJs.includes("chunksAreComplete")) {
+  failures.push("Stored file retrieval must validate metadata and complete ordered chunks.");
+}
+
+const robots = fs.readFileSync(path.join(process.cwd(), "robots.txt"), "utf8");
+const sitemap = fs.readFileSync(path.join(process.cwd(), "sitemap.xml"), "utf8");
+if (!robots.includes("Sitemap: https://") || !sitemap.includes("<urlset")) {
+  failures.push("SEO files must expose an HTTPS sitemap and valid URL set.");
 }
 
 const workflow = fs.readFileSync(path.join(process.cwd(), ".github/workflows/pages.yml"), "utf8");
@@ -306,6 +385,10 @@ if (/localhost:3000|localhost:8000|127\.0\.0\.1:3000/.test([...htmlFiles, ...jsF
 }
 
 const teacherDashboard = fs.readFileSync(path.join(process.cwd(), "teacher-dashboard.html"), "utf8");
+if (!teacherDashboard.includes("data-transient-view")
+  || !dashboardNavJs.includes('hasAttribute("data-transient-view")')) {
+  failures.push("Transient teacher detail views must not reload as empty standalone routes.");
+}
 if (teacherDashboard.includes('data-open-view="remove-title"')
   || teacherDashboard.includes('id="removeTitleRows"')) {
   failures.push("Teacher dashboard must not expose remove document title as a separate page.");

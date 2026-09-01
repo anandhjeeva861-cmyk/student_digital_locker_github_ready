@@ -163,6 +163,7 @@ export function showMessage(message, type = "info", options = {}) {
   }
   const note = document.createElement("div");
   note.className = `flash ${type}`;
+  note.setAttribute("role", type === "danger" ? "alert" : "status");
   note.textContent = message;
   wrap.appendChild(note);
   if (duration > 0) setTimeout(() => note.remove(), duration);

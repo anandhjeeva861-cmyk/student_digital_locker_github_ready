@@ -124,26 +124,46 @@ function profileFromDoc(snapshot) {
     ...data,
     regNo,
     reg_no: regNo,
-    departmentKey: normalizedDepartmentKey,
-    photo_url: data.photoProvider === "firestore" ? "" : (data.photoUrl || ""),
-    photo_provider: data.photoProvider || ""
+    departmentKey: normalizedDepartmentKey
   };
+}
+
+function safeExternalUrl(value, { throwOnInvalid = false } = {}) {
+  if (!value) return "";
+  try {
+    const url = new URL(String(value), window.location.href);
+    const localHttp = url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname);
+    if (url.protocol === "https:" || localHttp) return url.href;
+  } catch (_error) {
+    // Invalid legacy URLs are handled below.
+  }
+  if (throwOnInvalid) {
+    const error = new Error("The stored file URL is invalid or insecure. Upload the file again.");
+    error.code = "app/stored-file-url-invalid";
+    throw error;
+  }
+  return "";
 }
 
 function documentFromDoc(snapshot) {
   const data = snapshot.data();
-  const uploaded = data.uploadedAt?.toDate?.() || data.uploadedAt || null;
+  const uploadedAt = timestampIso(data.uploadedAt);
   return {
     id: snapshot.id,
     ...data,
-    owner_id: data.ownerId,
-    owner_name: data.ownerName,
-    owner_reg_no: data.ownerRegNo,
     file_name: data.originalName || data.fileName,
     file_url: data.downloadURL || data.downloadUrl || "",
-    storage_provider: data.storageProvider || (data.downloadURL || data.downloadUrl ? "firebase-storage" : "firestore"),
-    uploaded_at: uploaded ? new Date(uploaded).toISOString() : ""
+    uploaded_at: uploadedAt
   };
+}
+
+function timestampIso(value) {
+  try {
+    const date = value?.toDate?.() || (value ? new Date(value) : null);
+    return date && !Number.isNaN(date.getTime()) ? date.toISOString() : "";
+  } catch (_error) {
+    return "";
+  }
 }
 
 function readFileAsBase64(file) {
@@ -178,6 +198,12 @@ function base64ToUint8Array(base64) {
     bytes[index] = binary.charCodeAt(index);
   }
   return bytes;
+}
+
+function storedFileError() {
+  const error = new Error("Stored file data is incomplete. Upload the file again.");
+  error.code = "app/stored-file-incomplete";
+  return error;
 }
 
 async function commitBatches(operations) {
@@ -218,21 +244,42 @@ async function writeChunks(parentRef, collectionName, chunks, metadata) {
 }
 
 async function buildObjectUrl(parentRef, collectionName, metadata) {
-  if (metadata.downloadURL || metadata.downloadUrl) return metadata.downloadURL || metadata.downloadUrl;
+  if (metadata.downloadURL || metadata.downloadUrl) {
+    return safeExternalUrl(metadata.downloadURL || metadata.downloadUrl, { throwOnInvalid: true });
+  }
+  if (!metadata.fileDataVersion || !Number.isInteger(metadata.chunkCount) || metadata.chunkCount <= 0) {
+    throw storedFileError();
+  }
   const snapshots = await listChunkSnapshots(parentRef, collectionName);
   const chunks = snapshots
     .map((snapshot) => snapshot.data())
     .filter((item) => item.fileDataVersion === metadata.fileDataVersion)
     .sort((a, b) => a.chunkIndex - b.chunkIndex);
 
-  if (!chunks.length || chunks.length !== metadata.chunkCount) {
-    throw new Error("Stored file data is incomplete. Upload the file again.");
+  const chunksAreComplete = chunks.length === metadata.chunkCount
+    && chunks.every((item, index) => (
+      item.chunkIndex === index
+      && item.chunkCount === metadata.chunkCount
+      && typeof item.data === "string"
+      && item.data.length > 0
+    ));
+  if (!chunksAreComplete) {
+    throw storedFileError();
   }
 
   const base64 = chunks.map((item) => item.data).join("");
-  const blob = new Blob([base64ToUint8Array(base64)], {
-    type: metadata.mimeType || metadata.photoMimeType || "application/octet-stream"
-  });
+  let blob = null;
+  try {
+    const bytes = base64ToUint8Array(base64);
+    if (Number.isFinite(metadata.size) && metadata.size > 0 && bytes.length !== metadata.size) {
+      throw storedFileError();
+    }
+    blob = new Blob([bytes], {
+      type: metadata.mimeType || metadata.photoMimeType || "application/octet-stream"
+    });
+  } catch (_error) {
+    throw storedFileError();
+  }
   return URL.createObjectURL(blob);
 }
 
@@ -491,6 +538,9 @@ export async function uploadProfilePhoto(profile, file) {
       fileDataVersion: version
     });
   } catch (error) {
+    await deleteChunks(profileRef, photoChunksCollection, (item) => item.fileDataVersion === version).catch((cleanupError) => {
+      console.warn("Partial profile photo cleanup failed", cleanupError);
+    });
     throw tagFirebaseError(error, "firestore-chunks");
   }
   try {
@@ -523,19 +573,21 @@ export async function getProfilePhotoUrl(profile) {
     return buildObjectUrl(doc(db, profileCollection, profile.uid), photoChunksCollection, {
       fileDataVersion: profile.photoFileDataVersion,
       chunkCount: profile.photoChunkCount,
-      mimeType: profile.photoMimeType
+      mimeType: profile.photoMimeType,
+      size: profile.photoSize
     });
   }
-  return profile.photoUrl || "";
+  return safeExternalUrl(profile.photoUrl);
 }
 
-export async function listStudentDocuments(profile, category) {
+export async function listStudentDocuments(profile, category = null) {
   requireProfileScope(profile, "student", "load student documents");
-  const docsQuery = query(
-    collection(db, documentsCollection),
-    where("ownerId", "==", profile.uid),
-    where("category", "==", category)
-  );
+  if (category !== null && !documentCategories.includes(category)) {
+    throw new Error("Invalid document category.");
+  }
+  const constraints = [where("ownerId", "==", profile.uid)];
+  if (category) constraints.push(where("category", "==", category));
+  const docsQuery = query(collection(db, documentsCollection), ...constraints);
   const snapshots = await getDocs(docsQuery);
   return snapshots.docs.map(documentFromDoc).sort((a, b) => String(b.uploaded_at).localeCompare(String(a.uploaded_at)));
 }
@@ -563,6 +615,9 @@ export async function uploadStudentDocument(profile, category, title, file) {
       fileDataVersion: version
     });
   } catch (error) {
+    await deleteChunks(docRef, fileChunksCollection, (item) => item.fileDataVersion === version).catch((cleanupError) => {
+      console.warn("Partial document upload cleanup failed", cleanupError);
+    });
     throw tagFirebaseError(error, "firestore-chunks");
   }
   try {
@@ -606,11 +661,12 @@ export async function uploadStudentDocument(profile, category, title, file) {
 }
 
 export async function getDocumentObjectUrl(documentItem) {
-  if (documentItem.file_url) return documentItem.file_url;
+  if (documentItem.file_url) return safeExternalUrl(documentItem.file_url, { throwOnInvalid: true });
   return buildObjectUrl(doc(db, documentsCollection, documentItem.id), fileChunksCollection, {
     fileDataVersion: documentItem.fileDataVersion,
     chunkCount: documentItem.chunkCount,
-    mimeType: documentItem.mimeType
+    mimeType: documentItem.mimeType,
+    size: documentItem.size
   });
 }
 
@@ -666,6 +722,22 @@ export async function deleteAcademicTitle(profile, titleIdValue) {
 
 export async function listTeacherStudents(profile, filter = "") {
   requireProfileScope(profile, "teacher", "load students");
+  const [students, academicDocs] = await Promise.all([
+    listTeacherStudentProfiles(profile),
+    listTeacherAcademicDocuments(profile)
+  ]);
+  const search = String(filter || "").trim().toUpperCase();
+  return students
+    .map((student) => ({
+      ...student,
+      academic_count: academicDocs.filter((item) => item.ownerId === student.uid).length
+    }))
+    .filter((student) => !search || normalizeName(student.name).includes(search) || student.reg_no.includes(search))
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+}
+
+async function listTeacherStudentProfiles(profile) {
+  requireProfileScope(profile, "teacher", "load students");
   const byDepartmentKeyQuery = query(
     collection(db, profileCollection),
     where("role", "==", "student"),
@@ -682,19 +754,28 @@ export async function listTeacherStudents(profile, filter = "") {
     getDocs(byDepartmentKeyQuery),
     getDocs(byDepartmentQuery)
   ]);
-  const search = String(filter || "").trim().toUpperCase();
-  const students = uniqueById([
+  return uniqueById([
     ...departmentKeySnapshots.docs.map(profileFromDoc),
     ...departmentSnapshots.docs.map(profileFromDoc)
+  ]).sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+}
+
+export async function getTeacherDashboardSummary(profile) {
+  requireProfileScope(profile, "teacher", "load dashboard summary");
+  const [students, documents, customTitles] = await Promise.all([
+    listTeacherStudentProfiles(profile),
+    listTeacherAcademicDocuments(profile),
+    listAcademicTitles(profile)
   ]);
-  const academicDocs = await listTeacherAcademicDocuments(profile);
-  return students
-    .map((student) => ({
-      ...student,
-      academic_count: academicDocs.filter((item) => item.ownerId === student.uid).length
-    }))
-    .filter((student) => !search || normalizeName(student.name).includes(search) || student.reg_no.includes(search))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const titleCount = new Set([
+    ...DEFAULT_ACADEMIC_TITLES,
+    ...customTitles.map((item) => item.title)
+  ]).size;
+  return {
+    studentCount: students.length,
+    academicCount: documents.length,
+    titleCount
+  };
 }
 
 export async function getTeacherStudentDetail(profile, studentUid) {
@@ -729,7 +810,7 @@ export async function listTeacherAcademicDocuments(profile) {
   return uniqueById([
     ...departmentKeySnapshots.docs.map(documentFromDoc),
     ...departmentSnapshots.docs.map(documentFromDoc)
-  ]).sort((a, b) => a.ownerName.localeCompare(b.ownerName));
+  ]).sort((a, b) => String(a.ownerName || "").localeCompare(String(b.ownerName || "")));
 }
 
 export async function deleteTeacherAcademicDocument(profile, documentIdValue) {
@@ -739,7 +820,8 @@ export async function deleteTeacherAcademicDocument(profile, documentIdValue) {
   const snapshot = await getDoc(docRef);
   if (!snapshot.exists()) throw new Error("Document not found.");
   const data = snapshot.data();
-  if (data.category !== "academic" || data.departmentKey !== profile.departmentKey || data.year !== profile.year) {
+  const matchingDepartment = data.departmentKey === profile.departmentKey || data.department === profile.department;
+  if (data.category !== "academic" || !matchingDepartment || data.year !== profile.year) {
     throw new Error("You can delete only matching academic documents.");
   }
   await deleteChunks(docRef, fileChunksCollection);
@@ -748,11 +830,14 @@ export async function deleteTeacherAcademicDocument(profile, documentIdValue) {
 
 export async function teacherStatus(profile) {
   requireProfileScope(profile, "teacher", "load document submission status");
-  const students = await listTeacherStudents(profile);
-  const docs = await listTeacherAcademicDocuments(profile);
+  const [students, docs, customTitles] = await Promise.all([
+    listTeacherStudentProfiles(profile),
+    listTeacherAcademicDocuments(profile),
+    listAcademicTitles(profile)
+  ]);
   const titles = [
     ...DEFAULT_ACADEMIC_TITLES.map((title) => ({ title })),
-    ...(await listAcademicTitles(profile))
+    ...customTitles
   ].filter((item, index, rows) => rows.findIndex((row) => row.title === item.title) === index);
 
   return titles.map((title) => {

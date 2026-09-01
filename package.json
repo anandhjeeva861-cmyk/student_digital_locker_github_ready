@@ -7,6 +7,7 @@
     "dev": "node scripts/local-server.js",
     "config:firebase": "node scripts/generate-firebase-config.js",
     "build": "node scripts/verify-static-site.js",
+    "test": "node --test",
     "pages:artifact": "node scripts/prepare-pages-artifact.js",
     "deploy:firebase": "npx firebase-tools deploy --only firestore:rules,firestore:indexes",
     "start": "npm run dev"
