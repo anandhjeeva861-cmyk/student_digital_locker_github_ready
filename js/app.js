@@ -1,4 +1,4 @@
-import { ACADEMIC_YEAR_EXAMPLE, DEPARTMENT_OPTIONS } from "./options.js";
+import { ACADEMIC_YEAR_EXAMPLE, DEPARTMENT_OPTIONS, RECOVERY_QUESTIONS } from "./options.js";
 
 function fillSelect(select, options, placeholder) {
   const selected = select.value;
@@ -21,6 +21,10 @@ function fillSelect(select, options, placeholder) {
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("select[data-options='departments']").forEach((select) => {
     fillSelect(select, DEPARTMENT_OPTIONS, "Select Department");
+  });
+
+  document.querySelectorAll("select[data-options='recovery-questions']").forEach((select) => {
+    fillSelect(select, RECOVERY_QUESTIONS, "Select Recovery Question");
   });
 
   document.querySelectorAll("[data-academic-year]").forEach((input) => {

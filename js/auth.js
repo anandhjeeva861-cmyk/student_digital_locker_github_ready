@@ -2,12 +2,14 @@ import {
   departmentKey,
   isCapsName,
   isMobile,
+  isRecoveryQuestion,
   isRegisterNumber,
   normalizeName,
   parseDepartment,
   parseYear,
   showMessage
 } from "./validation.js";
+import { RECOVERY_QUESTIONS } from "./options.js";
 
 const pages = {
   student: "./student-dashboard.html",
@@ -43,7 +45,9 @@ function studentPayload(form) {
     year: parseYear(value(form, "year")),
     department: parseDepartment(value(form, "department")),
     mobile: value(form, "mobile").trim(),
-    password: value(form, "password")
+    password: value(form, "password"),
+    recoveryQuestion: value(form, "recoveryQuestion"),
+    recoveryAnswer: value(form, "recoveryAnswer")
   };
   payload.departmentKey = departmentKey(payload.department);
 
@@ -51,6 +55,10 @@ function studentPayload(form) {
   if (!isRegisterNumber(payload.regNo)) throw new Error("Register number must be like 25BSC003.");
   if (!isMobile(payload.mobile)) throw new Error("Enter a valid 10 digit mobile number.");
   if (payload.password.length < 6) throw new Error("Password must contain at least 6 characters.");
+  if (!isRecoveryQuestion(payload.recoveryQuestion)) throw new Error("Please select a recovery question.");
+  if (payload.recoveryAnswer.trim().replace(/\s+/g, " ").length < 2) {
+    throw new Error("Recovery answer must contain at least 2 characters.");
+  }
   return payload;
 }
 
@@ -61,13 +69,19 @@ function teacherPayload(form) {
     department: parseDepartment(value(form, "department")),
     year: parseYear(value(form, "year")),
     mobile: value(form, "mobile").trim(),
-    password: value(form, "password")
+    password: value(form, "password"),
+    recoveryQuestion: value(form, "recoveryQuestion"),
+    recoveryAnswer: value(form, "recoveryAnswer")
   };
   payload.departmentKey = departmentKey(payload.department);
 
   if (!isCapsName(payload.name)) throw new Error("Name must be uppercase letters only.");
   if (!isMobile(payload.mobile)) throw new Error("Enter a valid 10 digit mobile number.");
   if (payload.password.length < 6) throw new Error("Password must contain at least 6 characters.");
+  if (!isRecoveryQuestion(payload.recoveryQuestion)) throw new Error("Please select a recovery question.");
+  if (payload.recoveryAnswer.trim().replace(/\s+/g, " ").length < 2) {
+    throw new Error("Recovery answer must contain at least 2 characters.");
+  }
   return payload;
 }
 
@@ -95,6 +109,84 @@ async function login(form, role) {
     throw new Error(`This is not a ${role} account.`);
   }
   location.replace(pages[role]);
+}
+
+function setRecoveryStep(dialog, step) {
+  dialog.querySelectorAll("[data-recovery-step]").forEach((section) => {
+    section.hidden = section.dataset.recoveryStep !== step;
+  });
+}
+
+function resetRecoveryDialog(dialog, loginForm) {
+  dialog.querySelectorAll("form").forEach((form) => form.reset());
+  const loginEmail = value(loginForm, "email").trim().toLowerCase();
+  const emailInput = dialog.querySelector("[name='recoveryEmail']");
+  if (emailInput) emailInput.value = loginEmail;
+  delete dialog.dataset.recoveryEmail;
+  setRecoveryStep(dialog, "email");
+}
+
+function setupRecoveryDialog(dialog, loginForm) {
+  const emailForm = dialog.querySelector("[data-recovery-email-form]");
+  const answerForm = dialog.querySelector("[data-recovery-answer-form]");
+  const question = dialog.querySelector("[data-recovery-question]");
+
+  dialog.querySelectorAll("[data-recovery-close]").forEach((button) => {
+    button.addEventListener("click", () => dialog.close());
+  });
+  dialog.querySelector("[data-recovery-back]")?.addEventListener("click", () => {
+    setRecoveryStep(dialog, "email");
+  });
+  dialog.addEventListener("close", () => resetRecoveryDialog(dialog, loginForm));
+
+  emailForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = emailForm.querySelector("button[type='submit']");
+    button?.setAttribute("disabled", "disabled");
+    try {
+      const email = value(emailForm, "recoveryEmail").trim().toLowerCase();
+      const { getRecoveryQuestionByEmail } = await loadFirebaseService();
+      const savedQuestion = await getRecoveryQuestionByEmail(email);
+      dialog.dataset.recoveryEmail = email;
+      question.textContent = savedQuestion || RECOVERY_QUESTIONS[0];
+      setRecoveryStep(dialog, "answer");
+      answerForm?.elements.recoveryAnswer?.focus();
+    } catch (error) {
+      console.error("Recovery email lookup failed", error);
+      showMessage(await friendlyError(error), "danger", { duration: 9000 });
+    } finally {
+      button?.removeAttribute("disabled");
+    }
+  });
+
+  answerForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = answerForm.querySelector("button[type='submit']");
+    button?.setAttribute("disabled", "disabled");
+    try {
+      const email = dialog.dataset.recoveryEmail || "";
+      const answer = value(answerForm, "recoveryAnswer");
+      const { sendRecoveryPasswordReset, verifyRecoveryAnswer } = await loadFirebaseService();
+      if (!await verifyRecoveryAnswer(email, answer)) {
+        showMessage("Recovery details are incorrect.", "danger", { duration: 7000 });
+        answerForm.elements.recoveryAnswer.value = "";
+        answerForm.elements.recoveryAnswer.focus();
+        return;
+      }
+      await sendRecoveryPasswordReset(email);
+      dialog.close();
+      showMessage(
+        "If the details are correct, a password reset link has been sent to your email.",
+        "success",
+        { duration: 9000 }
+      );
+    } catch (error) {
+      console.error("Password recovery failed", error);
+      showMessage(await friendlyError(error), "danger", { duration: 9000 });
+    } finally {
+      button?.removeAttribute("disabled");
+    }
+  });
 }
 
 export async function protectPage(role, callback) {
@@ -148,6 +240,18 @@ document.addEventListener("DOMContentLoaded", () => {
       } finally {
         button?.removeAttribute("disabled");
       }
+    });
+  });
+
+  document.querySelectorAll("[data-forgot-password]").forEach((button) => {
+    const loginForm = button.closest("form");
+    const dialog = document.querySelector(button.dataset.forgotPassword);
+    if (!loginForm || !dialog) return;
+    setupRecoveryDialog(dialog, loginForm);
+    button.addEventListener("click", () => {
+      resetRecoveryDialog(dialog, loginForm);
+      dialog.showModal();
+      dialog.querySelector("[name='recoveryEmail']")?.focus();
     });
   });
 

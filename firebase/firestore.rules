@@ -71,6 +71,21 @@ service cloud.firestore {
       return profile.regNo == regNo || profile.reg_no == regNo;
     }
 
+    function validRecoveryData(data) {
+      return data.recoveryQuestion in [
+          "What was the name of your first school?",
+          "What is the name of your childhood best friend?",
+          "What is the name of your favorite teacher?",
+          "In which city were you born?"
+        ]
+        && data.recoveryAnswerHash is string
+        && data.recoveryAnswerHash.matches("^[a-f0-9]{64}$")
+        && data.recoveryAnswerSalt is string
+        && data.recoveryAnswerSalt.matches("^[a-f0-9]{32}$")
+        && data.recoveryHashAlgorithm == "PBKDF2-SHA-256"
+        && data.recoveryHashIterations == 210000;
+    }
+
     function matchesCurrentProfileScope(data) {
       return profileDepartmentKeyMatches(currentProfile(), data.departmentKey)
         || data.department == currentProfile().department;
@@ -87,14 +102,20 @@ service cloud.firestore {
         && allowedDepartment(request.resource.data.department)
         && validAcademicYear(request.resource.data.year)
         && validDepartmentKey(request.resource.data)
+        && validRecoveryData(request.resource.data)
+        && existsAfter(/databases/$(database)/documents/passwordRecovery/$(request.resource.data.email))
+        && getAfter(/databases/$(database)/documents/passwordRecovery/$(request.resource.data.email)).data.recoveryQuestion == request.resource.data.recoveryQuestion
+        && getAfter(/databases/$(database)/documents/passwordRecovery/$(request.resource.data.email)).data.recoveryAnswerSalt == request.resource.data.recoveryAnswerSalt
+        && getAfter(/databases/$(database)/documents/passwordRecovery/$(request.resource.data.email)).data.recoveryHashAlgorithm == request.resource.data.recoveryHashAlgorithm
+        && getAfter(/databases/$(database)/documents/passwordRecovery/$(request.resource.data.email)).data.recoveryHashIterations == request.resource.data.recoveryHashIterations
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time
         && ((request.resource.data.role == "student"
-            && request.resource.data.keys().hasOnly(["uid", "role", "name", "regNo", "email", "year", "department", "departmentKey", "mobile", "createdAt", "updatedAt"])
+            && request.resource.data.keys().hasOnly(["uid", "role", "name", "regNo", "email", "year", "department", "departmentKey", "mobile", "recoveryQuestion", "recoveryAnswerHash", "recoveryAnswerSalt", "recoveryHashAlgorithm", "recoveryHashIterations", "createdAt", "updatedAt"])
             && request.resource.data.regNo is string
             && request.resource.data.regNo.matches("^[0-9]{2}[A-Z]{3}[0-9]{3}$"))
           || (request.resource.data.role == "teacher"
-            && request.resource.data.keys().hasOnly(["uid", "role", "name", "email", "year", "department", "departmentKey", "mobile", "createdAt", "updatedAt"])
+            && request.resource.data.keys().hasOnly(["uid", "role", "name", "email", "year", "department", "departmentKey", "mobile", "recoveryQuestion", "recoveryAnswerHash", "recoveryAnswerSalt", "recoveryHashAlgorithm", "recoveryHashIterations", "createdAt", "updatedAt"])
             && existsAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.year))
             && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.year)).data.uid == uid
             && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.year)).data.departmentKey == request.resource.data.departmentKey
@@ -324,6 +345,52 @@ service cloud.firestore {
         && validDepartmentKey(request.resource.data)
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
+    }
+
+    match /passwordRecovery/{email} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if signedIn()
+        && request.auth.token.email == email
+        && request.resource.data.keys().hasOnly([
+          "recoveryQuestion",
+          "recoveryAnswerSalt",
+          "recoveryHashAlgorithm",
+          "recoveryHashIterations",
+          "createdAt",
+          "updatedAt"
+        ])
+        && request.resource.data.recoveryQuestion in [
+          "What was the name of your first school?",
+          "What is the name of your childhood best friend?",
+          "What is the name of your favorite teacher?",
+          "In which city were you born?"
+        ]
+        && request.resource.data.recoveryAnswerSalt.matches("^[a-f0-9]{32}$")
+        && request.resource.data.recoveryHashAlgorithm == "PBKDF2-SHA-256"
+        && request.resource.data.recoveryHashIterations == 210000
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && existsAfter(/databases/$(database)/documents/profiles/$(request.auth.uid))
+        && getAfter(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.email == email
+        && getAfter(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.recoveryQuestion == request.resource.data.recoveryQuestion
+        && getAfter(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.recoveryAnswerSalt == request.resource.data.recoveryAnswerSalt;
+      allow update: if false;
+      allow delete: if signedIn() && request.auth.token.email == email;
+
+      match /verifiers/{answerHash} {
+        allow get: if true;
+        allow list: if false;
+        allow create: if signedIn()
+          && request.auth.token.email == email
+          && answerHash.matches("^[a-f0-9]{64}$")
+          && request.resource.data.keys().hasOnly(["createdAt"])
+          && request.resource.data.createdAt == request.time
+          && existsAfter(/databases/$(database)/documents/profiles/$(request.auth.uid))
+          && answerHash == getAfter(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.recoveryAnswerHash;
+        allow update: if false;
+        allow delete: if signedIn() && request.auth.token.email == email;
+      }
     }
 
     match /profiles/{uid} {

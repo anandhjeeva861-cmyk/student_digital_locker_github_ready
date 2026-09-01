@@ -21,8 +21,33 @@
       <label for="studentLoginPassword">Password</label>
       <input id="studentLoginPassword" type="password" name="password" placeholder="Enter password" autocomplete="current-password" required>
       <button class="primary-btn" type="submit">LOGIN</button>
+      <button class="link-button" type="button" data-forgot-password="#studentRecoveryDialog">Forgot Password?</button>
       <p class="auth-note">Register As a Student <a href="./student-register.html">Register as a Student</a></p>
     </form>
+    <dialog class="recovery-dialog" id="studentRecoveryDialog" aria-labelledby="studentRecoveryTitle">
+      <div class="recovery-panel">
+        <button class="dialog-close" type="button" data-recovery-close aria-label="Close password recovery">×</button>
+        <h2 id="studentRecoveryTitle">RESET PASSWORD</h2>
+        <div data-recovery-step="email">
+          <p class="recovery-intro">Enter the email used for your student account.</p>
+          <form data-recovery-email-form method="post" action="./student-login.html">
+            <label for="studentRecoveryEmail">Registered Email</label>
+            <input id="studentRecoveryEmail" type="email" name="recoveryEmail" placeholder="student@example.com" autocomplete="email" required>
+            <button class="primary-btn" type="submit">SHOW RECOVERY QUESTION</button>
+          </form>
+        </div>
+        <div data-recovery-step="answer" hidden>
+          <p class="recovery-label">Your recovery question</p>
+          <p class="recovery-question" data-recovery-question aria-live="polite"></p>
+          <form data-recovery-answer-form method="post" action="./student-login.html">
+            <label for="studentRecoveryLoginAnswer">Recovery Answer</label>
+            <input id="studentRecoveryLoginAnswer" type="password" name="recoveryAnswer" placeholder="Enter your answer" autocomplete="off" required minlength="2" maxlength="100">
+            <button class="primary-btn" type="submit">SEND RESET LINK</button>
+            <button class="link-button" type="button" data-recovery-back>Use a different email</button>
+          </form>
+        </div>
+      </div>
+    </dialog>
   </section>
   <script type="module" src="./js/darkmode.js"></script>
   <script type="module" src="./js/auth.js"></script>

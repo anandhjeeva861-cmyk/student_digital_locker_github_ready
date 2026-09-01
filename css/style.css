@@ -353,6 +353,95 @@ label {
     font-weight: 800;
 }
 
+.link-button {
+    display: block;
+    margin: 14px auto 0;
+    padding: 4px;
+    border: 0;
+    background: transparent;
+    color: var(--primary);
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.link-button:hover {
+    text-decoration: underline;
+}
+
+.field-help {
+    display: block;
+    margin-top: 7px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+.recovery-dialog {
+    width: min(460px, calc(100% - 32px));
+    max-height: calc(100vh - 32px);
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 28px;
+    background: var(--panel-solid);
+    color: var(--text);
+    box-shadow: var(--shadow);
+}
+
+.recovery-dialog::backdrop {
+    background: rgba(3, 18, 35, 0.62);
+    backdrop-filter: blur(7px);
+}
+
+.recovery-panel {
+    position: relative;
+    padding: 34px;
+}
+
+.recovery-panel h2 {
+    margin: 0 42px 10px 0;
+    font-size: 1.55rem;
+}
+
+.dialog-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: rgba(11, 104, 209, 0.08);
+    color: var(--text);
+    font-size: 1.35rem;
+    cursor: pointer;
+}
+
+.recovery-intro,
+.recovery-label {
+    color: var(--muted);
+    line-height: 1.55;
+}
+
+.recovery-label {
+    margin: 22px 0 6px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.recovery-question {
+    margin: 0 0 20px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: rgba(11, 104, 209, 0.08);
+    font-weight: 800;
+    line-height: 1.45;
+}
+
 .message {
     margin: 0 0 18px;
     padding: 12px 14px;

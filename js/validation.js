@@ -1,4 +1,4 @@
-import { DEPARTMENT_OPTIONS, YEAR_OPTIONS } from "./options.js";
+import { DEPARTMENT_OPTIONS, RECOVERY_QUESTIONS, YEAR_OPTIONS } from "./options.js";
 
 export const DEFAULT_ACADEMIC_TITLES = [
   "AADHAR CARD",
@@ -91,6 +91,10 @@ export function isRegisterNumber(value) {
 
 export function isMobile(value) {
   return /^[6-9]\d{9}$/.test(String(value || "").trim());
+}
+
+export function isRecoveryQuestion(value) {
+  return RECOVERY_QUESTIONS.includes(String(value || ""));
 }
 
 export function validateDocumentFile(file) {

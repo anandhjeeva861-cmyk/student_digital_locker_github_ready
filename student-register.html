@@ -23,7 +23,9 @@
         <div><label for="studentYearInput">Academic Year</label><input id="studentYearInput" name="year" data-academic-year placeholder="2025-2028" pattern="20[0-9]{2}-20[0-9]{2}" title="Enter academic year like 2025-2028" required></div>
         <div><label for="studentDepartmentInput">Department</label><select id="studentDepartmentInput" name="department" data-options="departments" required></select></div>
         <div><label for="studentMobileInput">Mobile Number</label><input id="studentMobileInput" name="mobile" placeholder="9876543210" autocomplete="tel" required></div>
-        <div class="full-span"><label for="studentPasswordInput">Create Password</label><input id="studentPasswordInput" type="password" name="password" placeholder="Minimum 6 characters" autocomplete="new-password" required minlength="6"></div>
+        <div><label for="studentPasswordInput">Create Password</label><input id="studentPasswordInput" type="password" name="password" placeholder="Minimum 6 characters" autocomplete="new-password" required minlength="6"></div>
+        <div><label for="studentRecoveryQuestion">Recovery Question</label><select id="studentRecoveryQuestion" name="recoveryQuestion" data-options="recovery-questions" required></select></div>
+        <div class="full-span"><label for="studentRecoveryAnswer">Recovery Answer</label><input id="studentRecoveryAnswer" type="password" name="recoveryAnswer" placeholder="Enter your answer" autocomplete="off" required minlength="2" maxlength="100" aria-describedby="studentRecoveryHelp"><small id="studentRecoveryHelp" class="field-help">Spaces and letter case will not affect your answer.</small></div>
       </div>
       <button class="primary-btn" type="submit">CREATE STUDENT ACCOUNT</button>
     </form>

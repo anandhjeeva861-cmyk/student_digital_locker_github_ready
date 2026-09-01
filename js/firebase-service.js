@@ -2,6 +2,7 @@ import {
   createUserWithEmailAndPassword,
   deleteUser,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
   updateProfile
@@ -27,6 +28,7 @@ import {
   documentMimeType,
   isAcademicYear,
   isDepartment,
+  isRecoveryQuestion,
   normalizeName,
   photoMimeType
 } from "./validation.js";
@@ -37,10 +39,130 @@ const titlesCollection = "academicTitles";
 const uniqueMobileCollection = "uniqueMobileNumbers";
 const uniqueRegisterCollection = "uniqueRegisterNumbers";
 const uniqueTeacherScopeCollection = "uniqueTeacherScopes";
+const passwordRecoveryCollection = "passwordRecovery";
 const documentCategories = ["online", "personal", "academic"];
 const fileChunksCollection = "fileChunks";
 const photoChunksCollection = "photoChunks";
 const firestoreChunkChars = 700000;
+const recoveryHashAlgorithm = "PBKDF2-SHA-256";
+const recoveryHashIterations = 210000;
+
+function bytesToHex(bytes) {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function normalizeEmail(value) {
+  const email = String(value || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.includes("/")) {
+    const error = new Error("Enter a valid email address.");
+    error.code = "auth/invalid-email";
+    throw error;
+  }
+  return email;
+}
+
+export function normalizeRecoveryAnswer(value) {
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export async function hashRecoveryAnswer(answer, salt, iterations = recoveryHashIterations) {
+  const normalized = normalizeRecoveryAnswer(answer);
+  if (normalized.length < 2 || normalized.length > 100) {
+    throw new Error("Recovery answer must contain between 2 and 100 characters.");
+  }
+  if (!/^[a-f0-9]{32}$/.test(String(salt || ""))) {
+    throw new Error("Recovery answer security data is invalid.");
+  }
+  if (!Number.isInteger(iterations) || iterations < recoveryHashIterations) {
+    throw new Error("Recovery answer security settings are invalid.");
+  }
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(normalized),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits({
+    name: "PBKDF2",
+    hash: "SHA-256",
+    salt: encoder.encode(salt),
+    iterations
+  }, key, 256);
+  return bytesToHex(new Uint8Array(bits));
+}
+
+function createRecoverySalt() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return bytesToHex(bytes);
+}
+
+async function prepareRecoveryData(question, answer) {
+  if (!isRecoveryQuestion(question)) throw new Error("Please select a valid recovery question.");
+  const salt = createRecoverySalt();
+  return {
+    recoveryQuestion: question,
+    recoveryAnswerHash: await hashRecoveryAnswer(answer, salt),
+    recoveryAnswerSalt: salt,
+    recoveryHashAlgorithm,
+    recoveryHashIterations
+  };
+}
+
+async function getRecoveryRecord(email) {
+  await authReady;
+  const normalizedEmail = normalizeEmail(email);
+  const snapshot = await getDoc(doc(db, passwordRecoveryCollection, normalizedEmail));
+  if (!snapshot.exists()) return null;
+  const data = snapshot.data();
+  if (!isRecoveryQuestion(data.recoveryQuestion)
+    || !/^[a-f0-9]{32}$/.test(data.recoveryAnswerSalt || "")
+    || data.recoveryHashAlgorithm !== recoveryHashAlgorithm
+    || data.recoveryHashIterations !== recoveryHashIterations) {
+    return null;
+  }
+  return { email: normalizedEmail, ...data };
+}
+
+export async function getRecoveryQuestionByEmail(email) {
+  const record = await getRecoveryRecord(email);
+  return record?.recoveryQuestion || null;
+}
+
+export async function verifyRecoveryAnswer(email, answer) {
+  const normalizedEmail = normalizeEmail(email);
+  const record = await getRecoveryRecord(normalizedEmail);
+  const salt = record?.recoveryAnswerSalt || "00000000000000000000000000000000";
+  const normalizedAnswer = normalizeRecoveryAnswer(answer);
+  const answerIsValid = normalizedAnswer.length >= 2 && normalizedAnswer.length <= 100;
+  const answerHash = await hashRecoveryAnswer(
+    answerIsValid ? normalizedAnswer : "invalid recovery answer",
+    salt,
+    recoveryHashIterations
+  );
+  if (!record || !answerIsValid) return false;
+  const verifier = await getDoc(doc(
+    db,
+    passwordRecoveryCollection,
+    normalizedEmail,
+    "verifiers",
+    answerHash
+  ));
+  return verifier.exists();
+}
+
+export async function sendRecoveryPasswordReset(email) {
+  await authReady;
+  try {
+    return await sendPasswordResetEmail(auth, normalizeEmail(email));
+  } catch (error) {
+    if (error?.code === "auth/user-not-found") return;
+    throw error;
+  }
+}
 
 function nowId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -353,18 +475,21 @@ export function firebaseErrorMessage(error) {
 
 export async function registerStudent(payload) {
   await authReady;
-  const credential = await createUserWithEmailAndPassword(auth, payload.email, payload.password);
+  const email = normalizeEmail(payload.email);
+  const recovery = await prepareRecoveryData(payload.recoveryQuestion, payload.recoveryAnswer);
+  const credential = await createUserWithEmailAndPassword(auth, email, payload.password);
   try {
     await updateProfile(credential.user, { displayName: payload.name });
     await createProfileWithUniqueKeys(credential.user.uid, {
       role: "student",
       name: payload.name,
       regNo: payload.regNo,
-      email: payload.email,
+      email,
       year: payload.year,
       department: payload.department,
       departmentKey: payload.departmentKey,
-      mobile: payload.mobile
+      mobile: payload.mobile,
+      ...recovery
     });
     return getCurrentProfile();
   } catch (error) {
@@ -375,17 +500,20 @@ export async function registerStudent(payload) {
 
 export async function registerTeacher(payload) {
   await authReady;
-  const credential = await createUserWithEmailAndPassword(auth, payload.email, payload.password);
+  const email = normalizeEmail(payload.email);
+  const recovery = await prepareRecoveryData(payload.recoveryQuestion, payload.recoveryAnswer);
+  const credential = await createUserWithEmailAndPassword(auth, email, payload.password);
   try {
     await updateProfile(credential.user, { displayName: payload.name });
     await createProfileWithUniqueKeys(credential.user.uid, {
       role: "teacher",
       name: payload.name,
-      email: payload.email,
+      email,
       year: payload.year,
       department: payload.department,
       departmentKey: payload.departmentKey,
-      mobile: payload.mobile
+      mobile: payload.mobile,
+      ...recovery
     });
     return getCurrentProfile();
   } catch (error) {
@@ -398,11 +526,18 @@ async function createProfileWithUniqueKeys(uid, profile) {
   if (!isDepartment(profile.department)) throw new Error("Invalid department selected.");
   if (!isAcademicYear(profile.year)) throw new Error("Invalid academic year selected.");
   if (!profile.departmentKey) throw new Error("Invalid department selected.");
+  if (!isRecoveryQuestion(profile.recoveryQuestion)) throw new Error("Invalid recovery question selected.");
+  if (!/^[a-f0-9]{64}$/.test(profile.recoveryAnswerHash || "")) {
+    throw new Error("Recovery answer could not be secured.");
+  }
 
   await runTransaction(db, async (transaction) => {
     const mobileRef = doc(db, uniqueMobileCollection, profile.mobile);
     const mobileSnap = await transaction.get(mobileRef);
     if (mobileSnap.exists()) throw new Error("This mobile number is already registered.");
+    const recoveryRef = doc(db, passwordRecoveryCollection, profile.email);
+    const recoverySnap = await transaction.get(recoveryRef);
+    if (recoverySnap.exists()) throw new Error("Recovery details already exist for this email.");
 
     let regRef = null;
     let teacherScopeRef = null;
@@ -424,6 +559,17 @@ async function createProfileWithUniqueKeys(uid, profile) {
       ...profile,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
+    });
+    transaction.set(recoveryRef, {
+      recoveryQuestion: profile.recoveryQuestion,
+      recoveryAnswerSalt: profile.recoveryAnswerSalt,
+      recoveryHashAlgorithm: profile.recoveryHashAlgorithm,
+      recoveryHashIterations: profile.recoveryHashIterations,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    transaction.set(doc(recoveryRef, "verifiers", profile.recoveryAnswerHash), {
+      createdAt: serverTimestamp()
     });
     transaction.set(mobileRef, { uid, role: profile.role, createdAt: serverTimestamp() });
     if (regRef) transaction.set(regRef, { uid, createdAt: serverTimestamp() });
@@ -498,6 +644,11 @@ export async function deleteCurrentAccount(profile = null) {
     await deleteDoc(doc(db, uniqueRegisterCollection, accountProfile.regNo)).catch((error) => {
       console.warn("Register number uniqueness cleanup failed", error);
     });
+  }
+  if (accountProfile.email && accountProfile.recoveryAnswerHash) {
+    const recoveryRef = doc(db, passwordRecoveryCollection, accountProfile.email);
+    await deleteDoc(doc(recoveryRef, "verifiers", accountProfile.recoveryAnswerHash));
+    await deleteDoc(recoveryRef);
   }
   await deleteDoc(profileRef);
   await deleteUser(user);
