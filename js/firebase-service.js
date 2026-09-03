@@ -40,6 +40,10 @@ const uniqueMobileCollection = "uniqueMobileNumbers";
 const uniqueRegisterCollection = "uniqueRegisterNumbers";
 const uniqueTeacherScopeCollection = "uniqueTeacherScopes";
 const passwordRecoveryCollection = "passwordRecovery";
+const batchesCollection = "batches";
+const alumniConversionsCollection = "alumniConversions";
+const batchGraduationsCollection = "batchGraduations";
+const achievementsCollection = "achievements";
 const documentCategories = ["online", "personal", "academic"];
 const fileChunksCollection = "fileChunks";
 const photoChunksCollection = "photoChunks";
@@ -186,6 +190,14 @@ function teacherScopeId(profile) {
   return `${profile.departmentKey}_${safeSegment(profile.year).toUpperCase()}`;
 }
 
+function batchDocumentId(profile, batchLabel) {
+  return `${safeSegment(profile.departmentKey).toUpperCase()}_${safeSegment(batchLabel).toUpperCase()}`;
+}
+
+function conversionDocumentId(batchId, studentUid) {
+  return `${safeSegment(batchId)}_${safeSegment(studentUid)}`;
+}
+
 function documentId(uid, category, title) {
   return `${uid}_${category}_${safeSegment(title).toUpperCase()}`;
 }
@@ -233,6 +245,41 @@ function requireProfileScope(profile, expectedRole, action) {
     );
   }
   return profile;
+}
+
+function requireOwnedLockerProfile(profile, action) {
+  requireProfileScope(profile, null, action);
+  if (!['student', 'alumni'].includes(profile.role)) {
+    throw profileError(`Only Student or Alumni accounts can ${action}.`);
+  }
+  if (!profile.regNo) {
+    throw profileError(`Your Firestore profile is missing register number for ${action}.`, ["regNo"]);
+  }
+  return profile;
+}
+
+function academicYears(value) {
+  const match = String(value || "").match(/^(20\d{2})-(20\d{2})$/);
+  if (!match) return null;
+  const admissionYear = Number(match[1]);
+  const graduationYear = Number(match[2]);
+  if (graduationYear - admissionYear !== 3) return null;
+  return { admissionYear, graduationYear, batchLabel: `${admissionYear}-${graduationYear}` };
+}
+
+function currentAcademicYear(batch) {
+  const duration = Number(batch.graduationYear) - Number(batch.admissionYear);
+  if (!Number.isInteger(duration) || duration <= 0) return null;
+  const now = new Date();
+  const academicStartYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+  if (academicStartYear < Number(batch.admissionYear)) return null;
+  return Math.min(duration, academicStartYear - Number(batch.admissionYear) + 1);
+}
+
+function isBatchGraduationEligible(batch) {
+  return batch?.status === "active"
+    && Number.isInteger(batch?.graduationYear)
+    && new Date().getFullYear() >= batch.graduationYear;
 }
 
 function profileFromDoc(snapshot) {
@@ -477,6 +524,7 @@ export async function registerStudent(payload) {
   await authReady;
   const email = normalizeEmail(payload.email);
   const recovery = await prepareRecoveryData(payload.recoveryQuestion, payload.recoveryAnswer);
+  const years = academicYears(payload.year);
   const credential = await createUserWithEmailAndPassword(auth, email, payload.password);
   try {
     await updateProfile(credential.user, { displayName: payload.name });
@@ -486,6 +534,10 @@ export async function registerStudent(payload) {
       regNo: payload.regNo,
       email,
       year: payload.year,
+      batch: years?.batchLabel || "",
+      admissionYear: years?.admissionYear || null,
+      graduationYear: years?.graduationYear || null,
+      studentStatus: "active",
       department: payload.department,
       departmentKey: payload.departmentKey,
       mobile: payload.mobile,
@@ -607,7 +659,7 @@ export async function deleteCurrentAccount(profile = null) {
   if (!accountProfile) throw new Error("Profile not found. Log in again before removing the account.");
   requireRecentAccountLogin(user);
 
-  if (accountProfile.role === "student") {
+  if (["student", "alumni"].includes(accountProfile.role)) {
     const ownedDocs = await getDocs(query(
       collection(db, documentsCollection),
       where("ownerId", "==", accountProfile.uid)
@@ -621,6 +673,13 @@ export async function deleteCurrentAccount(profile = null) {
   }
 
   if (accountProfile.role === "teacher") {
+    const assignedBatches = await getDocs(query(
+      collection(db, batchesCollection),
+      where("assignedTeacherUid", "==", accountProfile.uid)
+    ));
+    if (!assignedBatches.empty) {
+      throw new Error("This teacher account owns batch history and cannot be removed until an administrator securely reassigns those batches.");
+    }
     const titles = await getDocs(query(
       collection(db, titlesCollection),
       where("createdBy", "==", accountProfile.uid)
@@ -640,7 +699,7 @@ export async function deleteCurrentAccount(profile = null) {
       console.warn("Mobile uniqueness cleanup failed", error);
     });
   }
-  if (accountProfile.role === "student" && accountProfile.regNo) {
+  if (["student", "alumni"].includes(accountProfile.role) && accountProfile.regNo) {
     await deleteDoc(doc(db, uniqueRegisterCollection, accountProfile.regNo)).catch((error) => {
       console.warn("Register number uniqueness cleanup failed", error);
     });
@@ -732,7 +791,7 @@ export async function getProfilePhotoUrl(profile) {
 }
 
 export async function listStudentDocuments(profile, category = null) {
-  requireProfileScope(profile, "student", "load student documents");
+  requireOwnedLockerProfile(profile, "load documents");
   if (category !== null && !documentCategories.includes(category)) {
     throw new Error("Invalid document category.");
   }
@@ -744,7 +803,7 @@ export async function listStudentDocuments(profile, category = null) {
 }
 
 export async function uploadStudentDocument(profile, category, title, file) {
-  requireProfileScope(profile, "student", "upload documents");
+  requireOwnedLockerProfile(profile, "upload documents");
   await requireCurrentUser(profile.uid);
   if (!documentCategories.includes(category)) throw new Error("Invalid document category.");
   if (!file) throw new Error("Please select a file.");
@@ -763,6 +822,7 @@ export async function uploadStudentDocument(profile, category, title, file) {
       category,
       departmentKey: profile.departmentKey,
       year: profile.year,
+      batchId: profile.batchId || "",
       fileDataVersion: version
     });
   } catch (error) {
@@ -783,6 +843,7 @@ export async function uploadStudentDocument(profile, category, title, file) {
       department: profile.department,
       departmentKey: profile.departmentKey,
       year: profile.year,
+      batchId: profile.batchId || "",
       category,
       title,
       originalName: file.name,
@@ -822,7 +883,7 @@ export async function getDocumentObjectUrl(documentItem) {
 }
 
 export async function deleteStudentDocument(profile, documentIdValue) {
-  requireProfileScope(profile, "student", "delete documents");
+  requireOwnedLockerProfile(profile, "delete documents");
   await requireCurrentUser(profile.uid);
   const docRef = doc(db, documentsCollection, documentIdValue);
   const snapshot = await getDoc(docRef);
@@ -871,6 +932,333 @@ export async function deleteAcademicTitle(profile, titleIdValue) {
   await deleteDoc(titleRef);
 }
 
+function batchFromDoc(snapshot) {
+  if (!snapshot.exists()) return null;
+  return { id: snapshot.id, ...snapshot.data() };
+}
+
+async function requireAssignedBatch(profile, batchId, { activeOnly = false } = {}) {
+  requireProfileScope(profile, "teacher", "manage batches");
+  await requireCurrentUser(profile.uid);
+  const snapshot = await getDoc(doc(db, batchesCollection, batchId));
+  const batch = batchFromDoc(snapshot);
+  if (!batch) throw new Error("Batch not found.");
+  if (batch.assignedTeacherUid !== profile.uid) throw new Error("You are not authorized to manage this batch.");
+  if (batch.departmentKey !== profile.departmentKey) throw new Error("This batch belongs to another department.");
+  if (activeOnly && batch.status !== "active") throw new Error("This batch has already been graduated or archived.");
+  return batch;
+}
+
+async function getBatchMembers(batchId) {
+  const [students, alumni] = await Promise.all([
+    getDocs(query(collection(db, profileCollection), where("batchId", "==", batchId), where("role", "==", "student"))),
+    getDocs(query(collection(db, profileCollection), where("batchId", "==", batchId), where("role", "==", "alumni")))
+  ]);
+  return [...students.docs, ...alumni.docs].map(profileFromDoc);
+}
+
+export async function listTeacherBatches(profile) {
+  requireProfileScope(profile, "teacher", "load batches");
+  await requireCurrentUser(profile.uid);
+  const snapshots = await getDocs(query(
+    collection(db, batchesCollection),
+    where("assignedTeacherUid", "==", profile.uid)
+  ));
+  const batches = snapshots.docs.map(batchFromDoc);
+  const membersByBatch = await Promise.all(batches.map((batch) => getBatchMembers(batch.id)));
+  return batches.map((batch, index) => {
+    const members = membersByBatch[index];
+    return {
+      ...batch,
+      currentAcademicYear: currentAcademicYear(batch),
+      eligibleForGraduation: isBatchGraduationEligible(batch),
+      studentCount: members.filter((item) => item.role === "student").length,
+      alumniCount: members.filter((item) => item.role === "alumni").length,
+      memberCount: members.length
+    };
+  }).sort((a, b) => Number(b.admissionYear || 0) - Number(a.admissionYear || 0));
+}
+
+export async function listTeacherCurrentBatches(profile) {
+  return (await listTeacherBatches(profile)).filter((batch) => batch.status === "active");
+}
+
+export async function listTeacherPreviousBatches(profile) {
+  return (await listTeacherBatches(profile)).filter((batch) => ["graduated", "archived"].includes(batch.status));
+}
+
+export async function createTeacherBatch(profile, values) {
+  requireProfileScope(profile, "teacher", "create a batch");
+  await requireCurrentUser(profile.uid);
+  const batchLabel = String(values?.batchLabel || "").trim();
+  const years = academicYears(batchLabel);
+  if (!years || !isAcademicYear(batchLabel)) throw new Error("Batch must be a three-year range like 2023-2026.");
+  const courseName = String(values?.courseName || profile.department).trim().replace(/\s+/g, " ").slice(0, 120);
+  if (!courseName) throw new Error("Enter a course name.");
+  const batchId = batchDocumentId(profile, batchLabel);
+  const batchRef = doc(db, batchesCollection, batchId);
+  await runTransaction(db, async (transaction) => {
+    if ((await transaction.get(batchRef)).exists()) throw new Error("This department batch already exists.");
+    transaction.set(batchRef, {
+      batchId,
+      department: profile.department,
+      departmentKey: profile.departmentKey,
+      courseName,
+      admissionYear: years.admissionYear,
+      graduationYear: years.graduationYear,
+      batchLabel: years.batchLabel,
+      status: "active",
+      assignedTeacherUid: profile.uid,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+  });
+  return batchId;
+}
+
+export async function listAssignableStudents(profile, batchId) {
+  const batch = await requireAssignedBatch(profile, batchId, { activeOnly: true });
+  const results = await Promise.allSettled([
+    getDocs(query(collection(db, profileCollection), where("role", "==", "student"), where("departmentKey", "==", batch.departmentKey), where("year", "==", batch.batchLabel))),
+    getDocs(query(collection(db, profileCollection), where("role", "==", "student"), where("department", "==", batch.department), where("year", "==", batch.batchLabel)))
+  ]);
+  const snapshots = results.filter((result) => result.status === "fulfilled").map((result) => result.value);
+  if (!snapshots.length) throw results[0].reason;
+  return uniqueById(snapshots.flatMap((snapshot) => snapshot.docs.map(profileFromDoc)))
+    .filter((student) => !student.batchId)
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+}
+
+export async function assignStudentToBatch(profile, studentUid, batchId) {
+  const batch = await requireAssignedBatch(profile, batchId, { activeOnly: true });
+  const student = await getProfile(studentUid);
+  if (!student || student.role !== "student") throw new Error("Active student not found.");
+  if (student.batchId) throw new Error("This student is already assigned to a batch.");
+  if (student.departmentKey !== batch.departmentKey || student.year !== batch.batchLabel) {
+    throw new Error("Student department and academic year must exactly match the selected batch.");
+  }
+  await updateDoc(doc(db, profileCollection, studentUid), {
+    departmentKey: batch.departmentKey,
+    batchId: batch.id,
+    batch: batch.batchLabel,
+    admissionYear: batch.admissionYear,
+    graduationYear: batch.graduationYear,
+    studentStatus: "active",
+    updatedAt: serverTimestamp()
+  });
+}
+
+export async function getTeacherBatchStudents(profile, batchId) {
+  const batch = await requireAssignedBatch(profile, batchId);
+  const members = await getBatchMembers(batchId);
+  return {
+    batch: {
+      ...batch,
+      currentAcademicYear: currentAcademicYear(batch),
+      eligibleForGraduation: isBatchGraduationEligible(batch)
+    },
+    students: members.filter((item) => item.role === "student")
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))),
+    alumni: members.filter((item) => item.role === "alumni")
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
+  };
+}
+
+function assertStudentEligibleForConversion(student, batch) {
+  if (!student) throw new Error("Student not found.");
+  if (student.role === "alumni") throw new Error("This account has already been converted to Alumni.");
+  if (student.role !== "student") throw new Error("Only an active Student account can be converted.");
+  if (student.batchId !== batch.id) throw new Error("Student is not assigned to this batch.");
+  if (student.departmentKey !== batch.departmentKey) throw new Error("Student department does not match this batch.");
+  if (Number(student.graduationYear) !== Number(batch.graduationYear)) {
+    throw new Error("Student graduation year does not match this batch.");
+  }
+  if (!isBatchGraduationEligible(batch)) throw new Error("This batch is not yet eligible for graduation.");
+}
+
+function queueAlumniConversion(batchWrite, teacher, batch, student) {
+  const profileRef = doc(db, profileCollection, student.uid);
+  const auditId = conversionDocumentId(batch.id, student.uid);
+  batchWrite.update(profileRef, {
+    role: "alumni",
+    studentStatus: "graduated",
+    alumniStatus: "active",
+    graduationYear: batch.graduationYear,
+    batchId: batch.id,
+    batch: batch.batchLabel,
+    graduatedAt: serverTimestamp(),
+    convertedBy: teacher.uid,
+    careerStatus: "not_updated",
+    updatedAt: serverTimestamp()
+  });
+  batchWrite.set(doc(db, alumniConversionsCollection, auditId), {
+    studentUid: student.uid,
+    batchId: batch.id,
+    previousRole: "student",
+    newRole: "alumni",
+    graduationYear: batch.graduationYear,
+    convertedBy: teacher.uid,
+    convertedAt: serverTimestamp()
+  });
+}
+
+export async function convertStudentToAlumni(profile, studentUid, batchId) {
+  const batch = await requireAssignedBatch(profile, batchId, { activeOnly: true });
+  const student = await getProfile(studentUid);
+  assertStudentEligibleForConversion(student, batch);
+  const batchWrite = writeBatch(db);
+  queueAlumniConversion(batchWrite, profile, batch, student);
+  await batchWrite.commit();
+}
+
+export async function graduateBatch(profile, batchId) {
+  const batch = await requireAssignedBatch(profile, batchId, { activeOnly: true });
+  if (!isBatchGraduationEligible(batch)) throw new Error("This batch is not yet in its final graduation year.");
+  const members = await getBatchMembers(batchId);
+  const students = members.filter((item) => item.role === "student");
+  if (!students.length) throw new Error("No eligible students were found in this batch.");
+  students.forEach((student) => assertStudentEligibleForConversion(student, batch));
+  if (students.length > 200) {
+    throw new Error("This batch is too large for a safe client-side atomic conversion. Use the trusted graduation backend described in the setup guide.");
+  }
+
+  const batchWrite = writeBatch(db);
+  students.forEach((student) => queueAlumniConversion(batchWrite, profile, batch, student));
+  batchWrite.update(doc(db, batchesCollection, batchId), {
+    status: "graduated",
+    graduatedAt: serverTimestamp(),
+    graduatedBy: profile.uid,
+    updatedAt: serverTimestamp()
+  });
+  batchWrite.set(doc(db, batchGraduationsCollection, batchId), {
+    batchId,
+    studentCount: students.length,
+    graduationYear: batch.graduationYear,
+    graduatedBy: profile.uid,
+    graduatedAt: serverTimestamp()
+  });
+  await batchWrite.commit();
+  return students.length;
+}
+
+export async function listTeacherAlumni(profile, filters = {}) {
+  const batches = await listTeacherBatches(profile);
+  const alumni = (await Promise.all(batches.map(async (batch) => {
+    const members = await getBatchMembers(batch.id);
+    return members.filter((item) => item.role === "alumni");
+  }))).flat();
+  const search = normalizeName(filters.search || "");
+  return uniqueById(alumni)
+    .filter((item) => !search || normalizeName(item.name).includes(search) || String(item.regNo || "").toUpperCase().includes(search))
+    .filter((item) => !filters.batchId || item.batchId === filters.batchId)
+    .filter((item) => !filters.graduationYear || String(item.graduationYear || "") === String(filters.graduationYear))
+    .filter((item) => !filters.careerStatus || (item.careerStatus || "not_updated") === filters.careerStatus)
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+}
+
+export async function getTeacherAlumniDetail(profile, alumniUid) {
+  requireProfileScope(profile, "teacher", "view Alumni details");
+  await requireCurrentUser(profile.uid);
+  const alumni = await getProfile(alumniUid);
+  if (!alumni || alumni.role !== "alumni") throw new Error("Alumni profile not found.");
+  await requireAssignedBatch(profile, alumni.batchId);
+  return alumni;
+}
+
+export async function getAlumniDashboardSummary(profile) {
+  requireProfileScope(profile, "alumni", "load the Alumni dashboard");
+  await requireCurrentUser(profile.uid);
+  const documents = await listStudentDocuments(profile);
+  return { documentCount: documents.length, careerStatus: profile.careerStatus || "not_updated" };
+}
+
+const careerStatuses = ["employed", "higher_studies", "entrepreneur", "seeking_opportunity", "other"];
+
+function cleanCareerProfile(status, values = {}) {
+  const clean = (key, max = 160) => String(values[key] || "").trim().replace(/\s+/g, " ").slice(0, max);
+  const year = (key) => {
+    const value = Number(values[key]);
+    return Number.isInteger(value) && value >= 1950 && value <= 2100 ? value : null;
+  };
+  const profiles = {
+    employed: { company: clean("company", 100), jobTitle: clean("jobTitle", 100), location: clean("location", 100), joiningYear: year("joiningYear") },
+    higher_studies: { institution: clean("institution", 120), course: clean("course", 120), location: clean("location", 100), joiningYear: year("joiningYear") },
+    entrepreneur: { businessName: clean("businessName", 120), role: clean("role", 100), location: clean("location", 100), startedYear: year("startedYear") },
+    seeking_opportunity: { areaOfInterest: clean("areaOfInterest") },
+    other: { description: clean("description", 500) }
+  };
+  const result = profiles[status];
+  if (!result || Object.values(result).some((value) => value === "" || value === null)) {
+    throw new Error("Complete all career fields for the selected status.");
+  }
+  return result;
+}
+
+export async function updateAlumniCareerProfile(profile, status, values) {
+  requireProfileScope(profile, "alumni", "update a career profile");
+  await requireCurrentUser(profile.uid);
+  if (!careerStatuses.includes(status)) throw new Error("Select a career status.");
+  await updateDoc(doc(db, profileCollection, profile.uid), {
+    careerStatus: status,
+    careerProfile: cleanCareerProfile(status, values),
+    updatedAt: serverTimestamp()
+  });
+  return getProfile(profile.uid);
+}
+
+export async function updateAlumniContactProfile(profile, values) {
+  requireProfileScope(profile, "alumni", "update contact links");
+  await requireCurrentUser(profile.uid);
+  const personalEmail = String(values?.personalEmail || "").trim().toLowerCase();
+  const linkedin = String(values?.linkedin || "").trim();
+  if (personalEmail.length > 160) throw new Error("Personal email is too long.");
+  if (personalEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalEmail)) throw new Error("Enter a valid personal email.");
+  if (linkedin.length > 300) throw new Error("LinkedIn URL is too long.");
+  if (linkedin) {
+    let parsed;
+    try { parsed = new URL(linkedin); } catch (_error) { throw new Error("Enter a valid LinkedIn URL."); }
+    if (parsed.protocol !== "https:" || !/(^|\.)linkedin\.com$/i.test(parsed.hostname)) throw new Error("Use an HTTPS linkedin.com profile URL.");
+  }
+  await updateDoc(doc(db, profileCollection, profile.uid), {
+    personalEmail,
+    linkedin,
+    updatedAt: serverTimestamp()
+  });
+  return getProfile(profile.uid);
+}
+
+export async function listAlumniAchievements(profile) {
+  requireProfileScope(profile, "alumni", "load achievements");
+  await requireCurrentUser(profile.uid);
+  const snapshots = await getDocs(query(collection(db, achievementsCollection), where("ownerUid", "==", profile.uid)));
+  return snapshots.docs.map((item) => ({ id: item.id, ...item.data(), created_at: timestampIso(item.data().createdAt) }))
+    .sort((a, b) => Number(b.year || 0) - Number(a.year || 0));
+}
+
+export async function addAlumniAchievement(profile, values) {
+  requireProfileScope(profile, "alumni", "add achievements");
+  await requireCurrentUser(profile.uid);
+  const types = ["Certification", "Award", "Higher Studies", "Professional Achievement", "Other"];
+  const title = String(values?.title || "").trim().replace(/\s+/g, " ").slice(0, 120);
+  const description = String(values?.description || "").trim().replace(/\s+/g, " ").slice(0, 500);
+  const type = String(values?.type || "");
+  const year = Number(values?.year);
+  if (!title) throw new Error("Enter an achievement title.");
+  if (!types.includes(type)) throw new Error("Select a valid achievement type.");
+  if (!Number.isInteger(year) || year < 1950 || year > 2100) throw new Error("Enter a valid achievement year.");
+  const id = `${profile.uid}_${nowId()}`;
+  await setDoc(doc(db, achievementsCollection, id), { ownerUid: profile.uid, title, type, description, year, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+}
+
+export async function deleteAlumniAchievement(profile, achievementId) {
+  requireProfileScope(profile, "alumni", "remove achievements");
+  await requireCurrentUser(profile.uid);
+  const achievementRef = doc(db, achievementsCollection, achievementId);
+  const snapshot = await getDoc(achievementRef);
+  if (!snapshot.exists() || snapshot.data().ownerUid !== profile.uid) throw new Error("Achievement not found.");
+  await deleteDoc(achievementRef);
+}
+
 export async function listTeacherStudents(profile, filter = "") {
   requireProfileScope(profile, "teacher", "load students");
   const [students, academicDocs] = await Promise.all([
@@ -913,10 +1301,11 @@ async function listTeacherStudentProfiles(profile) {
 
 export async function getTeacherDashboardSummary(profile) {
   requireProfileScope(profile, "teacher", "load dashboard summary");
-  const [students, documents, customTitles] = await Promise.all([
+  const [students, documents, customTitles, batches] = await Promise.all([
     listTeacherStudentProfiles(profile),
     listTeacherAcademicDocuments(profile),
-    listAcademicTitles(profile)
+    listAcademicTitles(profile),
+    listTeacherBatches(profile)
   ]);
   const titleCount = new Set([
     ...DEFAULT_ACADEMIC_TITLES,
@@ -925,7 +1314,10 @@ export async function getTeacherDashboardSummary(profile) {
   return {
     studentCount: students.length,
     academicCount: documents.length,
-    titleCount
+    titleCount,
+    currentBatchCount: batches.filter((batch) => batch.status === "active").length,
+    previousBatchCount: batches.filter((batch) => ["graduated", "archived"].includes(batch.status)).length,
+    alumniCount: batches.reduce((count, batch) => count + batch.alumniCount, 0)
   };
 }
 
@@ -933,10 +1325,22 @@ export async function getTeacherStudentDetail(profile, studentUid) {
   requireProfileScope(profile, "teacher", "load student details");
   const student = await getProfile(studentUid);
   if (!student || student.role !== "student") throw new Error("Student not found.");
-  if (student.departmentKey !== profile.departmentKey || student.year !== profile.year) {
-    throw new Error("You can view only matching department and year students.");
+  const legacyScope = student.departmentKey === profile.departmentKey && student.year === profile.year;
+  const assignedScope = student.batchId
+    ? (await requireAssignedBatch(profile, student.batchId).catch(() => null)) !== null
+    : false;
+  if (!legacyScope && !assignedScope) {
+    throw new Error("You can view only students in your authorized scope or assigned batches.");
   }
-  const documents = (await listTeacherAcademicDocuments(profile)).filter((item) => item.ownerId === studentUid);
+  const documentResults = await Promise.allSettled([
+    getDocs(query(collection(db, documentsCollection), where("category", "==", "academic"), where("departmentKey", "==", student.departmentKey), where("year", "==", student.year))),
+    getDocs(query(collection(db, documentsCollection), where("category", "==", "academic"), where("department", "==", student.department), where("year", "==", student.year)))
+  ]);
+  const documentSnapshots = documentResults.filter((result) => result.status === "fulfilled").map((result) => result.value);
+  if (!documentSnapshots.length) throw documentResults[0].reason;
+  const documents = uniqueById(documentSnapshots.flatMap((snapshot) => snapshot.docs.map(documentFromDoc)))
+    .filter((item) => item.ownerId === studentUid)
+    .sort((a, b) => String(b.uploaded_at).localeCompare(String(a.uploaded_at)));
   return { student, documents };
 }
 
@@ -972,8 +1376,13 @@ export async function deleteTeacherAcademicDocument(profile, documentIdValue) {
   if (!snapshot.exists()) throw new Error("Document not found.");
   const data = snapshot.data();
   const matchingDepartment = data.departmentKey === profile.departmentKey || data.department === profile.department;
-  if (data.category !== "academic" || !matchingDepartment || data.year !== profile.year) {
-    throw new Error("You can delete only matching academic documents.");
+  const legacyScope = matchingDepartment && data.year === profile.year;
+  const inferredBatchId = data.batchId || (data.departmentKey && data.year ? `${data.departmentKey}_${data.year}` : "");
+  const assignedScope = inferredBatchId
+    ? (await requireAssignedBatch(profile, inferredBatchId).catch(() => null)) !== null
+    : false;
+  if (data.category !== "academic" || (!legacyScope && !assignedScope)) {
+    throw new Error("You can delete only academic documents from an authorized batch.");
   }
   await deleteChunks(docRef, fileChunksCollection);
   await deleteDoc(docRef);

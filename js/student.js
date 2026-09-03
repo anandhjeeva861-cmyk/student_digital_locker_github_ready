@@ -57,6 +57,8 @@ function fillProfile() {
   text("studentRegNo", profile.reg_no);
   text("studentEmail", profile.email);
   text("studentYear", profile.year);
+  text("studentBatch", profile.batchId ? (profile.batch || profile.year) : "Not assigned");
+  text("studentGraduationYear", profile.graduationYear || "Not available");
   text("studentDepartment", profile.department);
   text("studentMobile", profile.mobile);
   const avatar = document.getElementById("studentAvatar");

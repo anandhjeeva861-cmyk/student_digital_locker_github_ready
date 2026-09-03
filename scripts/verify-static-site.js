@@ -17,6 +17,7 @@ const requiredFiles = [
   "js/options.js",
   "js/auth.js",
   "js/student.js",
+  "js/alumni.js",
   "js/teacher.js",
   "scripts/local-server.js",
   ".firebaserc",
@@ -29,6 +30,8 @@ const requiredFiles = [
   "teacher-login.html",
   "teacher-register.html",
   "student-dashboard.html",
+  "alumni-login.html",
+  "alumni-dashboard.html",
   "teacher-dashboard.html"
 ];
 
@@ -47,10 +50,12 @@ const htmlFiles = [
   "teacher-login.html",
   "teacher-register.html",
   "student-dashboard.html",
+  "alumni-login.html",
+  "alumni-dashboard.html",
   "teacher-dashboard.html"
 ];
 
-const jsFiles = ["js/firebase.js", "js/firebase-service.js", "js/dashboard-nav.js", "js/options.js", "js/auth.js", "js/student.js", "js/teacher.js", "js/validation.js"];
+const jsFiles = ["js/firebase.js", "js/firebase-service.js", "js/dashboard-nav.js", "js/options.js", "js/auth.js", "js/student.js", "js/teacher.js", "js/alumni.js", "js/validation.js"];
 const failures = [];
 
 const trackedFiles = execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" })
@@ -155,7 +160,7 @@ if (!/import\((?:["']\.\/firebase-config\.js["']|firebaseConfigUrl)\)/.test(fire
   failures.push("js/firebase.js must load the generated Firebase browser config.");
 }
 
-for (const file of ["student-login.html", "teacher-login.html"]) {
+for (const file of ["student-login.html", "teacher-login.html", "alumni-login.html"]) {
   const content = fs.readFileSync(path.join(process.cwd(), file), "utf8");
   if (!/<script\s+type="module"\s+src="\.\/js\/auth\.js"><\/script>/.test(content)) {
     failures.push(`${file} must load ./js/auth.js as a JavaScript module.`);

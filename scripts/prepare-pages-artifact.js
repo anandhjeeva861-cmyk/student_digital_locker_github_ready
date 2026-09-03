@@ -12,6 +12,8 @@ const files = [
   "student-login.html",
   "student-register.html",
   "student-dashboard.html",
+  "alumni-login.html",
+  "alumni-dashboard.html",
   "teacher-login.html",
   "teacher-register.html",
   "teacher-dashboard.html"

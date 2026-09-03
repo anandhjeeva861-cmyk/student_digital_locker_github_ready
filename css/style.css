@@ -107,7 +107,7 @@ a {
     text-decoration: none;
 }
 
-button, input, select {
+button, input, select, textarea {
     font: inherit;
 }
 
@@ -131,7 +131,7 @@ button.welcome {
     background: transparent;
 }
 
-input, select {
+input, select, textarea {
     width: 100%;
     border: 1px solid var(--line);
     border-radius: 14px;
@@ -143,7 +143,12 @@ input, select {
     transition: border 0.2s, box-shadow 0.2s, transform 0.2s, background 0.2s;
 }
 
-input:focus, select:focus {
+textarea {
+    min-height: 112px;
+    resize: vertical;
+}
+
+input:focus, select:focus, textarea:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 4px var(--ring), inset 0 1px 0 rgba(255, 255, 255, 0.55);
     transform: translateY(-1px);
@@ -258,7 +263,7 @@ label {
 }
 
 .login-choice-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     margin-top: 34px;
 }
 
@@ -302,6 +307,10 @@ label {
 
 .teacher-card::after {
     background: rgba(0, 166, 166, 0.14);
+}
+
+.alumni-card::after {
+    background: rgba(178, 106, 0, 0.14);
 }
 
 .choice-card:hover, .stat-card:hover {
@@ -351,6 +360,20 @@ label {
 .auth-note a, .back-link {
     color: var(--primary);
     font-weight: 800;
+}
+
+.portal-action {
+    margin: 16px 0 0;
+    text-align: center;
+}
+
+.portal-action a {
+    display: inline-flex;
+    padding: 10px 14px;
+    border: 1px solid var(--primary);
+    border-radius: 12px;
+    color: var(--primary);
+    font-weight: 900;
 }
 
 .link-button {
@@ -583,6 +606,10 @@ label {
     background: linear-gradient(180deg, rgba(0, 130, 136, 0.95), rgba(13, 86, 157, 0.94));
 }
 
+.alumni-side {
+    background: linear-gradient(180deg, rgba(146, 85, 8, 0.96), rgba(11, 104, 145, 0.94));
+}
+
 .brand {
     display: flex;
     align-items: center;
@@ -794,6 +821,11 @@ body.menu-open {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.alumni-stats,
+.teacher-stats {
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
 .stat-card {
     position: relative;
     overflow: hidden;
@@ -839,11 +871,24 @@ body.menu-open {
     margin-bottom: 24px;
 }
 
+.form-card-wide {
+    max-width: 860px;
+}
+
+.career-fields {
+    margin-top: 18px;
+}
+
 .upload-card, .table-card, .detail-card, .profile-photo-card, .search-card, .status-card {
     padding: 24px;
     position: relative;
     overflow: hidden;
     animation: rise 0.45s ease both;
+}
+
+.stat-card .stat-value {
+    font-size: clamp(1.25rem, 2.5vw, 2rem);
+    overflow-wrap: anywhere;
 }
 
 .soft-card {
@@ -924,6 +969,10 @@ body.menu-open {
     margin-top: 24px;
 }
 
+.no-top-margin {
+    margin-top: 0;
+}
+
 .card-title-row {
     display: flex;
     align-items: center;
@@ -1000,6 +1049,99 @@ tbody tr {
     color: var(--danger);
     background: rgba(217, 54, 54, 0.10);
     border-color: rgba(217, 54, 54, 0.16);
+}
+
+.small-btn.success {
+    color: var(--success);
+    background: rgba(11, 143, 85, 0.10);
+    border-color: rgba(11, 143, 85, 0.18);
+}
+
+.small-btn:disabled,
+.primary-btn:disabled,
+.secondary-btn:disabled {
+    cursor: wait;
+    opacity: 0.62;
+    transform: none;
+}
+
+.batch-grid,
+.record-list {
+    display: grid;
+    gap: 16px;
+}
+
+.batch-grid {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.batch-card,
+.record-card {
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--panel-solid), transparent 5%);
+}
+
+.batch-card h3,
+.record-card h3 {
+    margin: 0 0 12px;
+}
+
+.batch-meta {
+    display: grid;
+    gap: 8px;
+    margin: 0 0 16px;
+    color: var(--muted);
+}
+
+.batch-meta b {
+    color: var(--text);
+}
+
+.batch-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.section-stack {
+    display: grid;
+    gap: 24px;
+}
+
+.confirmation-details {
+    display: grid;
+    gap: 8px;
+    margin: 18px 0;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: rgba(11, 104, 209, 0.06);
+}
+
+.dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.dialog-actions .primary-btn {
+    width: auto;
+    margin-top: 0;
+}
+
+.status-badge {
+    display: inline-flex;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(11, 143, 85, 0.1);
+    color: var(--success);
+    font-size: 0.74rem;
+    font-weight: 900;
+    text-transform: uppercase;
 }
 
 .pill-wrap {
@@ -1081,6 +1223,18 @@ tbody tr {
     background: rgba(11, 104, 209, 0.07);
     font-weight: 800;
     transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.filter-form {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(150px, 1fr)) auto;
+    gap: 12px;
+    align-items: end;
+}
+
+.filter-form .primary-btn {
+    width: auto;
+    margin-top: 0;
 }
 
 .name-list li:hover {
@@ -1226,6 +1380,9 @@ tbody tr {
     .stats-grid, .workspace-grid, .profile-layout, .status-grid {
         grid-template-columns: 1fr;
     }
+    .filter-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 720px) {
@@ -1250,6 +1407,9 @@ tbody tr {
         grid-column: auto;
     }
     .search-form {
+        grid-template-columns: 1fr;
+    }
+    .filter-form {
         grid-template-columns: 1fr;
     }
     .topbar {

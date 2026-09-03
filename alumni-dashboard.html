@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Alumni Digital Locker dashboard for lifelong document access, career details, achievements, and profile information.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://anandhjeeva861-cmyk.github.io/student_digital_locker_github_ready/alumni-dashboard.html">
+  <link rel="icon" type="image/png" href="./images/sankara-logo.png">
+  <title>Alumni Dashboard | Student Digital Locker</title>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar alumni-side" id="dashboardSidebar">
+      <div class="brand"><img class="brand-logo" src="./images/sankara-logo.png" alt="Sankara Educational Institutions logo"><div><b>ALUMNI</b><small>DIGITAL LOCKER</small></div></div>
+      <nav aria-label="Alumni portal navigation">
+        <button type="button" class="nav-link" data-open-view="dashboard">DASHBOARD</button>
+        <button type="button" class="nav-link" data-open-view="documents">MY DOCUMENTS</button>
+        <button type="button" class="nav-link" data-open-view="career">CAREER PROFILE</button>
+        <button type="button" class="nav-link" data-open-view="achievements">ACHIEVEMENTS</button>
+        <button type="button" class="nav-link" data-open-view="profile">MY PROFILE</button>
+        <button type="button" class="nav-link danger-link" data-logout>LOGOUT</button>
+      </nav>
+    </aside>
+    <div class="menu-backdrop" data-menu-close></div>
+    <main class="main-panel">
+      <header class="topbar">
+        <button type="button" class="menu-toggle" data-menu-toggle aria-controls="dashboardSidebar" aria-expanded="false">☰ MENU</button>
+        <button type="button" class="welcome" data-open-view="dashboard">WELCOME, <span id="welcomeName">ALUMNI</span></button>
+        <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
+      </header>
+
+      <section data-view="dashboard">
+        <div class="page-head"><div><p class="eyebrow">ALUMNI PORTAL</p><h1>Dashboard</h1><p class="muted">Your student documents remain available under the same account.</p></div></div>
+        <div class="stats-grid alumni-stats">
+          <div class="stat-card"><span>REGISTER NUMBER</span><strong class="stat-value" id="dashboardRegNo">—</strong><small>Your institutional identifier</small></div>
+          <div class="stat-card"><span>DEPARTMENT</span><strong class="stat-value" id="dashboardDepartment">—</strong><small>Graduated department</small></div>
+          <div class="stat-card"><span>BATCH</span><strong class="stat-value" id="dashboardBatch">—</strong><small>Admission to graduation</small></div>
+          <button type="button" class="stat-card important" data-open-view="documents"><span>TOTAL DOCUMENTS</span><strong id="dashboardDocumentCount">0</strong><small>Preserved from your Student account</small></button>
+          <button type="button" class="stat-card" data-open-view="career"><span>CAREER STATUS</span><strong class="stat-value" id="dashboardCareerStatus">NOT UPDATED</strong><small>Keep your career journey current</small></button>
+        </div>
+        <div class="info-strip"><b>Graduation year:</b> <span id="dashboardGraduationYear">Not available</span>. Your Firebase account, UID, and document ownership have not changed.</div>
+      </section>
+
+      <section data-view="documents" hidden>
+        <div class="page-head"><div><p class="eyebrow">MY DOCUMENTS</p><h1>Lifelong Document Locker</h1><p class="muted">View, download, add, or remove documents owned by your unchanged account UID.</p></div></div>
+        <div class="workspace-grid">
+          <div class="upload-card"><h2>Add Document</h2><form class="stack-form" id="alumniDocumentForm"><label for="alumniDocumentCategory">Category</label><select id="alumniDocumentCategory" name="category" required><option value="online">Online</option><option value="personal">Personal</option><option value="academic">Academic</option></select><label for="alumniDocumentTitle">Document Title</label><input id="alumniDocumentTitle" name="title" maxlength="120" required><label for="alumniDocumentFile">Document</label><input id="alumniDocumentFile" type="file" name="document" required><button class="primary-btn" type="submit">SAVE</button></form></div>
+          <div class="upload-card soft-card"><h2>Document Privacy</h2><p class="muted">Online and personal documents remain private. Academic documents retain the existing authorized-teacher access policy.</p><div class="pill-wrap"><span class="pill">ONLINE</span><span class="pill">PERSONAL</span><span class="pill">ACADEMIC</span></div></div>
+        </div>
+        <div class="table-card"><div class="card-title-row"><h2>Stored Documents</h2><span id="alumniDocumentCount">0 documents</span></div><div class="responsive-table"><table><thead><tr><th>Document Name</th><th>Category</th><th>File</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody id="alumniDocumentRows"></tbody></table></div><div class="empty-state" id="alumniDocumentEmpty">No documents stored yet.</div></div>
+      </section>
+
+      <section data-view="career" hidden>
+        <div class="page-head"><div><p class="eyebrow">CAREER PROFILE</p><h1>Career Information</h1><p class="muted">You control this information. Authorized teachers can view it but cannot edit it.</p></div></div>
+        <div class="upload-card form-card-wide">
+          <form class="stack-form" id="careerForm">
+            <label for="careerStatus">Career Status</label>
+            <select id="careerStatus" name="careerStatus" required>
+              <option value="not_updated">Select status</option>
+              <option value="employed">Employed</option>
+              <option value="higher_studies">Higher Studies</option>
+              <option value="entrepreneur">Entrepreneur</option>
+              <option value="seeking_opportunity">Seeking Opportunity</option>
+              <option value="other">Other</option>
+            </select>
+            <div class="form-grid career-fields" data-career-fields="employed" hidden><div><label for="careerCompany">Company</label><input id="careerCompany" name="company" maxlength="100"></div><div><label for="careerJobTitle">Job Title</label><input id="careerJobTitle" name="jobTitle" maxlength="100"></div><div><label for="careerEmploymentLocation">Location</label><input id="careerEmploymentLocation" name="employmentLocation" maxlength="100"></div><div><label for="careerJoiningYear">Joining Year</label><input id="careerJoiningYear" name="joiningYear" type="number" min="1950" max="2100"></div></div>
+            <div class="form-grid career-fields" data-career-fields="higher_studies" hidden><div><label for="careerInstitution">Institution</label><input id="careerInstitution" name="institution" maxlength="120"></div><div><label for="careerCourse">Course</label><input id="careerCourse" name="course" maxlength="120"></div><div><label for="careerStudyLocation">Location</label><input id="careerStudyLocation" name="studyLocation" maxlength="100"></div><div><label for="careerStudyJoiningYear">Joining Year</label><input id="careerStudyJoiningYear" name="studyJoiningYear" type="number" min="1950" max="2100"></div></div>
+            <div class="form-grid career-fields" data-career-fields="entrepreneur" hidden><div><label for="careerBusinessName">Business Name</label><input id="careerBusinessName" name="businessName" maxlength="120"></div><div><label for="careerBusinessRole">Role</label><input id="careerBusinessRole" name="businessRole" maxlength="100"></div><div><label for="careerBusinessLocation">Location</label><input id="careerBusinessLocation" name="businessLocation" maxlength="100"></div><div><label for="careerStartedYear">Started Year</label><input id="careerStartedYear" name="startedYear" type="number" min="1950" max="2100"></div></div>
+            <div class="career-fields" data-career-fields="seeking_opportunity" hidden><label for="careerAreaOfInterest">Area of Interest</label><input id="careerAreaOfInterest" name="areaOfInterest" maxlength="160"></div>
+            <div class="career-fields" data-career-fields="other" hidden><label for="careerDescription">Description</label><textarea id="careerDescription" name="description" maxlength="500"></textarea></div>
+            <button class="primary-btn" type="submit">SAVE CAREER PROFILE</button>
+          </form>
+        </div>
+      </section>
+
+      <section data-view="achievements" hidden>
+        <div class="page-head"><div><p class="eyebrow">ACHIEVEMENTS</p><h1>Achievement History</h1><p class="muted">Keep a simple record of milestones without creating a second document locker.</p></div></div>
+        <div class="workspace-grid">
+          <div class="upload-card"><h2>Add Achievement</h2><form class="stack-form" id="achievementForm"><label for="achievementTitle">Title</label><input id="achievementTitle" name="title" maxlength="120" required><label for="achievementType">Type</label><select id="achievementType" name="type" required><option value="Certification">Certification</option><option value="Award">Award</option><option value="Higher Studies">Higher Studies</option><option value="Professional Achievement">Professional Achievement</option><option value="Other">Other</option></select><label for="achievementDescription">Description</label><textarea id="achievementDescription" name="description" maxlength="500"></textarea><label for="achievementYear">Year</label><input id="achievementYear" name="year" type="number" min="1950" max="2100" required><button class="primary-btn" type="submit">ADD ACHIEVEMENT</button></form></div>
+          <div class="table-card no-top-margin"><div class="card-title-row"><h2>Saved Achievements</h2></div><div id="achievementList" class="record-list"></div><div class="empty-state" id="achievementEmpty">No achievements added yet.</div></div>
+        </div>
+      </section>
+
+      <section data-view="profile" hidden>
+        <div class="page-head"><div><p class="eyebrow">MY PROFILE</p><h1>Alumni Details</h1><p class="muted">Institutional identity fields are read-only.</p></div></div>
+        <div class="profile-layout">
+          <div class="detail-card">
+            <div class="detail-row"><span>Name</span><b id="alumniName">—</b></div><div class="detail-row"><span>Register Number</span><b id="alumniRegNo">—</b></div><div class="detail-row"><span>Department</span><b id="alumniDepartment">—</b></div><div class="detail-row"><span>Batch</span><b id="alumniBatch">—</b></div><div class="detail-row"><span>Graduation Year</span><b id="alumniGraduationYear">—</b></div><div class="detail-row"><span>Login Email</span><b id="alumniEmail">—</b></div><div class="detail-row"><span>Mobile</span><b id="alumniMobile">—</b></div>
+          </div>
+          <div class="upload-card"><h2>Contact Links</h2><form class="stack-form" id="alumniProfileForm"><label for="alumniPersonalEmail">Personal Email</label><input id="alumniPersonalEmail" name="personalEmail" type="email" maxlength="160" autocomplete="email"><small class="field-help">This does not change your Firebase Authentication login email.</small><label for="alumniLinkedin">LinkedIn URL</label><input id="alumniLinkedin" name="linkedin" type="url" maxlength="300" placeholder="https://www.linkedin.com/in/your-name"><button class="primary-btn" type="submit">SAVE CONTACT LINKS</button></form></div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="./js/darkmode.js"></script>
+  <script type="module" src="./js/dashboard-nav.js"></script>
+  <script type="module" src="./js/auth.js"></script>
+  <script type="module" src="./js/alumni.js"></script>
+</body>
+</html>

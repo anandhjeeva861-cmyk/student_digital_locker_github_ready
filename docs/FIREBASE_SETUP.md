@@ -4,7 +4,7 @@ Student Digital Locker uses Firebase directly from the static GitHub Pages front
 
 ## Services
 
-- Firebase Authentication: student and teacher email/password login.
+- Firebase Authentication: student, teacher, and converted Alumni email/password login.
 - Cloud Firestore: profiles, academic titles, document metadata, profile photo chunks, and uploaded document chunks.
 - Firebase Storage: not required. The included Storage rules deny all reads and writes.
 - Analytics: initialized only when the browser supports it.
@@ -104,7 +104,7 @@ Department values are shared from `js/options.js`. New registrations must enter 
 
 ## Firestore Collections
 
-- `profiles`: student and teacher profile records keyed by Firebase Auth UID.
+- `profiles`: student, teacher, and converted Alumni profile records keyed by Firebase Auth UID.
 - `profiles/{uid}/photoChunks`: profile photo base64 chunks stored in Firestore.
 - `documents`: uploaded certificate metadata.
 - `documents/{documentId}/fileChunks`: uploaded certificate base64 chunks stored in Firestore.
@@ -112,6 +112,35 @@ Department values are shared from `js/options.js`. New registrations must enter 
 - `uniqueMobileNumbers`: mobile uniqueness guard.
 - `uniqueRegisterNumbers`: student register number uniqueness guard.
 - `uniqueTeacherScopes`: one teacher per department and academic year guard.
+- `batches`: batch identity, department, admission/graduation years, status, and `assignedTeacherUid`.
+- `alumniConversions`: immutable Student-to-Alumni conversion audit records.
+- `batchGraduations`: immutable batch graduation audit records.
+- `achievements`: Alumni-owned achievement metadata.
+
+## Batch and Alumni Security
+
+Deploy the rules and indexes before using Batch Management. Teachers can read and manage only batches whose `assignedTeacherUid` is their Firebase UID. Existing students are assigned manually and only when department and academic-year range exactly match the batch. Graduation is allowed only after January 1 of the stored graduation year and changes the existing profile role; it does not modify Firebase Authentication or document ownership.
+
+Bulk graduation is an atomic client write capped at 200 students. Rules verify the assigned teacher, active status, graduation date, allowed profile field diff, and required audit write, but Firestore rules cannot prove that a client-supplied batch includes every profile returned by a separate cohort query. For larger cohorts, multi-teacher authorization, approval chains, or institutionally authoritative completeness, implement a callable Cloud Function/Admin SDK transaction and deny direct client role conversion after that backend is deployed.
+
+Batch documents use deterministic IDs such as `BSCCS_2023-2026` and contain:
+
+```text
+batchId, department, departmentKey, courseName
+admissionYear, graduationYear, batchLabel
+status: active | graduated | archived
+assignedTeacherUid, createdAt, updatedAt
+graduatedAt, graduatedBy (after graduation)
+```
+
+New Student profiles store the reliable years parsed from the Student-entered academic range (`batch`, `admissionYear`, `graduationYear`) but deliberately do not create a `batchId`. The Teacher Batch Management screen performs that association explicitly.
+
+For existing data:
+
+1. Create the correct department batch in the Teacher portal.
+2. Use **Assign Existing Students**. Only unassigned `role: student` records with an exact department and `YYYY-YYYY` match are offered.
+3. A missing `departmentKey` can be deterministically restored from a recognized department during explicit assignment. Do not infer a batch for records that contain only `I`, `II`, or `III`, an unrecognized department, or another ambiguous year; an administrator must first verify and repair those institutional fields and any matching academic-document metadata.
+4. After assignment, verify the batch roster before graduation. Graduation preserves UID, login credentials, profile history, document records, and file chunks.
 
 ## Uploaded File Data
 

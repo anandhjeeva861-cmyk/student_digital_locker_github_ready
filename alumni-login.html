@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sign in to the Student Digital Locker alumni portal using your converted student account.">
+  <meta name="robots" content="noindex, follow">
+  <link rel="canonical" href="https://anandhjeeva861-cmyk.github.io/student_digital_locker_github_ready/alumni-login.html">
+  <link rel="icon" type="image/png" href="./images/sankara-logo.png">
+  <title>Alumni Login | Student Digital Locker</title>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <section class="auth-wrap">
+    <form class="auth-card animate-pop" id="alumniLoginForm" method="post" action="./alumni-login.html">
+      <a href="./index.html" class="back-link">← Back</a>
+      <img class="site-logo auth-logo" src="./images/sankara-logo.png" alt="Sankara Educational Institutions logo">
+      <h1>ALUMNI LOGIN</h1>
+      <p class="auth-note">Use the same email and password from your converted Student account.</p>
+      <label for="alumniLoginEmail">Email</label>
+      <input id="alumniLoginEmail" type="email" name="email" placeholder="alumni@example.com" autocomplete="username" required>
+      <label for="alumniLoginPassword">Password</label>
+      <input id="alumniLoginPassword" type="password" name="password" placeholder="Enter password" autocomplete="current-password" required>
+      <button class="primary-btn" type="submit">LOGIN</button>
+      <p class="portal-action" id="alumniPortalAction" hidden><a href="./student-login.html">GO TO STUDENT LOGIN</a></p>
+      <button class="link-button" type="button" data-forgot-password="#alumniRecoveryDialog">Forgot Password?</button>
+      <p class="auth-note">Alumni accounts are created only when an authorized teacher graduates a Student account.</p>
+    </form>
+    <dialog class="recovery-dialog" id="alumniRecoveryDialog" aria-labelledby="alumniRecoveryTitle">
+      <div class="recovery-panel">
+        <button class="dialog-close" type="button" data-recovery-close aria-label="Close password recovery">×</button>
+        <h2 id="alumniRecoveryTitle">RESET PASSWORD</h2>
+        <div data-recovery-step="email">
+          <p class="recovery-intro">Enter the email used for your account.</p>
+          <form data-recovery-email-form method="post" action="./alumni-login.html">
+            <label for="alumniRecoveryEmail">Registered Email</label>
+            <input id="alumniRecoveryEmail" type="email" name="recoveryEmail" placeholder="alumni@example.com" autocomplete="email" required>
+            <button class="primary-btn" type="submit">SHOW RECOVERY QUESTION</button>
+          </form>
+        </div>
+        <div data-recovery-step="answer" hidden>
+          <p class="recovery-label">Your recovery question</p>
+          <p class="recovery-question" data-recovery-question aria-live="polite"></p>
+          <form data-recovery-answer-form method="post" action="./alumni-login.html">
+            <label for="alumniRecoveryLoginAnswer">Recovery Answer</label>
+            <input id="alumniRecoveryLoginAnswer" type="password" name="recoveryAnswer" placeholder="Enter your answer" autocomplete="off" required minlength="2" maxlength="100">
+            <button class="primary-btn" type="submit">SEND RESET LINK</button>
+            <button class="link-button" type="button" data-recovery-back>Use a different email</button>
+          </form>
+        </div>
+      </div>
+    </dialog>
+  </section>
+  <script type="module" src="./js/darkmode.js"></script>
+  <script type="module" src="./js/auth.js"></script>
+</body>
+</html>

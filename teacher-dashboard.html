@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Teacher Digital Locker dashboard for reviewing students and academic certificate submission status.">
+  <meta name="description" content="Teacher Digital Locker dashboard for assigned batch management, graduation, Alumni records, students, and academic submission status.">
   <meta name="robots" content="noindex, nofollow">
   <link rel="canonical" href="https://anandhjeeva861-cmyk.github.io/student_digital_locker_github_ready/teacher-dashboard.html">
   <link rel="icon" type="image/png" href="./images/sankara-logo.png">
@@ -18,6 +18,8 @@
         <button type="button" class="nav-link" data-open-view="dashboard">DASHBOARD</button>
         <button type="button" class="nav-link" data-open-view="profile">PROFILE</button>
         <button type="button" class="nav-link" data-open-view="students">STUDENT LIST</button>
+        <button type="button" class="nav-link" data-open-view="batches">BATCH MANAGEMENT</button>
+        <button type="button" class="nav-link" data-open-view="alumni">ALUMNI LIST</button>
         <button type="button" class="nav-link" data-open-view="status">DOCUMENT SUBMISSION STATUS</button>
         <button type="button" class="nav-link" data-open-view="add-title">ADD STUDENT DOCUMENT TITLE</button>
         <button type="button" class="nav-link remove-account-link" data-remove-account>REMOVE ACCOUNT</button>
@@ -34,10 +36,13 @@
 
       <section data-view="dashboard">
         <div class="page-head"><div><p class="eyebrow">TEACHER PORTAL</p><h1>Dashboard</h1><p class="muted">Access is limited to <span id="teacherScope"></span> students.</p></div></div>
-        <div class="stats-grid">
+        <div class="stats-grid teacher-stats">
           <button type="button" class="stat-card" data-open-view="students"><span>STUDENT LIST</span><strong id="studentCount">0</strong><small>Same department and academic year</small></button>
           <button type="button" class="stat-card important" data-open-view="status"><span>ACADEMIC DOCUMENTS</span><strong id="academicCount">0</strong><small>Uploaded certificates</small></button>
           <button type="button" class="stat-card" data-open-view="add-title"><span>DOCUMENT TITLES</span><strong id="titleCount">0</strong><small>Default + teacher-added</small></button>
+          <button type="button" class="stat-card" data-open-view="batches"><span>CURRENT BATCHES</span><strong id="currentBatchCount">0</strong><small>Assigned active batches</small></button>
+          <button type="button" class="stat-card" data-open-view="batches"><span>PREVIOUS BATCHES</span><strong id="previousBatchCount">0</strong><small>Graduated or archived batches</small></button>
+          <button type="button" class="stat-card" data-open-view="alumni"><span>TOTAL ALUMNI</span><strong id="alumniCount">0</strong><small>From assigned batches only</small></button>
         </div>
       </section>
 
@@ -56,6 +61,34 @@
         <div class="page-head"><div><p class="eyebrow">STUDENT LIST</p><h1>Students</h1><p class="muted">Showing only same department and same academic year students.</p></div></div>
         <div class="search-card"><form class="search-form" id="searchForm"><label class="visually-hidden" for="studentSearch">Search students</label><input id="studentSearch" name="q" placeholder="Search by student name or reg no"><button class="primary-btn" type="submit">SEARCH</button></form></div>
         <div class="table-card"><div class="card-title-row"><h2>Students</h2></div><div class="responsive-table"><table><thead><tr><th>Name</th><th>Reg No</th><th>Department</th><th>Academic Year</th><th>Academic Files</th><th>Action</th></tr></thead><tbody id="studentRows"></tbody></table></div><div class="empty-state" id="studentEmpty">No matching student found.</div></div>
+      </section>
+
+      <section data-view="batches" hidden>
+        <div class="page-head"><div><p class="eyebrow">BATCH MANAGEMENT</p><h1>Student Batches</h1><p class="muted">Create batches for your department, explicitly assign matching legacy students, and graduate eligible final-year batches.</p></div></div>
+        <div class="section-stack">
+          <div class="workspace-grid">
+            <div class="upload-card"><h2>Create Batch</h2><form class="stack-form" id="createBatchForm"><label for="batchCourseName">Course Name</label><input id="batchCourseName" name="courseName" maxlength="120" placeholder="B.Sc Computer Science" required><label for="batchLabel">Batch</label><input id="batchLabel" name="batchLabel" data-academic-year placeholder="2023-2026" pattern="20[0-9]{2}-20[0-9]{2}" required><button class="primary-btn" type="submit">CREATE BATCH</button></form></div>
+            <div class="upload-card soft-card"><h2>Assign Existing Students</h2><form class="stack-form" id="assignBatchForm"><label for="assignmentBatch">Active Batch</label><select id="assignmentBatch" name="batchId" required><option value="">Select batch</option></select><label for="assignmentStudent">Unassigned Matching Student</label><select id="assignmentStudent" name="studentUid" required><option value="">Select student</option></select><small class="field-help">Only unassigned students whose department and academic-year range exactly match the selected batch are shown.</small><button class="primary-btn" type="submit">ASSIGN STUDENT</button></form></div>
+          </div>
+          <div class="table-card no-top-margin"><div class="card-title-row"><h2>Current Batches</h2></div><div class="batch-grid" id="currentBatchGrid"></div><div class="empty-state" id="currentBatchEmpty">No current batches assigned.</div></div>
+          <div class="table-card no-top-margin"><div class="card-title-row"><h2>Previous Batches</h2></div><div class="batch-grid" id="previousBatchGrid"></div><div class="empty-state" id="previousBatchEmpty">No previous batches yet.</div></div>
+        </div>
+      </section>
+
+      <section data-view="batch-detail" data-nav-view="batches" data-transient-view hidden>
+        <div class="page-head"><div><p class="eyebrow">BATCH DETAILS</p><h1 id="batchDetailLabel">Batch</h1><p class="muted" id="batchDetailSummary"></p></div></div>
+        <div class="table-card"><div class="card-title-row"><h2 id="batchMemberHeading">Students</h2><span id="batchMemberCount">0 members</span></div><div class="responsive-table"><table><thead><tr><th>Name</th><th>Register Number</th><th>Department</th><th>Batch</th><th>Status</th><th>Action</th></tr></thead><tbody id="batchMemberRows"></tbody></table></div><div class="empty-state" id="batchMemberEmpty">No members assigned to this batch.</div></div>
+      </section>
+
+      <section data-view="alumni" hidden>
+        <div class="page-head"><div><p class="eyebrow">ALUMNI LIST</p><h1>Alumni</h1><p class="muted">Only Alumni from batches assigned to you are available.</p></div></div>
+        <div class="search-card"><form class="filter-form" id="alumniSearchForm"><div><label for="alumniSearch">Name or Register Number</label><input id="alumniSearch" name="search" placeholder="Search Alumni"></div><div><label for="alumniBatchFilter">Batch</label><select id="alumniBatchFilter" name="batchId"><option value="">All authorized batches</option></select></div><div><label for="alumniGraduationFilter">Graduation Year</label><input id="alumniGraduationFilter" name="graduationYear" type="number" min="2000" max="2100"></div><div><label for="alumniCareerFilter">Career Status</label><select id="alumniCareerFilter" name="careerStatus"><option value="">All statuses</option><option value="not_updated">Not Updated</option><option value="employed">Employed</option><option value="higher_studies">Higher Studies</option><option value="entrepreneur">Entrepreneur</option><option value="seeking_opportunity">Seeking Opportunity</option><option value="other">Other</option></select></div><button class="primary-btn" type="submit">APPLY FILTERS</button></form></div>
+        <div class="table-card"><div class="card-title-row"><h2>Authorized Alumni</h2></div><div class="responsive-table"><table><thead><tr><th>Name</th><th>Register Number</th><th>Department</th><th>Batch</th><th>Graduation Year</th><th>Career Status</th><th>Action</th></tr></thead><tbody id="alumniRows"></tbody></table></div><div class="empty-state" id="alumniEmpty">No matching Alumni found.</div></div>
+      </section>
+
+      <section data-view="alumni-detail" data-nav-view="alumni" data-transient-view hidden>
+        <div class="page-head"><div><p class="eyebrow">ALUMNI DETAILS</p><h1 id="alumniDetailName">Alumni</h1><p class="muted">Career information is read-only. Private Personal and Online documents are not exposed.</p></div></div>
+        <div class="profile-layout"><div class="detail-card"><div class="detail-row"><span>Register Number</span><b id="alumniDetailRegNo">—</b></div><div class="detail-row"><span>Email</span><b id="alumniDetailEmail">—</b></div><div class="detail-row"><span>Department</span><b id="alumniDetailDepartment">—</b></div><div class="detail-row"><span>Batch</span><b id="alumniDetailBatch">—</b></div><div class="detail-row"><span>Graduation Year</span><b id="alumniDetailGraduationYear">—</b></div><div class="detail-row"><span>Graduated Date</span><b id="alumniDetailGraduatedAt">—</b></div></div><div class="detail-card"><div class="detail-row"><span>Career Status</span><b id="alumniDetailCareerStatus">—</b></div><div id="alumniCareerDetails" class="record-list"></div></div></div>
       </section>
 
       <section data-view="student-detail" data-nav-view="students" data-transient-view hidden>
@@ -94,6 +127,12 @@
       </section>
     </main>
   </div>
+  <dialog class="recovery-dialog" id="graduationDialog" aria-labelledby="graduationDialogTitle">
+    <div class="recovery-panel"><button class="dialog-close" type="button" data-graduation-cancel aria-label="Close graduation confirmation">×</button><h2 id="graduationDialogTitle">GRADUATE FINAL YEAR BATCH</h2><div class="confirmation-details"><div><b>Batch:</b> <span id="confirmBatchLabel"></span></div><div><b>Department:</b> <span id="confirmBatchDepartment"></span></div><div><b>Graduation Year:</b> <span id="confirmGraduationYear"></span></div><div><b>Eligible Students:</b> <span id="confirmStudentCount"></span></div></div><p class="muted">All eligible students will become Alumni. Their existing accounts and documents will be preserved.</p><div class="dialog-actions"><button type="button" class="secondary-btn" data-graduation-cancel>CANCEL</button><button type="button" class="primary-btn" id="confirmGraduationButton">GRADUATE STUDENTS</button></div></div>
+  </dialog>
+  <dialog class="recovery-dialog" id="studentConversionDialog" aria-labelledby="studentConversionTitle">
+    <div class="recovery-panel"><button class="dialog-close" type="button" data-conversion-cancel aria-label="Close conversion confirmation">×</button><h2 id="studentConversionTitle">CONVERT TO ALUMNI</h2><div class="confirmation-details"><div><b>Name:</b> <span id="convertStudentName"></span></div><div><b>Register Number:</b> <span id="convertStudentRegNo"></span></div><div><b>Batch:</b> <span id="convertStudentBatch"></span></div><div><b>Department:</b> <span id="convertStudentDepartment"></span></div><div><b>Graduation Year:</b> <span id="convertStudentGraduationYear"></span></div></div><p class="muted">The student's account and existing documents will be preserved.</p><div class="dialog-actions"><button type="button" class="secondary-btn" data-conversion-cancel>CANCEL</button><button type="button" class="primary-btn" id="confirmStudentConversionButton">CONVERT TO ALUMNI</button></div></div>
+  </dialog>
   <script type="module" src="./js/darkmode.js"></script>
   <script type="module" src="./js/dashboard-nav.js"></script>
   <script type="module" src="./js/auth.js"></script>

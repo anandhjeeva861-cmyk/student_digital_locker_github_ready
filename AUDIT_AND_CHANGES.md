@@ -1,5 +1,11 @@
 # Student Digital Locker Audit and Changes
 
+## Alumni and Batch Management Extension (September 2026)
+
+The application now supports the `alumni` lifecycle role without creating a second authentication account or changing document ownership. An assigned teacher can create explicit department batches, manually associate exact department/year matches, view Current and Previous batches, convert an eligible student, or atomically graduate an eligible batch of up to 200 active students. Conversion updates the existing `profiles/{uid}` document, creates immutable conversion audit records, and leaves all `documents.ownerId` values unchanged.
+
+The Alumni portal adds role-aware login, protected dashboard access, the existing three document categories, career profile editing, read-only institutional fields with safe contact-link updates, and simple achievements. Teachers can view career details only for Alumni in their assigned batches. Firestore rules compile successfully and enforce assigned-teacher batch access, graduation-year eligibility, protected profile fields, owner-only private documents, and immutable audit collections. Existing records without `batchId` are never guessed; they require explicit assignment, while legacy department/year access remains available only until an explicit matching batch controls that cohort.
+
 ## Scope
 
 The repository was reviewed as a plain HTML, CSS, and JavaScript application using Firebase Authentication, Cloud Firestore profiles/metadata, and Firestore subcollections for chunked file content. The active deployment workflow targets GitHub Pages and builds a static `dist` artifact.
@@ -167,6 +173,6 @@ The student dashboard used to call `refreshProfilePhoto()` automatically during 
 
 ## Remaining Limitations
 
-- Live Firebase student/teacher login, real profile upload/change/persistence, upload/view/download/delete, refresh persistence, and logout flows require valid owner-controlled student and teacher test accounts plus live Firestore data. No fake accounts or records were created, so those external-state tests remain for the owner or an authorized test environment. The repository currently supports replacing a profile image but has no explicit remove-photo control.
+- Live Firebase student/teacher/Alumni login, real profile upload/change/persistence, batch graduation, upload/view/download/delete, refresh persistence, and logout flows require valid owner-controlled accounts plus live Firestore test data. No fake accounts or records were created, so those external-state tests remain for the owner or an authorized test environment. The repository currently supports replacing a profile image but has no explicit remove-photo control.
 - `npm audit` reports two moderate findings for `uuid@8.3.2`, pulled transitively by the current latest `exceljs@4.4.0`. The advisory concerns UUID v3/v5/v6 calls with caller-provided buffers; this application uses ExcelJS only to create the submission workbook and does not expose those UUID APIs. npm's offered remediation is a breaking downgrade to `exceljs@3.4.0`, so it was not applied without a supported upstream fix.
 - The repository's configured production workflow and remote identify GitHub Pages, not Vercel. All application paths remain static and relative, but the canonical/sitemap URLs intentionally match the configured GitHub Pages site. If a different Vercel production domain is authoritative, the owner must provide it before those SEO URLs should be changed.

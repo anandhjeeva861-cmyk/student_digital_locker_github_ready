@@ -14,7 +14,14 @@ import { RECOVERY_QUESTIONS } from "./options.js";
 const pages = {
   student: "./student-dashboard.html",
   teacher: "./teacher-dashboard.html",
+  alumni: "./alumni-dashboard.html",
   login: "./index.html"
+};
+
+const portalLoginPages = {
+  student: "./student-login.html",
+  teacher: "./teacher-login.html",
+  alumni: "./alumni-login.html"
 };
 
 let firebaseServicePromise = null;
@@ -106,9 +113,39 @@ async function login(form, role) {
 
   if (profile.role !== role) {
     await logout();
-    throw new Error(`This is not a ${role} account.`);
+    const error = new Error(wrongPortalMessage(profile.role, role));
+    error.code = "app/wrong-portal";
+    error.actualRole = profile.role;
+    throw error;
   }
   location.replace(pages[role]);
+}
+
+function wrongPortalMessage(actualRole, attemptedRole) {
+  if (actualRole === "alumni" && attemptedRole === "student") {
+    return "Your student account has been converted to an Alumni account. Please use the Alumni Login to continue.";
+  }
+  if (actualRole === "student" && attemptedRole === "alumni") {
+    return "This account is still registered as a Student. Please use the Student Login.";
+  }
+  if (actualRole === "teacher" && attemptedRole !== "teacher") {
+    return "This account belongs to the Teacher Portal. Please use Teacher Login.";
+  }
+  const label = actualRole === "student" ? "Student" : actualRole === "alumni" ? "Alumni" : "Teacher";
+  return `This account belongs to the ${label} Portal. Please use ${label} Login.`;
+}
+
+function showPortalAction(form, actualRole = "") {
+  const action = form.querySelector(".portal-action");
+  if (!action) return;
+  action.hidden = !portalLoginPages[actualRole];
+  if (portalLoginPages[actualRole]) {
+    action.innerHTML = "";
+    const link = document.createElement("a");
+    link.href = portalLoginPages[actualRole];
+    link.textContent = `GO TO ${actualRole.toUpperCase()} LOGIN`;
+    action.appendChild(link);
+  }
 }
 
 function setRecoveryStep(dialog, step) {
@@ -222,6 +259,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const handlers = {
     studentLoginForm: (form) => login(form, "student"),
     teacherLoginForm: (form) => login(form, "teacher"),
+    alumniLoginForm: (form) => login(form, "alumni"),
     studentRegisterForm: registerStudent,
     teacherRegisterForm: registerTeacher
   };
@@ -232,10 +270,12 @@ document.addEventListener("DOMContentLoaded", () => {
       event.preventDefault();
       const button = form.querySelector("button[type='submit']");
       button?.setAttribute("disabled", "disabled");
+      showPortalAction(form);
       try {
         await handler(form);
       } catch (error) {
         console.error(`${id} failed`, error);
+        if (error?.code === "app/wrong-portal") showPortalAction(form, error.actualRole);
         showMessage(await friendlyError(error), "danger", { duration: 9000 });
       } finally {
         button?.removeAttribute("disabled");

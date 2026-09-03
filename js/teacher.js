@@ -7,6 +7,13 @@ let selectedStudentUid = null;
 let detailDocumentCache = [];
 let statusDocumentCache = [];
 let statusReportRows = [];
+let currentBatches = [];
+let previousBatches = [];
+let selectedBatch = null;
+let selectedBatchMembers = [];
+let pendingGraduationBatchId = "";
+let pendingConversion = null;
+let alumniFilters = {};
 let firebaseServicePromise = null;
 
 function loadFirebaseService() {
@@ -30,7 +37,7 @@ function text(id, value) {
 }
 
 function dateText(value) {
-  const date = value ? new Date(value) : null;
+  const date = value?.toDate?.() || (value ? new Date(value) : null);
   return date && !Number.isNaN(date.getTime()) ? date.toLocaleString() : "";
 }
 
@@ -87,6 +94,8 @@ function fillProfile() {
   text("teacherYear", teacher.year);
   text("teacherMobile", teacher.mobile);
   text("teacherScope", `${teacher.department} - Academic Year ${teacher.year}`);
+  const courseInput = document.getElementById("batchCourseName");
+  if (courseInput && !courseInput.value) courseInput.value = teacher.department;
 }
 
 async function safeRender(label, task) {
@@ -109,6 +118,139 @@ async function renderDashboard() {
   text("studentCount", String(summary.studentCount));
   text("academicCount", String(summary.academicCount));
   text("titleCount", String(summary.titleCount));
+  text("currentBatchCount", String(summary.currentBatchCount || 0));
+  text("previousBatchCount", String(summary.previousBatchCount || 0));
+  text("alumniCount", String(summary.alumniCount || 0));
+}
+
+function displayValue(value, fallback = "Not available") {
+  return value === 0 || value ? String(value) : fallback;
+}
+
+function careerStatusLabel(value) {
+  return ({ not_updated: "Not Updated", employed: "Employed", higher_studies: "Higher Studies", entrepreneur: "Entrepreneur", seeking_opportunity: "Seeking Opportunity", other: "Other" })[value] || "Not Updated";
+}
+
+function batchCard(batch, previous = false) {
+  const academicYear = batch.currentAcademicYear ? `${batch.currentAcademicYear}` : "Not available";
+  const graduateAction = !previous && batch.eligibleForGraduation
+    ? `<button type="button" class="small-btn success" data-graduate-batch="${escapeHtml(batch.id)}">GRADUATE BATCH</button>`
+    : "";
+  return `<article class="batch-card"><h3>${escapeHtml(batch.courseName || batch.department)}</h3><div class="batch-meta"><div><b>Batch:</b> ${escapeHtml(batch.batchLabel || batch.id)}</div>${previous ? "" : `<div><b>Current Academic Year:</b> ${escapeHtml(academicYear)}</div>`}<div><b>Students:</b> ${previous ? batch.memberCount || 0 : batch.studentCount || 0}</div>${previous ? `<div><b>Alumni:</b> ${batch.alumniCount || 0}</div>` : ""}<div><span class="status-badge">${escapeHtml(batch.status)}</span></div></div><div class="batch-actions"><button type="button" class="small-btn" data-view-batch="${escapeHtml(batch.id)}">${previous ? "VIEW BATCH DETAILS" : "VIEW STUDENTS"}</button>${previous ? `<button type="button" class="small-btn" data-view-batch-alumni="${escapeHtml(batch.id)}">VIEW ALUMNI</button>` : ""}${graduateAction}</div></article>`;
+}
+
+function populateBatchSelect(select, batches, placeholder) {
+  if (!select) return;
+  const selected = select.value;
+  select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>${batches.map((batch) => `<option value="${escapeHtml(batch.id)}">${escapeHtml(batch.batchLabel)} — ${escapeHtml(batch.courseName || batch.department)}</option>`).join("")}`;
+  if (batches.some((batch) => batch.id === selected)) select.value = selected;
+}
+
+async function renderBatches() {
+  const service = await loadFirebaseService();
+  const batches = await service.listTeacherBatches(teacher);
+  currentBatches = batches.filter((batch) => batch.status === "active");
+  previousBatches = batches.filter((batch) => ["graduated", "archived"].includes(batch.status));
+  const currentGrid = document.getElementById("currentBatchGrid");
+  const previousGrid = document.getElementById("previousBatchGrid");
+  if (currentGrid) currentGrid.innerHTML = currentBatches.map((batch) => batchCard(batch)).join("");
+  if (previousGrid) previousGrid.innerHTML = previousBatches.map((batch) => batchCard(batch, true)).join("");
+  const currentEmpty = document.getElementById("currentBatchEmpty");
+  const previousEmpty = document.getElementById("previousBatchEmpty");
+  if (currentEmpty) currentEmpty.hidden = currentBatches.length > 0;
+  if (previousEmpty) previousEmpty.hidden = previousBatches.length > 0;
+  populateBatchSelect(document.getElementById("assignmentBatch"), currentBatches, "Select batch");
+  populateBatchSelect(document.getElementById("alumniBatchFilter"), [...currentBatches, ...previousBatches], "All authorized batches");
+  await renderAssignableStudents(document.getElementById("assignmentBatch")?.value || "");
+}
+
+async function renderAssignableStudents(batchId) {
+  const select = document.getElementById("assignmentStudent");
+  if (!select) return;
+  select.innerHTML = '<option value="">Select student</option>';
+  if (!batchId) return;
+  const students = await (await loadFirebaseService()).listAssignableStudents(teacher, batchId);
+  select.insertAdjacentHTML("beforeend", students.map((student) => `<option value="${escapeHtml(student.uid)}">${escapeHtml(student.name)} — ${escapeHtml(student.regNo)}</option>`).join(""));
+}
+
+async function renderBatchDetail(batchId) {
+  const data = await (await loadFirebaseService()).getTeacherBatchStudents(teacher, batchId);
+  selectedBatch = data.batch;
+  selectedBatchMembers = [...data.students, ...data.alumni];
+  text("batchDetailLabel", `${data.batch.courseName || data.batch.department} — ${data.batch.batchLabel}`);
+  text("batchDetailSummary", `${data.batch.department} • ${String(data.batch.status || "").toUpperCase()} • Graduation ${data.batch.graduationYear}`);
+  text("batchMemberHeading", data.batch.status === "active" ? "Current Students" : "Batch Members");
+  text("batchMemberCount", `${selectedBatchMembers.length} member${selectedBatchMembers.length === 1 ? "" : "s"}`);
+  const body = document.getElementById("batchMemberRows");
+  if (body) body.innerHTML = selectedBatchMembers.map((member) => `<tr><td><b>${escapeHtml(member.name)}</b></td><td>${escapeHtml(member.regNo)}</td><td>${escapeHtml(member.department)}</td><td>${escapeHtml(member.batch || member.year || "Not available")}</td><td>${escapeHtml(member.role === "alumni" ? "Alumni" : "Student")}</td><td class="action-cell">${member.role === "student" ? `<button type="button" class="small-btn" data-student-id="${escapeHtml(member.uid)}">VIEW DATA</button>${data.batch.eligibleForGraduation ? `<button type="button" class="small-btn success" data-convert-student="${escapeHtml(member.uid)}">CONVERT TO ALUMNI</button>` : ""}` : `<button type="button" class="small-btn" data-alumni-id="${escapeHtml(member.uid)}">VIEW DETAILS</button>`}</td></tr>`).join("");
+  const empty = document.getElementById("batchMemberEmpty");
+  if (empty) empty.hidden = selectedBatchMembers.length > 0;
+  document.dispatchEvent(new CustomEvent("dashboard:navigate", { detail: { view: "batch-detail" } }));
+}
+
+async function renderAlumni(filters = alumniFilters) {
+  alumniFilters = { ...filters };
+  const alumni = await (await loadFirebaseService()).listTeacherAlumni(teacher, filters);
+  const body = document.getElementById("alumniRows");
+  if (body) body.innerHTML = alumni.map((item) => `<tr><td><b>${escapeHtml(item.name)}</b></td><td>${escapeHtml(item.regNo)}</td><td>${escapeHtml(item.department)}</td><td>${escapeHtml(item.batch || item.year || "Not available")}</td><td>${escapeHtml(displayValue(item.graduationYear))}</td><td>${escapeHtml(careerStatusLabel(item.careerStatus))}</td><td><button type="button" class="small-btn" data-alumni-id="${escapeHtml(item.uid)}">VIEW DETAILS</button></td></tr>`).join("");
+  const empty = document.getElementById("alumniEmpty");
+  if (empty) empty.hidden = alumni.length > 0;
+}
+
+function careerDetailRows(profile) {
+  const status = profile.careerStatus || "not_updated";
+  const data = profile.careerProfile || {};
+  const rowsByStatus = {
+    employed: [["Company", data.company], ["Job Title", data.jobTitle], ["Location", data.location], ["Joining Year", data.joiningYear]],
+    higher_studies: [["Institution", data.institution], ["Course", data.course], ["Location", data.location], ["Joining Year", data.joiningYear]],
+    entrepreneur: [["Business Name", data.businessName], ["Role", data.role], ["Location", data.location], ["Started Year", data.startedYear]],
+    seeking_opportunity: [["Area of Interest", data.areaOfInterest]],
+    other: [["Description", data.description]],
+    not_updated: []
+  };
+  const rows = rowsByStatus[status] || [];
+  return rows.length ? rows.map(([label, value]) => `<div class="detail-row"><span>${escapeHtml(label)}</span><b>${escapeHtml(displayValue(value))}</b></div>`).join("") : '<p class="muted">Career information has not been updated.</p>';
+}
+
+async function renderAlumniDetail(uid) {
+  const alumni = await (await loadFirebaseService()).getTeacherAlumniDetail(teacher, uid);
+  text("alumniDetailName", alumni.name);
+  text("alumniDetailRegNo", alumni.regNo);
+  text("alumniDetailEmail", alumni.email);
+  text("alumniDetailDepartment", alumni.department);
+  text("alumniDetailBatch", alumni.batch || alumni.year);
+  text("alumniDetailGraduationYear", displayValue(alumni.graduationYear));
+  text("alumniDetailGraduatedAt", dateText(alumni.graduatedAt));
+  text("alumniDetailCareerStatus", careerStatusLabel(alumni.careerStatus));
+  const career = document.getElementById("alumniCareerDetails");
+  if (career) career.innerHTML = careerDetailRows(alumni);
+  document.dispatchEvent(new CustomEvent("dashboard:navigate", { detail: { view: "alumni-detail" } }));
+}
+
+async function openGraduationDialog(batchId) {
+  const data = await (await loadFirebaseService()).getTeacherBatchStudents(teacher, batchId);
+  if (!data.batch.eligibleForGraduation) throw new Error("This batch is not yet eligible for graduation.");
+  if (!data.students.length) throw new Error("No eligible students were found in this batch.");
+  pendingGraduationBatchId = batchId;
+  text("confirmBatchLabel", data.batch.batchLabel);
+  text("confirmBatchDepartment", data.batch.department);
+  text("confirmGraduationYear", displayValue(data.batch.graduationYear));
+  text("confirmStudentCount", displayValue(data.students.length));
+  const button = document.getElementById("confirmGraduationButton");
+  if (button) button.textContent = `GRADUATE ${data.students.length} STUDENTS`;
+  document.getElementById("graduationDialog")?.showModal();
+}
+
+function openStudentConversionDialog(studentUid) {
+  const student = selectedBatchMembers.find((item) => item.uid === studentUid);
+  if (!student || !selectedBatch) throw new Error("Student or batch details are unavailable.");
+  pendingConversion = { studentUid, batchId: selectedBatch.id };
+  text("convertStudentName", student.name);
+  text("convertStudentRegNo", student.regNo);
+  text("convertStudentBatch", student.batch || selectedBatch.batchLabel);
+  text("convertStudentDepartment", student.department);
+  text("convertStudentGraduationYear", displayValue(student.graduationYear || selectedBatch.graduationYear));
+  document.getElementById("studentConversionDialog")?.showModal();
 }
 
 async function renderStudents(filter = "") {
@@ -233,6 +375,11 @@ async function renderViewData(view) {
   if (view === "students") await safeRender("Student list load", renderStudents);
   if (view === "status") await safeRender("Submission status load", renderStatus);
   if (view === "add-title") await safeRender("Document title load", renderTitles);
+  if (view === "batches") await safeRender("Batch management load", renderBatches);
+  if (view === "alumni") {
+    await safeRender("Batch filters load", renderBatches);
+    await safeRender("Alumni list load", renderAlumni);
+  }
 }
 
 function nameList(students, className, emptyText) {
@@ -270,6 +417,109 @@ document.addEventListener("DOMContentLoaded", () => {
     await safeRender("Student search", () => renderStudents(form.elements.q.value));
   });
 
+  document.getElementById("createBatchForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector("button[type='submit']");
+    button.disabled = true;
+    try {
+      await (await loadFirebaseService()).createTeacherBatch(teacher, {
+        courseName: form.elements.courseName.value,
+        batchLabel: form.elements.batchLabel.value
+      });
+      form.reset();
+      await renderBatches();
+      await renderDashboard();
+      showMessage("Batch created and assigned to you.", "success");
+    } catch (error) {
+      console.error("Batch creation failed", error);
+      showMessage(await friendlyFirebaseError(error), "danger", { duration: 9000 });
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  document.getElementById("assignmentBatch")?.addEventListener("change", async (event) => {
+    await safeRender("Assignable students load", () => renderAssignableStudents(event.target.value));
+  });
+
+  document.getElementById("assignBatchForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector("button[type='submit']");
+    button.disabled = true;
+    try {
+      await (await loadFirebaseService()).assignStudentToBatch(teacher, form.elements.studentUid.value, form.elements.batchId.value);
+      await renderBatches();
+      await renderStudents();
+      await renderDashboard();
+      showMessage("Student assigned to the batch.", "success");
+    } catch (error) {
+      console.error("Student batch assignment failed", error);
+      showMessage(await friendlyFirebaseError(error), "danger", { duration: 9000 });
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  document.getElementById("alumniSearchForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    alumniFilters = values;
+    await safeRender("Alumni filter", () => renderAlumni(alumniFilters));
+  });
+
+  document.querySelectorAll("[data-graduation-cancel]").forEach((button) => button.addEventListener("click", () => {
+    pendingGraduationBatchId = "";
+    document.getElementById("graduationDialog")?.close();
+  }));
+  document.querySelectorAll("[data-conversion-cancel]").forEach((button) => button.addEventListener("click", () => {
+    pendingConversion = null;
+    document.getElementById("studentConversionDialog")?.close();
+  }));
+
+  document.getElementById("confirmGraduationButton")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    if (!pendingGraduationBatchId || button.disabled) return;
+    button.disabled = true;
+    const batchId = pendingGraduationBatchId;
+    try {
+      const count = await (await loadFirebaseService()).graduateBatch(teacher, batchId);
+      pendingGraduationBatchId = "";
+      document.getElementById("graduationDialog")?.close();
+      await renderBatches();
+      await renderStudents();
+      await renderDashboard();
+      showMessage(`${count} student${count === 1 ? "" : "s"} converted to Alumni. Accounts and documents were preserved.`, "success", { duration: 9000 });
+    } catch (error) {
+      console.error("Batch graduation failed", error);
+      showMessage(await friendlyFirebaseError(error), "danger", { duration: 9000 });
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  document.getElementById("confirmStudentConversionButton")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    if (!pendingConversion || button.disabled) return;
+    button.disabled = true;
+    const conversion = pendingConversion;
+    try {
+      await (await loadFirebaseService()).convertStudentToAlumni(teacher, conversion.studentUid, conversion.batchId);
+      pendingConversion = null;
+      document.getElementById("studentConversionDialog")?.close();
+      await renderBatchDetail(conversion.batchId);
+      await renderStudents();
+      await renderDashboard();
+      showMessage("Student converted to Alumni. The account and documents were preserved.", "success", { duration: 9000 });
+    } catch (error) {
+      console.error("Student conversion failed", error);
+      showMessage(await friendlyFirebaseError(error), "danger", { duration: 9000 });
+    } finally {
+      button.disabled = false;
+    }
+  });
+
   document.getElementById("addTitleForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -293,6 +543,34 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.addEventListener("click", async (event) => {
+    const batchButton = findClosestAction(event.target, "[data-view-batch]");
+    const batchAlumniButton = findClosestAction(event.target, "[data-view-batch-alumni]");
+    const graduateButton = findClosestAction(event.target, "[data-graduate-batch]");
+    const convertButton = findClosestAction(event.target, "[data-convert-student]");
+    const alumniButton = findClosestAction(event.target, "[data-alumni-id]");
+    if (graduateButton) {
+      await safeRender("Graduation confirmation", () => openGraduationDialog(graduateButton.dataset.graduateBatch));
+      return;
+    }
+    if (convertButton) {
+      try { openStudentConversionDialog(convertButton.dataset.convertStudent); }
+      catch (error) { showMessage(await friendlyFirebaseError(error), "danger"); }
+      return;
+    }
+    if (batchAlumniButton) {
+      document.getElementById("alumniBatchFilter").value = batchAlumniButton.dataset.viewBatchAlumni;
+      alumniFilters = { batchId: batchAlumniButton.dataset.viewBatchAlumni };
+      document.dispatchEvent(new CustomEvent("dashboard:navigate", { detail: { view: "alumni" } }));
+      return;
+    }
+    if (batchButton) {
+      await safeRender("Batch details load", () => renderBatchDetail(batchButton.dataset.viewBatch));
+      return;
+    }
+    if (alumniButton) {
+      await safeRender("Alumni details load", () => renderAlumniDetail(alumniButton.dataset.alumniId));
+      return;
+    }
     const viewButton = findClosestAction(event.target, "[data-view-doc]");
     const downloadButton = findClosestAction(event.target, "[data-download-doc]");
     const removeDocumentButton = findClosestAction(event.target, "[data-remove-doc]");

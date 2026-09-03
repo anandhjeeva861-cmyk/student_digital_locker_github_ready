@@ -1,6 +1,6 @@
-# Student Digital Locker
+# Student + Teacher + Alumni Digital Locker
 
-Student Digital Locker is a static HTML/CSS/JavaScript frontend powered by Firebase.
+Student Digital Locker is a static HTML/CSS/JavaScript frontend powered by Firebase. Students retain the same Firebase account, UID, profile, and documents when an assigned teacher graduates their batch and changes their profile role to `alumni`.
 
 ## Technology Stack
 
@@ -10,7 +10,20 @@ Student Digital Locker is a static HTML/CSS/JavaScript frontend powered by Fireb
 - File uploads: Cloud Firestore document chunk subcollections
 - Frontend hosting: GitHub Pages
 
-GitHub Pages hosts the complete active app. No Node backend is required for login, register, dashboards, uploads, downloads, deletes, teacher student list, search, submission status, or academic title management.
+GitHub Pages hosts the complete active app. No Node backend is required for login, registration, dashboards, uploads, downloads, deletes, teacher batch/student/Alumni lists, career profiles, achievements, submission status, or academic title management.
+
+## Alumni and Batch Lifecycle
+
+- Teachers create department batches and explicitly assign students whose department and `YYYY-YYYY` academic range match.
+- Active assigned batches appear under **Current Batches**. Graduated batches remain under **Previous Batches**.
+- Graduation uses one atomic Firestore write for up to 200 students: each existing `profiles/{uid}` role changes from `student` to `alumni`, audit records are created, and the batch becomes `graduated`.
+- Authentication accounts and document `ownerId` values are never changed or migrated.
+- Alumni use `alumni-login.html` with the same email/password and can manage their career profile, achievements, contact links, and documents.
+- Firestore rules authorize batch reads and conversions by `assignedTeacherUid`; they prevent self-graduation and protected Alumni-field edits.
+
+Existing students without `batchId` are not guessed into a batch. An assigned teacher must use the Batch Management assignment form, which requires an exact department and academic-range match.
+
+The browser implementation is capped at 200 students per atomic graduation. Larger cohorts, multi-teacher batches, institutional approval workflows, or server-controlled claims should use a trusted Cloud Function/Admin SDK endpoint rather than weakening client rules.
 
 Uploaded files are base64 encoded and split into Firestore chunk subcollections. This avoids Firebase Storage setup and keeps the static GitHub Pages app backend-free.
 
