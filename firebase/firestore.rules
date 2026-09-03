@@ -135,8 +135,9 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time
         && ((request.resource.data.role == "student"
-            && request.resource.data.keys().hasOnly(["uid", "role", "name", "regNo", "email", "year", "batch", "admissionYear", "graduationYear", "studentStatus", "department", "departmentKey", "mobile", "recoveryQuestion", "recoveryAnswerHash", "recoveryAnswerSalt", "recoveryHashAlgorithm", "recoveryHashIterations", "createdAt", "updatedAt"])
+            && request.resource.data.keys().hasOnly(["uid", "role", "name", "regNo", "email", "year", "batch", "batchId", "admissionYear", "graduationYear", "studentStatus", "department", "departmentKey", "mobile", "recoveryQuestion", "recoveryAnswerHash", "recoveryAnswerSalt", "recoveryHashAlgorithm", "recoveryHashIterations", "createdAt", "updatedAt"])
             && request.resource.data.batch == request.resource.data.year
+            && request.resource.data.batchId == ""
             && request.resource.data.admissionYear is int
             && request.resource.data.graduationYear is int
             && request.resource.data.graduationYear == request.resource.data.admissionYear + 3
@@ -434,7 +435,10 @@ service cloud.firestore {
     function isTeacherFor(data) {
       return signedIn()
         && currentProfile().role == "teacher"
-        && ((data.get("batchId", "") != "" && teacherAssignedToBatch(data.batchId))
+        && ((data.get("batchId", "") == ""
+            && matchesCurrentProfileScope(data)
+            && currentProfile().year == data.year)
+          || (data.get("batchId", "") != "" && teacherAssignedToBatch(data.batchId))
           || teacherAssignedToBatch(inferredBatchId(data))
           || (matchesCurrentProfileScope(data)
             && currentProfile().year == data.year

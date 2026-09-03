@@ -47,6 +47,14 @@ test("Firestore rules enforce assigned-batch role conversion and deny open acces
   assert.doesNotMatch(rules, /allow\s+(?:read|write|create|update|delete)(?:\s*,\s*\w+)*:\s*if\s+true/);
 });
 
+test("batch assignment uses an explicit unassigned marker", async () => {
+  const [service, rules] = await Promise.all([read("js/firebase-service.js"), read("firebase/firestore.rules")]);
+  const assignment = service.slice(service.indexOf("export async function listAssignableStudents"), service.indexOf("export async function assignStudentToBatch"));
+  assert.match(service, /batchId:\s*""/);
+  assert.match(assignment, /where\("batchId",\s*"==",\s*""\)/);
+  assert.match(rules, /request\.resource\.data\.batchId == ""/);
+});
+
 test("teacher and Alumni pages expose required workflow sections", async () => {
   const [teacher, alumni] = await Promise.all([read("teacher-dashboard.html"), read("alumni-dashboard.html")]);
   for (const text of ["BATCH MANAGEMENT", "Current Batches", "Previous Batches", "ALUMNI LIST", "GRADUATE FINAL YEAR BATCH", "CONVERT TO ALUMNI"]) {

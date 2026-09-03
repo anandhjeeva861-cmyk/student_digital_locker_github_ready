@@ -65,7 +65,7 @@ FIREBASE_APP_ID
 FIREBASE_MEASUREMENT_ID
 ```
 
-In GitHub, add the API key as an Actions repository variable or secret named `FIREBASE_API_KEY`. Do not paste the API key into source files, docs, or workflow YAML.
+The Firebase browser API key is not stored in tracked files. Before deploying, create a GitHub Actions repository secret named `FIREBASE_API_KEY`; the workflow uses it to generate the ignored `js/firebase-config.js` build output. Local development can supply the same value through `.env.local`. Keep all real keys and service-account credentials out of commits.
 
 ## Firebase Setup
 

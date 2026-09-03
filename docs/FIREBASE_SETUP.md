@@ -41,7 +41,7 @@ FIREBASE_APP_ID
 FIREBASE_MEASUREMENT_ID
 ```
 
-The GitHub Actions workflow requires the API key from an Actions repository variable or secret named `FIREBASE_API_KEY`. Without that value, config generation fails instead of deploying a broken or placeholder config.
+The Firebase browser API key is deliberately absent from tracked files. The Pages workflow reads it from the `FIREBASE_API_KEY` GitHub Actions secret and generates `js/firebase-config.js` only inside the deployment build. Firestore access remains protected by the security rules.
 
 ## Firebase Console (required manual steps)
 
@@ -50,7 +50,7 @@ The GitHub Actions workflow requires the API key from an Actions repository vari
 3. In **Authentication > Settings > Authorized domains**, click **Add domain**, enter only `anandhjeeva861-cmyk.github.io`, and save. Do not include `https://` or the repository path.
 4. Go to **Build > Firestore Database** and create the database if it does not exist. Choose the region intentionally because it cannot be changed later.
 5. Deploy the tracked rules and indexes from the repository with `npm run deploy:firebase` after authenticating the Firebase CLI (`npx firebase-tools login`). Alternatively, paste the complete contents of `firebase/firestore.rules` into **Firestore Database > Rules** and click **Publish**, then create the indexes described by `firebase/firestore.indexes.json`.
-6. In GitHub, go to **Repository Settings > Secrets and variables > Actions**. Under **Variables** (preferred for the Firebase Web API key) or **Secrets**, create `FIREBASE_API_KEY`. Never put its value in workflow YAML or tracked files.
+6. In GitHub, open **Repository Settings > Secrets and variables > Actions > New repository secret**. Create `FIREBASE_API_KEY` with the Firebase Web API key. Also confirm in Google Cloud Console that the key is restricted to the Firebase APIs used by this app.
 7. Go to **Repository Settings > Pages** and set **Source** to **GitHub Actions**, then run the **Deploy GitHub Pages** workflow.
 8. Optional hardening: publish `firebase/storage.rules` only if Firebase Storage is enabled later; the current app stores file chunks in Firestore.
 
@@ -139,8 +139,11 @@ For existing data:
 
 1. Create the correct department batch in the Teacher portal.
 2. Use **Assign Existing Students**. Only unassigned `role: student` records with an exact department and `YYYY-YYYY` match are offered.
-3. A missing `departmentKey` can be deterministically restored from a recognized department during explicit assignment. Do not infer a batch for records that contain only `I`, `II`, or `III`, an unrecognized department, or another ambiguous year; an administrator must first verify and repair those institutional fields and any matching academic-document metadata.
-4. After assignment, verify the batch roster before graduation. Graduation preserves UID, login credentials, profile history, document records, and file chunks.
+3. Student profiles must contain `batchId: ""` before they can appear in the secure unassigned-student query. For legacy profiles where that field is absent, an administrator using the Admin SDK or Firebase Console must add only `batchId: ""` after verifying the profile is still an unassigned student. Do not set it to an inferred batch ID.
+4. A missing `departmentKey` can be deterministically restored from a recognized department during explicit assignment. Do not infer a batch for records that contain only `I`, `II`, or `III`, an unrecognized department, or another ambiguous year; an administrator must first verify and repair those institutional fields and any matching academic-document metadata.
+5. After assignment, verify the batch roster before graduation. Graduation preserves UID, login credentials, profile history, document records, and file chunks.
+
+The explicit empty `batchId` is required because Firestore rules cannot safely authorize a teacher's department/year query over documents that omit the field: such a query could also return students already assigned to another teacher's batch. The application therefore keeps those legacy records protected until an administrator verifies and normalizes them.
 
 ## Uploaded File Data
 

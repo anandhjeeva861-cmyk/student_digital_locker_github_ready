@@ -51,6 +51,31 @@ const firestoreChunkChars = 700000;
 const recoveryHashAlgorithm = "PBKDF2-SHA-256";
 const recoveryHashIterations = 210000;
 
+function firestoreContext(profile, extra = {}) {
+  return {
+    role: profile?.role || "unknown",
+    teacherUid: profile?.role === "teacher" ? profile.uid || "unknown" : undefined,
+    departmentKey: profile?.departmentKey || "unknown",
+    year: profile?.year || "unknown",
+    ...extra
+  };
+}
+
+async function runFirestoreOperation(operation, context, task) {
+  try {
+    return await task();
+  } catch (error) {
+    error.operation = operation;
+    console.error("Firestore operation failed", {
+      operation,
+      code: error?.code || "unknown",
+      collection: context.collection || "unknown",
+      ...context
+    });
+    throw error;
+  }
+}
+
 function bytesToHex(bytes) {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -513,7 +538,7 @@ export function firebaseErrorMessage(error) {
     "auth/too-many-requests": "Too many failed attempts. Try again later.",
     "auth/unauthorized-domain": "This website domain is not authorized in Firebase Authentication settings.",
     "auth/network-request-failed": "Network error. Check your internet connection.",
-    "permission-denied": "Permission denied. Deploy the latest Firebase Firestore rules.",
+    "permission-denied": "Your account is not authorized to access this data. Verify your account role and assigned scope.",
     "storage/unauthorized": "Firebase Storage permission denied. The app now stores files in Firestore; deploy the latest code.",
     "resource-exhausted": "The selected file is too large for Firestore. Choose a smaller file."
   };
@@ -535,6 +560,7 @@ export async function registerStudent(payload) {
       email,
       year: payload.year,
       batch: years?.batchLabel || "",
+      batchId: "",
       admissionYear: years?.admissionYear || null,
       graduationYear: years?.graduationYear || null,
       studentStatus: "active",
@@ -950,10 +976,13 @@ async function requireAssignedBatch(profile, batchId, { activeOnly = false } = {
 }
 
 async function getBatchMembers(batchId) {
-  const [students, alumni] = await Promise.all([
+  const [students, alumni] = await runFirestoreOperation("list batch members", {
+    collection: profileCollection,
+    batchId
+  }, () => Promise.all([
     getDocs(query(collection(db, profileCollection), where("batchId", "==", batchId), where("role", "==", "student"))),
     getDocs(query(collection(db, profileCollection), where("batchId", "==", batchId), where("role", "==", "alumni")))
-  ]);
+  ]));
   return [...students.docs, ...alumni.docs].map(profileFromDoc);
 }
 
@@ -1019,8 +1048,18 @@ export async function createTeacherBatch(profile, values) {
 export async function listAssignableStudents(profile, batchId) {
   const batch = await requireAssignedBatch(profile, batchId, { activeOnly: true });
   const results = await Promise.allSettled([
-    getDocs(query(collection(db, profileCollection), where("role", "==", "student"), where("departmentKey", "==", batch.departmentKey), where("year", "==", batch.batchLabel))),
-    getDocs(query(collection(db, profileCollection), where("role", "==", "student"), where("department", "==", batch.department), where("year", "==", batch.batchLabel)))
+    runFirestoreOperation("list unassigned students by department key", firestoreContext(profile, {
+      collection: profileCollection,
+      batchId,
+      departmentKey: batch.departmentKey,
+      year: batch.batchLabel
+    }), () => getDocs(query(collection(db, profileCollection), where("role", "==", "student"), where("departmentKey", "==", batch.departmentKey), where("year", "==", batch.batchLabel), where("batchId", "==", "")))),
+    runFirestoreOperation("list unassigned students by department", firestoreContext(profile, {
+      collection: profileCollection,
+      batchId,
+      departmentKey: batch.departmentKey,
+      year: batch.batchLabel
+    }), () => getDocs(query(collection(db, profileCollection), where("role", "==", "student"), where("department", "==", batch.department), where("year", "==", batch.batchLabel), where("batchId", "==", ""))))
   ]);
   const snapshots = results.filter((result) => result.status === "fulfilled").map((result) => result.value);
   if (!snapshots.length) throw results[0].reason;
@@ -1277,26 +1316,10 @@ export async function listTeacherStudents(profile, filter = "") {
 
 async function listTeacherStudentProfiles(profile) {
   requireProfileScope(profile, "teacher", "load students");
-  const byDepartmentKeyQuery = query(
-    collection(db, profileCollection),
-    where("role", "==", "student"),
-    where("departmentKey", "==", profile.departmentKey),
-    where("year", "==", profile.year)
-  );
-  const byDepartmentQuery = query(
-    collection(db, profileCollection),
-    where("role", "==", "student"),
-    where("department", "==", profile.department),
-    where("year", "==", profile.year)
-  );
-  const [departmentKeySnapshots, departmentSnapshots] = await Promise.all([
-    getDocs(byDepartmentKeyQuery),
-    getDocs(byDepartmentQuery)
-  ]);
-  return uniqueById([
-    ...departmentKeySnapshots.docs.map(profileFromDoc),
-    ...departmentSnapshots.docs.map(profileFromDoc)
-  ]).sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  const batches = await listTeacherBatches(profile);
+  const memberGroups = await Promise.all(batches.map((batch) => getBatchMembers(batch.id)));
+  return uniqueById(memberGroups.flat().filter((item) => item.role === "student"))
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 }
 
 export async function getTeacherDashboardSummary(profile) {
