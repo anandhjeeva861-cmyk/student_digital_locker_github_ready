@@ -7,12 +7,11 @@ let selectedStudentUid = null;
 let detailDocumentCache = [];
 let statusDocumentCache = [];
 let statusReportRows = [];
-let currentBatches = [];
-let previousBatches = [];
 let selectedBatch = null;
 let selectedBatchMembers = [];
 let pendingGraduationBatchId = "";
 let pendingConversion = null;
+let pendingRemoveBatchStudent = null;
 let alumniFilters = {};
 let firebaseServicePromise = null;
 
@@ -119,9 +118,6 @@ async function renderDashboard() {
   text("studentCount", String(summary.studentCount));
   text("academicCount", String(summary.academicCount));
   text("titleCount", String(summary.titleCount));
-  text("currentBatchCount", String(summary.currentBatchCount || 0));
-  text("previousBatchCount", String(summary.previousBatchCount || 0));
-  text("alumniCount", String(summary.alumniCount || 0));
 }
 
 function displayValue(value, fallback = "Not available") {
@@ -277,6 +273,23 @@ async function renderStudents(filter = "") {
   if (empty) empty.hidden = students.length > 0;
 }
 
+async function renderRemoveBatchStudents() {
+  const body = document.getElementById("removeBatchStudentRows");
+  const empty = document.getElementById("removeBatchStudentEmpty");
+  if (!body) return;
+  const students = await matchingStudents();
+  body.innerHTML = students.map((student) => `
+    <tr>
+      <td><b>${escapeHtml(student.name)}</b></td>
+      <td>${escapeHtml(student.reg_no || "")}</td>
+      <td>${escapeHtml(student.department)}</td>
+      <td>${escapeHtml(student.year || student.batch || "Not available")}</td>
+      <td>${escapeHtml(student.batchId ? (student.batch || student.year || "Not available") : "Not assigned")}</td>
+      <td><button type="button" class="small-btn danger" data-remove-batch-student="${escapeHtml(student.id)}">REMOVE FROM BATCH</button></td>
+    </tr>`).join("");
+  if (empty) empty.hidden = students.length > 0;
+}
+
 async function renderStudentDetail(studentUid) {
   selectedStudentUid = studentUid;
   const { getTeacherStudentDetail } = await loadFirebaseService();
@@ -379,9 +392,8 @@ async function renderViewData(view) {
   if (view === "students") await safeRender("Student list load", renderStudents);
   if (view === "status") await safeRender("Submission status load", renderStatus);
   if (view === "add-title") await safeRender("Document title load", renderTitles);
-  if (view === "batches") await safeRender("Batch management load", renderBatches);
+  if (view === "remove-batch-student") await safeRender("Remove batch student load", renderRemoveBatchStudents);
   if (view === "alumni") {
-    await safeRender("Batch filters load", renderBatches);
     await safeRender("Alumni list load", renderAlumni);
   }
 }
@@ -524,6 +536,32 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  document.querySelectorAll("[data-remove-batch-student-cancel]").forEach((button) => button.addEventListener("click", () => {
+    pendingRemoveBatchStudent = null;
+    document.getElementById("removeBatchStudentDialog")?.close();
+  }));
+
+  document.getElementById("confirmRemoveBatchStudentButton")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    if (!pendingRemoveBatchStudent || button.disabled) return;
+    button.disabled = true;
+    try {
+      const { removeStudentFromCurrentBatch } = await loadFirebaseService();
+      await removeStudentFromCurrentBatch(teacher, pendingRemoveBatchStudent);
+      pendingRemoveBatchStudent = null;
+      document.getElementById("removeBatchStudentDialog")?.close();
+      await renderRemoveBatchStudents();
+      await renderStudents();
+      await renderDashboard();
+      showMessage("Student removed from the current batch without changing the student account or documents.", "success", { duration: 9000 });
+    } catch (error) {
+      console.error("Remove batch student failed", error);
+      showMessage(await friendlyFirebaseError(error), "danger", { duration: 9000 });
+    } finally {
+      button.disabled = false;
+    }
+  });
+
   document.getElementById("addTitleForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -552,6 +590,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const graduateButton = findClosestAction(event.target, "[data-graduate-batch]");
     const convertButton = findClosestAction(event.target, "[data-convert-student]");
     const alumniButton = findClosestAction(event.target, "[data-alumni-id]");
+    const removeBatchStudentButton = findClosestAction(event.target, "[data-remove-batch-student]");
     if (graduateButton) {
       await safeRender("Graduation confirmation", () => openGraduationDialog(graduateButton.dataset.graduateBatch));
       return;
@@ -559,6 +598,21 @@ document.addEventListener("DOMContentLoaded", () => {
     if (convertButton) {
       try { openStudentConversionDialog(convertButton.dataset.convertStudent); }
       catch (error) { showMessage(await friendlyFirebaseError(error), "danger"); }
+      return;
+    }
+    if (removeBatchStudentButton) {
+      const student = await matchingStudents().then((students) => students.find((item) => item.id === removeBatchStudentButton.dataset.removeBatchStudent));
+      if (!student) {
+        showMessage("Student not found in your authorized scope.", "danger");
+        return;
+      }
+      pendingRemoveBatchStudent = student.id;
+      text("removeBatchStudentName", student.name || "");
+      text("removeBatchStudentRegNo", student.reg_no || "");
+      text("removeBatchStudentDepartment", student.department || "");
+      text("removeBatchStudentYear", student.year || student.batch || "Not available");
+      text("removeBatchStudentBatch", student.batchId ? (student.batch || "Not available") : "Not assigned");
+      document.getElementById("removeBatchStudentDialog")?.showModal();
       return;
     }
     if (batchAlumniButton) {

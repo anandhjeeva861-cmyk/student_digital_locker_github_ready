@@ -92,6 +92,9 @@
       </section>
     </main>
   </div>
+  <dialog class="recovery-dialog" id="removeAccountDialog" aria-labelledby="removeAccountTitle">
+    <div class="recovery-panel"><button class="dialog-close" type="button" id="cancelRemoveAccountButton" aria-label="Close remove account dialog">×</button><h2 id="removeAccountTitle">REMOVE ACCOUNT</h2><p class="muted">This action is irreversible. Re-enter your password to confirm removal of your account and your stored data.</p><label for="removeAccountPassword">Current Password</label><input id="removeAccountPassword" type="password" autocomplete="current-password" placeholder="Enter your password"><div class="dialog-actions"><button type="button" class="secondary-btn" id="cancelRemoveAccountButtonSecondary">CANCEL</button><button type="button" class="primary-btn danger" id="confirmRemoveAccountButton">REMOVE ACCOUNT</button></div></div>
+  </dialog>
   <script type="module" src="./js/darkmode.js"></script>
   <script type="module" src="./js/dashboard-nav.js"></script>
   <script type="module" src="./js/auth.js"></script>

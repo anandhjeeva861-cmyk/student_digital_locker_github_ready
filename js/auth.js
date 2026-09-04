@@ -304,24 +304,69 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  const removeAccountDialog = document.getElementById("removeAccountDialog");
+  const removeAccountPasswordInput = document.getElementById("removeAccountPassword");
+  const confirmRemoveAccountButton = document.getElementById("confirmRemoveAccountButton");
+  let pendingAccountRemoval = false;
+
   document.querySelectorAll("[data-remove-account]").forEach((button) => {
     button.addEventListener("click", async (event) => {
       event.preventDefault();
-      if (!confirm("Remove this account and all your stored data? This cannot be undone.")) return;
-      button.setAttribute("disabled", "disabled");
-      try {
-        const { deleteCurrentAccount } = await loadFirebaseService();
-        await deleteCurrentAccount();
-        showMessage("Account removed successfully.", "success");
-        window.setTimeout(() => {
-          location.replace(pages.login);
-        }, 700);
-      } catch (error) {
-        console.error("Account remove failed", error);
-        showMessage(await friendlyError(error), "danger", { duration: 9000 });
-      } finally {
-        button.removeAttribute("disabled");
+      if (!removeAccountDialog) {
+        if (!confirm("Remove this account and all your stored data? This cannot be undone.")) return;
+        button.setAttribute("disabled", "disabled");
+        try {
+          const { deleteCurrentAccount } = await loadFirebaseService();
+          await deleteCurrentAccount();
+          showMessage("Account removed successfully.", "success");
+          window.setTimeout(() => { location.replace(pages.login); }, 700);
+        } catch (error) {
+          console.error("Account remove failed", error);
+          showMessage(await friendlyError(error), "danger", { duration: 9000 });
+        } finally {
+          button.removeAttribute("disabled");
+        }
+        return;
       }
+      pendingAccountRemoval = true;
+      if (removeAccountPasswordInput) removeAccountPasswordInput.value = "";
+      removeAccountDialog.showModal();
     });
+  });
+
+  document.getElementById("cancelRemoveAccountButton")?.addEventListener("click", () => {
+    pendingAccountRemoval = false;
+    removeAccountDialog?.close();
+    if (removeAccountPasswordInput) removeAccountPasswordInput.value = "";
+  });
+  document.getElementById("cancelRemoveAccountButtonSecondary")?.addEventListener("click", () => {
+    pendingAccountRemoval = false;
+    removeAccountDialog?.close();
+    if (removeAccountPasswordInput) removeAccountPasswordInput.value = "";
+  });
+
+  confirmRemoveAccountButton?.addEventListener("click", async () => {
+    if (!pendingAccountRemoval) return;
+    const password = (removeAccountPasswordInput?.value || "").trim();
+    if (!password) {
+      showMessage("Enter your current password to continue.", "danger");
+      removeAccountPasswordInput?.focus();
+      return;
+    }
+    confirmRemoveAccountButton.setAttribute("disabled", "disabled");
+    try {
+      const { deleteCurrentAccount } = await loadFirebaseService();
+      await deleteCurrentAccount(password);
+      removeAccountDialog?.close();
+      showMessage("Account removed successfully.", "success");
+      window.setTimeout(() => { location.replace(pages.login); }, 700);
+    } catch (error) {
+      console.error("Account remove failed", error);
+      showMessage(await friendlyError(error), "danger", { duration: 9000 });
+    } finally {
+      confirmRemoveAccountButton.removeAttribute("disabled");
+      pendingAccountRemoval = false;
+      if (removeAccountPasswordInput) removeAccountPasswordInput.value = "";
+    }
   });
 });

@@ -689,12 +689,26 @@ export function logout() {
   return authReady.then(() => signOut(auth));
 }
 
-export async function deleteCurrentAccount(profile = null) {
+export async function deleteCurrentAccount(profile = null, password = "") {
   await authReady;
   const user = await requireCurrentUser(profile?.uid);
   const accountProfile = profile || await getProfile(user.uid);
   if (!accountProfile) throw new Error("Profile not found. Log in again before removing the account.");
-  requireRecentAccountLogin(user);
+
+  if (password) {
+    const { EmailAuthProvider, reauthenticateWithCredential } = await import("https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js");
+    const credential = EmailAuthProvider.credential(user.email, password);
+    try {
+      await reauthenticateWithCredential(user, credential);
+    } catch (error) {
+      if (error?.code === "auth/wrong-password" || error?.code === "auth/invalid-credential") {
+        throw new Error("Your current password is incorrect.");
+      }
+      throw error;
+    }
+  } else {
+    requireRecentAccountLogin(user);
+  }
 
   if (["student", "alumni"].includes(accountProfile.role)) {
     const ownedDocs = await getDocs(query(
@@ -712,10 +726,33 @@ export async function deleteCurrentAccount(profile = null) {
   if (accountProfile.role === "teacher") {
     const titles = await getDocs(query(
       collection(db, titlesCollection),
-      where("createdBy", "==", accountProfile.uid)
+      where("departmentKey", "==", accountProfile.departmentKey),
+      where("year", "==", teacherTeachingBatch(accountProfile))
     ));
-    await deleteSnapshots(titles.docs);
-    await deleteDoc(doc(db, uniqueTeacherScopeCollection, teacherScopeId(accountProfile)));
+    const teacherTitles = titles.docs.filter((item) => item.data().createdBy === accountProfile.uid);
+    await deleteSnapshots(teacherTitles);
+    await deleteDoc(doc(db, uniqueTeacherScopeCollection, teacherScopeId(accountProfile))).catch(() => {});
+    if (accountProfile.uid) {
+      const assignedStudents = await getDocs(query(
+        collection(db, profileCollection),
+        where("role", "==", "student"),
+        where("studentStatus", "==", "active"),
+        where("batchId", "!=" , "")
+      ));
+      for (const snapshot of assignedStudents.docs) {
+        const student = profileFromDoc(snapshot);
+        if (student && student.batchId && student.departmentKey === accountProfile.departmentKey && student.year === teacherTeachingBatch(accountProfile)) {
+          await updateDoc(snapshot.ref, {
+            batchId: "",
+            batch: "",
+            admissionYear: null,
+            graduationYear: null,
+            studentStatus: "active",
+            updatedAt: serverTimestamp()
+          }).catch(() => {});
+        }
+      }
+    }
   }
 
   const profileRef = doc(db, profileCollection, accountProfile.uid);
@@ -734,8 +771,8 @@ export async function deleteCurrentAccount(profile = null) {
   }
   if (accountProfile.email && accountProfile.recoveryAnswerHash) {
     const recoveryRef = doc(db, passwordRecoveryCollection, accountProfile.email);
-    await deleteDoc(doc(recoveryRef, "verifiers", accountProfile.recoveryAnswerHash));
-    await deleteDoc(recoveryRef);
+    await deleteDoc(doc(recoveryRef, "verifiers", accountProfile.recoveryAnswerHash)).catch(() => {});
+    await deleteDoc(recoveryRef).catch(() => {});
   }
   await deleteDoc(profileRef);
   await deleteUser(user);
@@ -1090,6 +1127,32 @@ export async function assignStudentToBatch(profile, studentUid, batchId) {
     studentStatus: "active",
     updatedAt: serverTimestamp()
   });
+}
+
+export async function removeStudentFromCurrentBatch(profile, studentUid) {
+  requireProfileScope(profile, "teacher", "remove a student from the current batch");
+  await requireCurrentUser(profile.uid);
+  const student = await getProfile(studentUid);
+  if (!student || student.role !== "student") throw new Error("Student not found.");
+  if (!student.batchId) throw new Error("This student is not currently assigned to a batch.");
+  const batch = await getDoc(doc(db, batchesCollection, student.batchId));
+  if (!batch.exists()) throw new Error("The student's assigned batch could not be found.");
+  const batchData = batch.data();
+  if (batchData.assignedTeacherUid !== profile.uid) {
+    throw new Error("You are not authorized to remove this student's current batch assignment.");
+  }
+  if (student.departmentKey !== profile.departmentKey || student.year !== teacherTeachingBatch(profile)) {
+    throw new Error("This student is not inside your current authorized scope.");
+  }
+  await updateDoc(doc(db, profileCollection, studentUid), {
+    batchId: "",
+    batch: "",
+    admissionYear: null,
+    graduationYear: null,
+    studentStatus: "active",
+    updatedAt: serverTimestamp()
+  });
+  return true;
 }
 
 export async function getTeacherBatchStudents(profile, batchId) {

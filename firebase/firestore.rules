@@ -412,6 +412,25 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["departmentKey", "batchId", "batch", "admissionYear", "graduationYear", "studentStatus", "updatedAt"]);
     }
 
+    function validTeacherBatchStudentRemoval() {
+      return currentProfile().role == "teacher"
+        && resource.data.role == "student"
+        && request.resource.data.role == "student"
+        && resource.data.studentStatus == "active"
+        && request.resource.data.studentStatus == "active"
+        && resource.data.uid == request.resource.data.uid
+        && resource.data.email == request.resource.data.email
+        && resource.data.regNo == request.resource.data.regNo
+        && resource.data.mobile == request.resource.data.mobile
+        && request.resource.data.get("batchId", "") == ""
+        && request.resource.data.get("batch", "") == ""
+        && request.resource.data.get("admissionYear", null) == null
+        && request.resource.data.get("graduationYear", null) == null
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["batchId", "batch", "admissionYear", "graduationYear", "studentStatus", "updatedAt"])
+        && teacherAssignedToBatch(resource.data.get("batchId", ""));
+    }
+
     function validTeacherAlumniConversion(uid) {
       let batchId = resource.data.batchId;
       let batch = get(/databases/$(database)/documents/batches/$(batchId)).data;
@@ -546,7 +565,7 @@ service cloud.firestore {
             && resource.data.role in ["student", "alumni"]
             && (validPhotoUpdate() || validAlumniSelfUpdate()))
           || (request.auth.uid != uid
-            && (validTeacherBatchAssignment() || validTeacherAlumniConversion(uid))));
+            && (validTeacherBatchAssignment() || validTeacherBatchStudentRemoval() || validTeacherAlumniConversion(uid))));
       allow delete: if signedIn()
         && request.auth.uid == uid
         && resource.data.uid == request.auth.uid;
