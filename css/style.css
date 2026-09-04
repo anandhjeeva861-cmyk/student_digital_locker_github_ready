@@ -199,7 +199,7 @@ label {
 }
 
 .hero-logo {
-    width: clamp(104px, 16vw, 156px);
+    width: clamp(120px, 18vw, 176px);
     height: auto;
     margin: 0 auto 20px;
     border-radius: 22px;
@@ -208,7 +208,7 @@ label {
 }
 
 .auth-logo {
-    width: 86px;
+    width: 104px;
     height: auto;
     margin: 0 auto 20px;
     border-radius: 18px;
@@ -618,9 +618,9 @@ label {
 }
 
 .brand-logo {
-    width: 48px;
-    height: 48px;
-    flex: 0 0 48px;
+    width: 58px;
+    height: 58px;
+    flex: 0 0 58px;
     object-fit: contain;
     padding: 3px;
     border-radius: 16px;
@@ -1394,11 +1394,11 @@ tbody tr {
         border-radius: 24px;
     }
     .hero-logo {
-        width: 104px;
+        width: 120px;
         margin-bottom: 18px;
     }
     .auth-logo {
-        width: 74px;
+        width: 92px;
     }
     .login-choice-grid, .form-grid, .status-columns {
         grid-template-columns: 1fr;

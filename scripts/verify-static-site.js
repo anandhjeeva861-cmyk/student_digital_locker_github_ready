@@ -305,8 +305,11 @@ for (const file of ["student-register.html", "teacher-register.html"]) {
   if (!/select[^>]*name="department" data-options="departments" required/.test(content)) {
     failures.push(`${file} must use the shared department select.`);
   }
-  if (!/<label[^>]*>Academic Year<\/label><input[^>]*name="year" data-academic-year placeholder="2025-2028" pattern="20\[0-9\]\{2\}-20\[0-9\]\{2\}"[^>]*required>/.test(content)) {
-    failures.push(`${file} must use an Academic Year input like 2025-2028.`);
+  const yearInput = file === "teacher-register.html"
+    ? /data-academic-year[^>]*name="teachingBatch"|name="teachingBatch"[^>]*data-academic-year/.test(content)
+    : /<label[^>]*>Academic Year<\/label><input[^>]*name="year" data-academic-year placeholder="2025-2028" pattern="20\[0-9\]\{2\}-20\[0-9\]\{2\}"[^>]*required>/.test(content);
+  if (!yearInput) {
+    failures.push(`${file} must use a supported three-year academic range input.`);
   }
 }
 

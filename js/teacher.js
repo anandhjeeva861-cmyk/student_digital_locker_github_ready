@@ -91,9 +91,10 @@ function fillProfile() {
   text("teacherName", teacher.name);
   text("teacherEmail", teacher.email);
   text("teacherDepartment", teacher.department);
-  text("teacherYear", teacher.year);
+  const teachingBatch = teacher.teachingBatch || teacher.year || "Not available";
+  text("teacherYear", teachingBatch);
   text("teacherMobile", teacher.mobile);
-  text("teacherScope", `${teacher.department} - Academic Year ${teacher.year}`);
+  text("teacherScope", `${teacher.department} - Teaching Batch ${teachingBatch}`);
   const courseInput = document.getElementById("batchCourseName");
   if (courseInput && !courseInput.value) courseInput.value = teacher.department;
 }
@@ -258,6 +259,9 @@ async function renderStudents(filter = "") {
   const empty = document.getElementById("studentEmpty");
   if (!body) return;
   const students = await matchingStudents(filter);
+  text("studentListDepartment", teacher.department);
+  text("studentListBatch", teacher.teachingBatch || teacher.year || "Not available");
+  text("studentListTotal", String(students.length));
   body.innerHTML = "";
   for (const student of students) {
     body.insertAdjacentHTML("beforeend", `

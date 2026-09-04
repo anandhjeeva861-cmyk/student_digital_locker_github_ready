@@ -38,6 +38,10 @@ service cloud.firestore {
       return value in ["I", "II", "III"];
     }
 
+    function teacherTeachingBatch(profile) {
+      return profile.get("teachingBatch", profile.get("year", ""));
+    }
+
     function validDepartmentKey(data) {
       return (data.department == "BSC CS" && data.departmentKey == "BSCCS")
         || (data.department == "BSC AI&ML" && data.departmentKey == "BSCAIML")
@@ -74,7 +78,7 @@ service cloud.firestore {
     function validRecoveryData(data) {
       return data.recoveryQuestion in [
           "What was the name of your first school?",
-          "What is the name of your childhood best friend?",
+          "What is your favorite holiday destination?",
           "What is the name of your favorite teacher?",
           "In which city were you born?"
         ]
@@ -124,7 +128,8 @@ service cloud.firestore {
         && request.resource.data.mobile is string
         && request.resource.data.mobile.matches("^[6-9][0-9]{9}$")
         && allowedDepartment(request.resource.data.department)
-        && validAcademicYear(request.resource.data.year)
+        && ((request.resource.data.role == "student" && validAcademicYear(request.resource.data.year))
+          || (request.resource.data.role == "teacher" && validAcademicYear(request.resource.data.teachingBatch)))
         && validDepartmentKey(request.resource.data)
         && validRecoveryData(request.resource.data)
         && existsAfter(/databases/$(database)/documents/passwordRecovery/$(request.resource.data.email))
@@ -146,11 +151,11 @@ service cloud.firestore {
             && request.resource.data.regNo is string
             && request.resource.data.regNo.matches("^[0-9]{2}[A-Z]{3}[0-9]{3}$"))
           || (request.resource.data.role == "teacher"
-            && request.resource.data.keys().hasOnly(["uid", "role", "name", "email", "year", "department", "departmentKey", "mobile", "recoveryQuestion", "recoveryAnswerHash", "recoveryAnswerSalt", "recoveryHashAlgorithm", "recoveryHashIterations", "createdAt", "updatedAt"])
-            && existsAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.year))
-            && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.year)).data.uid == uid
-            && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.year)).data.departmentKey == request.resource.data.departmentKey
-            && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.year)).data.year == request.resource.data.year));
+            && request.resource.data.keys().hasOnly(["uid", "role", "name", "email", "teachingBatch", "department", "departmentKey", "mobile", "recoveryQuestion", "recoveryAnswerHash", "recoveryAnswerSalt", "recoveryHashAlgorithm", "recoveryHashIterations", "createdAt", "updatedAt"])
+            && existsAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch))
+            && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch)).data.uid == uid
+            && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch)).data.departmentKey == request.resource.data.departmentKey
+            && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch)).data.get("teachingBatch", getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch)).data.get("year", "")) == request.resource.data.teachingBatch));
     }
 
     function allowedDocumentMimeType(value) {
@@ -272,7 +277,7 @@ service cloud.firestore {
         && request.resource.data.category in ["online", "personal", "academic"]
         && validDocumentIdForCategory(documentId, request.resource.data.category)
         && profileDepartmentKeyMatches(currentProfile(), request.resource.data.departmentKey)
-        && request.resource.data.year == currentProfile().year
+        && request.resource.data.year == teacherTeachingBatch(currentProfile())
         && request.resource.data.batchId == currentProfile().get("batchId", "")
         && request.resource.data.fileDataVersion is string
         && request.resource.data.fileDataVersion.size() > 0
@@ -437,11 +442,11 @@ service cloud.firestore {
         && currentProfile().role == "teacher"
         && ((data.get("batchId", "") == ""
             && matchesCurrentProfileScope(data)
-            && currentProfile().year == data.year)
+            && teacherTeachingBatch(currentProfile()) == data.year)
           || (data.get("batchId", "") != "" && teacherAssignedToBatch(data.batchId))
           || teacherAssignedToBatch(inferredBatchId(data))
           || (matchesCurrentProfileScope(data)
-            && currentProfile().year == data.year
+            && teacherTeachingBatch(currentProfile()) == data.year
             && !exists(/databases/$(database)/documents/batches/$(inferredBatchId(data)))));
     }
 
@@ -454,7 +459,7 @@ service cloud.firestore {
     function isSameScope(data) {
       return signedIn()
         && matchesCurrentProfileScope(data)
-        && currentProfile().year == data.year;
+        && teacherTeachingBatch(currentProfile()) == data.year;
     }
 
     function validAcademicTitleWrite() {
@@ -496,7 +501,7 @@ service cloud.firestore {
         ])
         && request.resource.data.recoveryQuestion in [
           "What was the name of your first school?",
-          "What is the name of your childhood best friend?",
+          "What is your favorite holiday destination?",
           "What is the name of your favorite teacher?",
           "In which city were you born?"
         ]
@@ -617,7 +622,7 @@ service cloud.firestore {
         && currentProfile().role == "teacher"
         && resource.data.createdBy == request.auth.uid
         && profileDepartmentKeyMatches(currentProfile(), resource.data.departmentKey)
-        && resource.data.year == currentProfile().year;
+        && resource.data.year == teacherTeachingBatch(currentProfile());
     }
 
     match /batches/{batchId} {
@@ -751,14 +756,14 @@ service cloud.firestore {
       allow list: if false;
       allow create: if signedIn()
         && !exists(/databases/$(database)/documents/uniqueTeacherScopes/$(scopeId))
-        && request.resource.data.keys().hasOnly(["uid", "department", "departmentKey", "year", "createdAt"])
+        && request.resource.data.keys().hasOnly(["uid", "department", "departmentKey", "teachingBatch", "createdAt"])
         && request.resource.data.uid == request.auth.uid
         && existsAfter(/databases/$(database)/documents/profiles/$(request.auth.uid))
         && getAfter(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == "teacher"
         && allowedDepartment(request.resource.data.department)
-        && validAcademicYear(request.resource.data.year)
+        && validAcademicYear(request.resource.data.teachingBatch)
         && validDepartmentKey(request.resource.data)
-        && scopeId == request.resource.data.departmentKey + "_" + request.resource.data.year
+        && scopeId == request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch
         && request.resource.data.createdAt == request.time;
       allow update: if false;
       allow delete: if signedIn()

@@ -5,6 +5,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "role", "order": "ASCENDING" },
+        { "fieldPath": "studentStatus", "order": "ASCENDING" },
         { "fieldPath": "departmentKey", "order": "ASCENDING" },
         { "fieldPath": "year", "order": "ASCENDING" }
       ]
@@ -14,6 +15,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "role", "order": "ASCENDING" },
+        { "fieldPath": "studentStatus", "order": "ASCENDING" },
         { "fieldPath": "department", "order": "ASCENDING" },
         { "fieldPath": "year", "order": "ASCENDING" }
       ]

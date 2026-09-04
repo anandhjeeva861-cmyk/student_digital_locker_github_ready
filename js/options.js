@@ -22,7 +22,7 @@ export const ACADEMIC_YEAR_EXAMPLE = "2025-2028";
 
 export const RECOVERY_QUESTIONS = [
   "What was the name of your first school?",
-  "What is the name of your childhood best friend?",
+  "What is your favorite holiday destination?",
   "What is the name of your favorite teacher?",
   "In which city were you born?"
 ];

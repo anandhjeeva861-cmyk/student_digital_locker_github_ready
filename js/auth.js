@@ -74,7 +74,7 @@ function teacherPayload(form) {
     name: normalizeName(value(form, "name")),
     email: value(form, "email").trim().toLowerCase(),
     department: parseDepartment(value(form, "department")),
-    year: parseYear(value(form, "year")),
+    teachingBatch: parseYear(value(form, "teachingBatch")),
     mobile: value(form, "mobile").trim(),
     password: value(form, "password"),
     recoveryQuestion: value(form, "recoveryQuestion"),

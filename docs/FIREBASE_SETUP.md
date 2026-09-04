@@ -111,7 +111,7 @@ Department values are shared from `js/options.js`. New registrations must enter 
 - `academicTitles`: teacher-added academic certificate requirements per department/academic year.
 - `uniqueMobileNumbers`: mobile uniqueness guard.
 - `uniqueRegisterNumbers`: student register number uniqueness guard.
-- `uniqueTeacherScopes`: one teacher per department and academic year guard.
+- `uniqueTeacherScopes`: one teacher per department and `teachingBatch` guard. Existing teacher profiles may use `year` as a legacy fallback.
 - `batches`: batch identity, department, admission/graduation years, status, and `assignedTeacherUid`.
 - `alumniConversions`: immutable Student-to-Alumni conversion audit records.
 - `batchGraduations`: immutable batch graduation audit records.

@@ -50,6 +50,7 @@ const photoChunksCollection = "photoChunks";
 const firestoreChunkChars = 700000;
 const recoveryHashAlgorithm = "PBKDF2-SHA-256";
 const recoveryHashIterations = 210000;
+const legacyRecoveryQuestions = ["What is the name of your childhood best friend?"];
 
 function firestoreContext(profile, extra = {}) {
   return {
@@ -147,7 +148,7 @@ async function getRecoveryRecord(email) {
   const snapshot = await getDoc(doc(db, passwordRecoveryCollection, normalizedEmail));
   if (!snapshot.exists()) return null;
   const data = snapshot.data();
-  if (!isRecoveryQuestion(data.recoveryQuestion)
+  if (!(isRecoveryQuestion(data.recoveryQuestion) || legacyRecoveryQuestions.includes(data.recoveryQuestion))
     || !/^[a-f0-9]{32}$/.test(data.recoveryAnswerSalt || "")
     || data.recoveryHashAlgorithm !== recoveryHashAlgorithm
     || data.recoveryHashIterations !== recoveryHashIterations) {
@@ -208,11 +209,15 @@ function safeSegment(value) {
 }
 
 function titleId(profile, title) {
-  return `${profile.departmentKey}_${profile.year}_${safeSegment(title).toUpperCase()}`;
+  return `${profile.departmentKey}_${teacherTeachingBatch(profile)}_${safeSegment(title).toUpperCase()}`;
 }
 
 function teacherScopeId(profile) {
-  return `${profile.departmentKey}_${safeSegment(profile.year).toUpperCase()}`;
+  return `${profile.departmentKey}_${safeSegment(profile.teachingBatch || profile.year).toUpperCase()}`;
+}
+
+function teacherTeachingBatch(profile) {
+  return profile?.teachingBatch || profile?.year || "";
 }
 
 function batchDocumentId(profile, batchLabel) {
@@ -260,7 +265,8 @@ function requireProfileScope(profile, expectedRole, action) {
   if (!profile?.email) missing.push("email");
   if (!profile?.department || !isDepartment(profile.department)) missing.push("department");
   if (!profile?.departmentKey) missing.push("departmentKey");
-  if (!profile?.year || !isAcademicYear(profile.year)) missing.push("year");
+  const scopeYear = profile?.role === "teacher" ? teacherTeachingBatch(profile) : profile?.year;
+  if (!scopeYear || !isAcademicYear(scopeYear)) missing.push(profile?.role === "teacher" ? "teachingBatch" : "year");
   if (expectedRole === "student" && !profile?.regNo) missing.push("regNo");
   if (missing.length) {
     throw profileError(
@@ -535,6 +541,7 @@ export function firebaseErrorMessage(error) {
     "auth/api-key-not-valid.-please-pass-a-valid-api-key.": "Firebase configuration is invalid. Check the deployed Firebase config.",
     "auth/operation-not-allowed": "Email/password login is not enabled in Firebase Authentication.",
     "auth/requires-recent-login": "For safety, log out and log in again, then remove the account within 4 minutes.",
+    "app/teacher-scope-taken": "This batch is already assigned to another Teacher. Please select a different batch.",
     "auth/too-many-requests": "Too many failed attempts. Try again later.",
     "auth/unauthorized-domain": "This website domain is not authorized in Firebase Authentication settings.",
     "auth/network-request-failed": "Network error. Check your internet connection.",
@@ -587,7 +594,7 @@ export async function registerTeacher(payload) {
       role: "teacher",
       name: payload.name,
       email,
-      year: payload.year,
+      teachingBatch: payload.teachingBatch,
       department: payload.department,
       departmentKey: payload.departmentKey,
       mobile: payload.mobile,
@@ -602,7 +609,9 @@ export async function registerTeacher(payload) {
 
 async function createProfileWithUniqueKeys(uid, profile) {
   if (!isDepartment(profile.department)) throw new Error("Invalid department selected.");
-  if (!isAcademicYear(profile.year)) throw new Error("Invalid academic year selected.");
+  const teachingBatch = teacherTeachingBatch(profile);
+  const profileYear = profile.role === "teacher" ? teachingBatch : profile.year;
+  if (!isAcademicYear(profileYear)) throw new Error("Invalid academic year selected.");
   if (!profile.departmentKey) throw new Error("Invalid department selected.");
   if (!isRecoveryQuestion(profile.recoveryQuestion)) throw new Error("Invalid recovery question selected.");
   if (!/^[a-f0-9]{64}$/.test(profile.recoveryAnswerHash || "")) {
@@ -628,7 +637,9 @@ async function createProfileWithUniqueKeys(uid, profile) {
       teacherScopeRef = doc(db, uniqueTeacherScopeCollection, teacherScopeId(profile));
       const teacherScopeSnap = await transaction.get(teacherScopeRef);
       if (teacherScopeSnap.exists()) {
-        throw new Error("A teacher is already registered for this department and academic year.");
+        const error = new Error("This batch is already assigned to another Teacher. Please select a different batch.");
+        error.code = "app/teacher-scope-taken";
+        throw error;
       }
     }
 
@@ -656,7 +667,7 @@ async function createProfileWithUniqueKeys(uid, profile) {
         uid,
         department: profile.department,
         departmentKey: profile.departmentKey,
-        year: profile.year,
+        teachingBatch,
         createdAt: serverTimestamp()
       });
     }
@@ -699,21 +710,12 @@ export async function deleteCurrentAccount(profile = null) {
   }
 
   if (accountProfile.role === "teacher") {
-    const assignedBatches = await getDocs(query(
-      collection(db, batchesCollection),
-      where("assignedTeacherUid", "==", accountProfile.uid)
-    ));
-    if (!assignedBatches.empty) {
-      throw new Error("This teacher account owns batch history and cannot be removed until an administrator securely reassigns those batches.");
-    }
     const titles = await getDocs(query(
       collection(db, titlesCollection),
       where("createdBy", "==", accountProfile.uid)
     ));
     await deleteSnapshots(titles.docs);
-    await deleteDoc(doc(db, uniqueTeacherScopeCollection, teacherScopeId(accountProfile))).catch((error) => {
-      console.warn("Teacher scope cleanup failed", error);
-    });
+    await deleteDoc(doc(db, uniqueTeacherScopeCollection, teacherScopeId(accountProfile)));
   }
 
   const profileRef = doc(db, profileCollection, accountProfile.uid);
@@ -922,10 +924,11 @@ export async function deleteStudentDocument(profile, documentIdValue) {
 
 export async function listAcademicTitles(profile) {
   requireProfileScope(profile, null, "load academic titles");
+  const scopeYear = profile.role === "teacher" ? teacherTeachingBatch(profile) : profile.year;
   const titleQuery = query(
     collection(db, titlesCollection),
     where("departmentKey", "==", profile.departmentKey),
-    where("year", "==", profile.year)
+    where("year", "==", scopeYear)
   );
   const snapshots = await getDocs(titleQuery);
   return snapshots.docs.map((item) => ({ id: item.id, title: item.data().title, custom: true }));
@@ -934,11 +937,12 @@ export async function listAcademicTitles(profile) {
 export async function addAcademicTitle(profile, title) {
   requireProfileScope(profile, "teacher", "add document titles");
   await requireCurrentUser(profile.uid);
+  const scopeYear = teacherTeachingBatch(profile);
   await setDoc(doc(db, titlesCollection, titleId(profile, title)), {
     title,
     department: profile.department,
     departmentKey: profile.departmentKey,
-    year: profile.year,
+    year: scopeYear,
     createdBy: profile.uid,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
@@ -948,11 +952,12 @@ export async function addAcademicTitle(profile, title) {
 export async function deleteAcademicTitle(profile, titleIdValue) {
   requireProfileScope(profile, "teacher", "remove document titles");
   await requireCurrentUser(profile.uid);
+  const scopeYear = teacherTeachingBatch(profile);
   const titleRef = doc(db, titlesCollection, titleIdValue);
   const snapshot = await getDoc(titleRef);
   if (!snapshot.exists()) throw new Error("Document title not found.");
   const data = snapshot.data();
-  if (data.createdBy !== profile.uid || data.departmentKey !== profile.departmentKey || data.year !== profile.year) {
+  if (data.createdBy !== profile.uid || data.departmentKey !== profile.departmentKey || data.year !== scopeYear) {
     throw new Error("You can remove only your own matching document titles.");
   }
   await deleteDoc(titleRef);
@@ -1316,9 +1321,16 @@ export async function listTeacherStudents(profile, filter = "") {
 
 async function listTeacherStudentProfiles(profile) {
   requireProfileScope(profile, "teacher", "load students");
-  const batches = await listTeacherBatches(profile);
-  const memberGroups = await Promise.all(batches.map((batch) => getBatchMembers(batch.id)));
-  return uniqueById(memberGroups.flat().filter((item) => item.role === "student"))
+  const teachingBatch = teacherTeachingBatch(profile);
+  const queries = [
+    query(collection(db, profileCollection), where("role", "==", "student"), where("studentStatus", "==", "active"), where("departmentKey", "==", profile.departmentKey), where("year", "==", teachingBatch)),
+    query(collection(db, profileCollection), where("role", "==", "student"), where("studentStatus", "==", "active"), where("department", "==", profile.department), where("year", "==", teachingBatch))
+  ];
+  const results = await Promise.allSettled(queries.map((studentQuery) => getDocs(studentQuery)));
+  const snapshots = results.filter((result) => result.status === "fulfilled").map((result) => result.value);
+  if (!snapshots.length) throw results[0].reason;
+  return uniqueById(snapshots.flatMap((snapshot) => snapshot.docs.map(profileFromDoc)))
+    .filter((item) => item.role === "student" && (item.studentStatus || "active") === "active")
     .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 }
 
@@ -1346,9 +1358,10 @@ export async function getTeacherDashboardSummary(profile) {
 
 export async function getTeacherStudentDetail(profile, studentUid) {
   requireProfileScope(profile, "teacher", "load student details");
+  const scopeYear = teacherTeachingBatch(profile);
   const student = await getProfile(studentUid);
   if (!student || student.role !== "student") throw new Error("Student not found.");
-  const legacyScope = student.departmentKey === profile.departmentKey && student.year === profile.year;
+  const legacyScope = student.departmentKey === profile.departmentKey && student.year === scopeYear;
   const assignedScope = student.batchId
     ? (await requireAssignedBatch(profile, student.batchId).catch(() => null)) !== null
     : false;
@@ -1369,17 +1382,18 @@ export async function getTeacherStudentDetail(profile, studentUid) {
 
 export async function listTeacherAcademicDocuments(profile) {
   requireProfileScope(profile, "teacher", "load academic documents");
+  const scopeYear = teacherTeachingBatch(profile);
   const byDepartmentKeyQuery = query(
     collection(db, documentsCollection),
     where("category", "==", "academic"),
     where("departmentKey", "==", profile.departmentKey),
-    where("year", "==", profile.year)
+    where("year", "==", scopeYear)
   );
   const byDepartmentQuery = query(
     collection(db, documentsCollection),
     where("category", "==", "academic"),
     where("department", "==", profile.department),
-    where("year", "==", profile.year)
+    where("year", "==", scopeYear)
   );
   const [departmentKeySnapshots, departmentSnapshots] = await Promise.all([
     getDocs(byDepartmentKeyQuery),
@@ -1394,12 +1408,13 @@ export async function listTeacherAcademicDocuments(profile) {
 export async function deleteTeacherAcademicDocument(profile, documentIdValue) {
   requireProfileScope(profile, "teacher", "delete academic documents");
   await requireCurrentUser(profile.uid);
+  const scopeYear = teacherTeachingBatch(profile);
   const docRef = doc(db, documentsCollection, documentIdValue);
   const snapshot = await getDoc(docRef);
   if (!snapshot.exists()) throw new Error("Document not found.");
   const data = snapshot.data();
   const matchingDepartment = data.departmentKey === profile.departmentKey || data.department === profile.department;
-  const legacyScope = matchingDepartment && data.year === profile.year;
+  const legacyScope = matchingDepartment && data.year === scopeYear;
   const inferredBatchId = data.batchId || (data.departmentKey && data.year ? `${data.departmentKey}_${data.year}` : "");
   const assignedScope = inferredBatchId
     ? (await requireAssignedBatch(profile, inferredBatchId).catch(() => null)) !== null

@@ -14,8 +14,8 @@ GitHub Pages hosts the complete active app. No Node backend is required for logi
 
 ## Alumni and Batch Lifecycle
 
-- Teachers create department batches and explicitly assign students whose department and `YYYY-YYYY` academic range match.
-- Active assigned batches appear under **Current Batches**. Graduated batches remain under **Previous Batches**.
+- Teachers register one exclusive department plus teaching-batch scope and see only active matching students in **Student List**.
+- Batch management remains available for assignment, graduation, and historical Alumni access; graduated batches remain available as history.
 - Graduation uses one atomic Firestore write for up to 200 students: each existing `profiles/{uid}` role changes from `student` to `alumni`, audit records are created, and the batch becomes `graduated`.
 - Authentication accounts and document `ownerId` values are never changed or migrated.
 - Alumni use `alumni-login.html` with the same email/password and can manage their career profile, achievements, contact links, and documents.
@@ -75,7 +75,7 @@ See `docs/FIREBASE_SETUP.md`.
 
 Department values are defined once in `js/options.js`. Registration forms require an Academic Year typed like `2025-2028`; client validation requires the end year to be 3 years after the start year, and Firestore rules enforce the `YYYY-YYYY` shape for new accounts.
 
-Teacher registration also reserves one department + academic-year scope, so a second teacher cannot create another teacher account for the same class scope.
+Teacher registration also reserves one department + teaching-batch scope, so a second teacher cannot create another teacher account for the same class scope.
 
 ## Commands
 

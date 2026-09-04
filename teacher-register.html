@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Create a Student Digital Locker teacher account for a department and academic-year scope.">
+  <meta name="description" content="Create a Student Digital Locker teacher account for a department and teaching batch scope.">
   <meta name="robots" content="noindex, follow">
   <link rel="canonical" href="https://anandhjeeva861-cmyk.github.io/student_digital_locker_github_ready/teacher-register.html">
   <link rel="icon" type="image/png" href="./images/sankara-logo.png">
@@ -20,7 +20,7 @@
         <div><label for="teacherNameInput">Name (Caps only)</label><input id="teacherNameInput" class="caps-input" name="name" placeholder="PRIYA R" autocomplete="name" required></div>
         <div><label for="teacherEmailInput">Email</label><input id="teacherEmailInput" type="email" name="email" placeholder="teacher@example.com" autocomplete="username" required></div>
         <div><label for="teacherDepartmentInput">Department</label><select id="teacherDepartmentInput" name="department" data-options="departments" required></select></div>
-        <div><label for="teacherYearInput">Academic Year</label><input id="teacherYearInput" name="year" data-academic-year placeholder="2025-2028" pattern="20[0-9]{2}-20[0-9]{2}" title="Enter academic year like 2025-2028" required></div>
+        <div><label for="teacherBatchInput">Which Batch Year Students Do You Teach?</label><input id="teacherBatchInput" name="teachingBatch" data-academic-year placeholder="2025-2028" pattern="20[0-9]{2}-20[0-9]{2}" title="Enter a three-year teaching batch like 2025-2028" required></div>
         <div><label for="teacherMobileInput">Mobile Number</label><input id="teacherMobileInput" name="mobile" placeholder="9876543210" autocomplete="tel" required></div>
         <div><label for="teacherPasswordInput">Create Password</label><input id="teacherPasswordInput" type="password" name="password" placeholder="Minimum 6 characters" autocomplete="new-password" required minlength="6"></div>
         <div><label for="teacherRecoveryQuestion">Recovery Question</label><select id="teacherRecoveryQuestion" name="recoveryQuestion" data-options="recovery-questions" required></select></div>
