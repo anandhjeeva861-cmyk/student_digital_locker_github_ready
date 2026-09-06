@@ -10,33 +10,33 @@
   <title>Alumni Dashboard | Student Digital Locker</title>
   <link rel="stylesheet" href="./css/style.css">
 </head>
-<body>
+<body class="alumni-theme">
   <div class="app-shell">
     <aside class="sidebar alumni-side" id="dashboardSidebar">
-      <div class="brand"><img class="brand-logo" src="./images/sankara-logo.png" alt="Sankara Educational Institutions logo"><div><b>ALUMNI</b><small>DIGITAL LOCKER</small></div></div>
+      <div class="brand"><img class="brand-logo" src="./images/sankara-logo.png" alt="Sankara College logo"><div><b>ALUMNI</b><small>DIGITAL LOCKER</small></div></div><p class="sidebar-label">SANKARA COLLEGE WORKSPACE</p>
       <nav aria-label="Alumni portal navigation">
         <button type="button" class="nav-link" data-open-view="dashboard">DASHBOARD</button>
-        <button type="button" class="nav-link" data-open-view="documents">MY DOCUMENTS</button>
-        <button type="button" class="nav-link" data-open-view="career">CAREER PROFILE</button>
-        <button type="button" class="nav-link" data-open-view="achievements">ACHIEVEMENTS</button>
-        <button type="button" class="nav-link" data-open-view="profile">MY PROFILE</button>
+        <button type="button" class="nav-link" data-open-view="documents"><span class="nav-symbol" aria-hidden="true">&#9670;</span><span>My documents</span></button>
+        <button type="button" class="nav-link" data-open-view="career"><span class="nav-symbol" aria-hidden="true">&#9670;</span><span>Career profile</span></button>
+        <button type="button" class="nav-link" data-open-view="achievements"><span class="nav-symbol" aria-hidden="true">&#9670;</span><span>Achievements</span></button>
+        <button type="button" class="nav-link" data-open-view="profile"><span class="nav-symbol" aria-hidden="true">&#9670;</span><span>My profile</span></button>
         <button type="button" class="nav-link danger-link" data-logout>LOGOUT</button>
-      </nav>
+      </nav><div class="sidebar-foot"><span>&#9670;</span> Your records. Your future.<small>Sankara Digital Locker</small></div>
     </aside>
     <div class="menu-backdrop" data-menu-close></div>
     <main class="main-panel">
       <header class="topbar">
-        <button type="button" class="menu-toggle" data-menu-toggle aria-controls="dashboardSidebar" aria-expanded="false">☰ MENU</button>
+        <button type="button" class="menu-toggle" data-menu-toggle aria-controls="dashboardSidebar" aria-expanded="false">&#9776; MENU</button>
         <button type="button" class="welcome" data-open-view="dashboard">WELCOME, <span id="welcomeName">ALUMNI</span></button>
-        <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
+        <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">&#127769;</button>
       </header>
 
       <section data-view="dashboard">
         <div class="page-head"><div><p class="eyebrow">ALUMNI PORTAL</p><h1>Dashboard</h1><p class="muted">Your student documents remain available under the same account.</p></div></div>
         <div class="stats-grid alumni-stats">
-          <div class="stat-card"><span>REGISTER NUMBER</span><strong class="stat-value" id="dashboardRegNo">—</strong><small>Your institutional identifier</small></div>
-          <div class="stat-card"><span>DEPARTMENT</span><strong class="stat-value" id="dashboardDepartment">—</strong><small>Graduated department</small></div>
-          <div class="stat-card"><span>BATCH</span><strong class="stat-value" id="dashboardBatch">—</strong><small>Admission to graduation</small></div>
+          <div class="stat-card"><span>REGISTER NUMBER</span><strong class="stat-value" id="dashboardRegNo">&mdash;</strong><small>Your institutional identifier</small></div>
+          <div class="stat-card"><span>DEPARTMENT</span><strong class="stat-value" id="dashboardDepartment">&mdash;</strong><small>Graduated department</small></div>
+          <div class="stat-card"><span>BATCH</span><strong class="stat-value" id="dashboardBatch">&mdash;</strong><small>Admission to graduation</small></div>
           <button type="button" class="stat-card important" data-open-view="documents"><span>TOTAL DOCUMENTS</span><strong id="dashboardDocumentCount">0</strong><small>Preserved from your Student account</small></button>
           <button type="button" class="stat-card" data-open-view="career"><span>CAREER STATUS</span><strong class="stat-value" id="dashboardCareerStatus">NOT UPDATED</strong><small>Keep your career journey current</small></button>
         </div>
@@ -87,7 +87,7 @@
         <div class="page-head"><div><p class="eyebrow">MY PROFILE</p><h1>Alumni Details</h1><p class="muted">Institutional identity fields are read-only.</p></div></div>
         <div class="profile-layout">
           <div class="detail-card">
-            <div class="detail-row"><span>Name</span><b id="alumniName">—</b></div><div class="detail-row"><span>Register Number</span><b id="alumniRegNo">—</b></div><div class="detail-row"><span>Department</span><b id="alumniDepartment">—</b></div><div class="detail-row"><span>Batch</span><b id="alumniBatch">—</b></div><div class="detail-row"><span>Graduation Year</span><b id="alumniGraduationYear">—</b></div><div class="detail-row"><span>Login Email</span><b id="alumniEmail">—</b></div><div class="detail-row"><span>Mobile</span><b id="alumniMobile">—</b></div>
+            <div class="detail-row"><span>Name</span><b id="alumniName">&mdash;</b></div><div class="detail-row"><span>Register Number</span><b id="alumniRegNo">&mdash;</b></div><div class="detail-row"><span>Department</span><b id="alumniDepartment">&mdash;</b></div><div class="detail-row"><span>Batch</span><b id="alumniBatch">&mdash;</b></div><div class="detail-row"><span>Graduation Year</span><b id="alumniGraduationYear">&mdash;</b></div><div class="detail-row"><span>Login Email</span><b id="alumniEmail">&mdash;</b></div><div class="detail-row"><span>Mobile</span><b id="alumniMobile">&mdash;</b></div>
           </div>
           <div class="upload-card"><h2>Contact Links</h2><form class="stack-form" id="alumniProfileForm"><label for="alumniPersonalEmail">Personal Email</label><input id="alumniPersonalEmail" name="personalEmail" type="email" maxlength="160" autocomplete="email"><small class="field-help">This does not change your Firebase Authentication login email.</small><label for="alumniLinkedin">LinkedIn URL</label><input id="alumniLinkedin" name="linkedin" type="url" maxlength="300" placeholder="https://www.linkedin.com/in/your-name"><button class="primary-btn" type="submit">SAVE CONTACT LINKS</button></form></div>
         </div>
