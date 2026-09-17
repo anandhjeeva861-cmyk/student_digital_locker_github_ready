@@ -88,7 +88,9 @@ test("admin portal exposes teacher approval workflow", async () => {
   assert.match(admin, /protectPage\("admin"/);
   assert.match(service, /export async function saveTeacherApproval/);
   assert.match(service, /export async function updateTeacherTeachingBatches/);
+  assert.match(service, /bootstrapAdmin/);
   assert.match(rules, /function isAdmin/);
+  assert.match(rules, /function validBootstrapAdminProfile/);
   assert.match(rules, /match \/approvedTeachers\/\{email\}/);
 });
 

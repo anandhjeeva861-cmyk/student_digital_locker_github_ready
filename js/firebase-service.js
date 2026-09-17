@@ -49,6 +49,11 @@ const documentCategories = ["online", "personal", "academic"];
 const fileChunksCollection = "fileChunks";
 const photoChunksCollection = "photoChunks";
 const firestoreChunkChars = 700000;
+const bootstrapAdmin = {
+  uid: "OfTYxpD3AhZ3bDI9GzENxK4MVkm2",
+  email: "jeevajesus631@gmail.com",
+  name: "ADMIN"
+};
 
 function firestoreContext(profile, extra = {}) {
   return {
@@ -83,6 +88,10 @@ function normalizeEmail(value) {
     throw error;
   }
   return email;
+}
+
+function isBootstrapAdminUser(user) {
+  return user?.uid === bootstrapAdmin.uid && normalizeEmail(user?.email || "") === bootstrapAdmin.email;
 }
 
 export async function sendRecoveryPasswordReset(email) {
@@ -591,7 +600,18 @@ async function createProfileWithUniqueKeys(uid, profile) {
 export async function loginWithEmail(email, password) {
   await authReady;
   const credential = await signInWithEmailAndPassword(auth, email, password);
-  const profile = await getProfile(credential.user.uid);
+  let profile = await getProfile(credential.user.uid);
+  if (!profile && isBootstrapAdminUser(credential.user)) {
+    await setDoc(doc(db, profileCollection, credential.user.uid), {
+      uid: bootstrapAdmin.uid,
+      role: "admin",
+      name: bootstrapAdmin.name,
+      email: bootstrapAdmin.email,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    profile = await getProfile(credential.user.uid);
+  }
   if (!profile) {
     await signOut(auth);
     throw new Error("Profile not found. Register again or check Firestore profiles collection.");

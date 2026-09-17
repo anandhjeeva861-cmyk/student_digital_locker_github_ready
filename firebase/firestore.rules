@@ -18,6 +18,13 @@ service cloud.firestore {
       return signedIn() && currentProfile().role == "admin";
     }
 
+    function isBootstrapAdmin(uid) {
+      return signedIn()
+        && uid == "OfTYxpD3AhZ3bDI9GzENxK4MVkm2"
+        && request.auth.uid == uid
+        && request.auth.token.email == "jeevajesus631@gmail.com";
+    }
+
     function approvedTeacher(data) {
       let approval = get(/databases/$(database)/documents/approvedTeachers/$(request.auth.token.email)).data;
       let approvedBatches = approval.get("teachingBatches", [approval.get("teachingBatch", "")]);
@@ -185,6 +192,17 @@ service cloud.firestore {
             && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch)).data.uid == uid
             && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch)).data.departmentKey == request.resource.data.departmentKey
             && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch)).data.get("teachingBatch", getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch)).data.get("year", "")) == request.resource.data.teachingBatch));
+    }
+
+    function validBootstrapAdminProfile(uid) {
+      return isBootstrapAdmin(uid)
+        && request.resource.data.keys().hasOnly(["uid", "role", "name", "email", "createdAt", "updatedAt"])
+        && request.resource.data.uid == uid
+        && request.resource.data.role == "admin"
+        && request.resource.data.name == "ADMIN"
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
     }
 
     function allowedDocumentMimeType(value) {
@@ -545,7 +563,7 @@ service cloud.firestore {
     match /profiles/{uid} {
       allow create: if signedIn()
         && request.auth.uid == uid
-        && validProfileCreate(uid);
+        && (validProfileCreate(uid) || validBootstrapAdminProfile(uid));
       allow read: if signedIn()
         && (request.auth.uid == uid
           || isAdmin()
