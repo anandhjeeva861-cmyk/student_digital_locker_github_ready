@@ -95,6 +95,10 @@ function fillCareerForm() {
 function showCareerFields(status) {
   document.querySelectorAll("[data-career-fields]").forEach((section) => {
     section.hidden = section.dataset.careerFields !== status;
+    section.querySelectorAll("input, textarea, select").forEach((input) => {
+      input.disabled = section.hidden;
+      input.required = !section.hidden;
+    });
   });
 }
 

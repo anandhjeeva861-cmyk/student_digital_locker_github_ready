@@ -3,14 +3,15 @@ import { getAnalytics, isSupported as analyticsIsSupported } from "https://www.g
 import {
   browserSessionPersistence,
   browserLocalPersistence,
+  connectAuthEmulator,
   getAuth,
   inMemoryPersistence,
   setPersistence
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import { connectFirestoreEmulator, getFirestore } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 const firebaseConfigUrl = `./firebase-config.js?v=${Date.now()}`;
-const { firebaseConfig } = await import(firebaseConfigUrl).catch((error) => {
+const { firebaseConfig, firebaseEmulators } = await import(firebaseConfigUrl).catch((error) => {
   console.error("Firebase configuration failed to load.", error);
   const message = document.createElement("p");
   message.className = "message danger";
@@ -40,6 +41,13 @@ if (missingConfig.length) {
 export const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+if (firebaseEmulators) {
+  if (!["localhost", "127.0.0.1", "[::1]"].includes(location.hostname) || !firebaseConfig.projectId.startsWith("demo-")) {
+    throw new Error("Emulators require a local site and a demo Firebase project.");
+  }
+  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+  connectFirestoreEmulator(db, "127.0.0.1", 8080);
+}
 export const authReady = setPersistence(auth, browserLocalPersistence)
   .catch((error) => {
     console.warn("Local auth persistence is not available. Falling back to session persistence.", error);
@@ -50,7 +58,7 @@ export const authReady = setPersistence(auth, browserLocalPersistence)
     return setPersistence(auth, inMemoryPersistence);
   });
 
-export const analyticsReady = analyticsIsSupported()
+export const analyticsReady = (firebaseEmulators ? Promise.resolve(false) : analyticsIsSupported())
   .then((supported) => (supported ? getAnalytics(app) : null))
   .catch((error) => {
     console.warn("Firebase Analytics is not available in this browser.", error);

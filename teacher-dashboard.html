@@ -18,6 +18,7 @@
         <button type="button" class="nav-link" data-open-view="dashboard">DASHBOARD</button>
         <button type="button" class="nav-link" data-open-view="profile"><span class="nav-symbol" aria-hidden="true">&#9670;</span><span>Profile</span></button>
         <button type="button" class="nav-link" data-open-view="students"><span class="nav-symbol" aria-hidden="true">&#9670;</span><span>Student list</span></button>
+        <button type="button" class="nav-link" data-open-view="batches">BATCH MANAGEMENT</button>
         <button type="button" class="nav-link" data-open-view="remove-batch-student"><span class="nav-symbol" aria-hidden="true">&#9670;</span><span>Remove batch student</span></button>
         <button type="button" class="nav-link" data-open-view="alumni"><span class="nav-symbol" aria-hidden="true">&#9670;</span><span>Alumni details</span></button>
         <button type="button" class="nav-link" data-open-view="status"><span class="nav-symbol" aria-hidden="true">&#9670;</span><span>Document submission status</span></button>
@@ -59,6 +60,32 @@
         <div class="detail-card scope-summary"><div class="detail-row"><span>Department</span><b id="studentListDepartment"></b></div><div class="detail-row"><span>Teaching Batch</span><b id="studentListBatch"></b></div><div class="detail-row"><span>Total Students</span><b id="studentListTotal">0</b></div></div>
         <div class="search-card"><form class="search-form" id="searchForm"><label class="visually-hidden" for="studentSearch">Search students</label><input id="studentSearch" name="q" placeholder="Search by student name or reg no"><button class="primary-btn" type="submit">SEARCH</button></form></div>
         <div class="table-card"><div class="card-title-row"><h2>Students</h2></div><div class="responsive-table"><table><thead><tr><th>Name</th><th>Reg No</th><th>Department</th><th>Academic Year</th><th>Academic Files</th><th>Action</th></tr></thead><tbody id="studentRows"></tbody></table></div><div class="empty-state" id="studentEmpty">No matching student found.</div></div>
+      </section>
+
+      <section data-view="batches" hidden>
+        <div class="page-head"><div><p class="eyebrow">BATCH MANAGEMENT</p><h1>Teaching Batch</h1></div></div>
+        <div class="workspace-grid">
+          <form class="stack-form" id="createBatchForm">
+            <h2>Create Batch</h2>
+            <label for="batchCourseName">Course Name</label><input id="batchCourseName" name="courseName" maxlength="120" required>
+            <label for="batchLabel">Approved Teaching Batch</label><input id="batchLabel" name="batchLabel" readonly required>
+            <button type="submit" class="primary-btn">CREATE BATCH</button>
+          </form>
+          <form class="stack-form" id="assignBatchForm">
+            <h2>Assign Student</h2>
+            <label for="assignmentBatch">Batch</label><select id="assignmentBatch" name="batchId" required><option value="">Select batch</option></select>
+            <label for="assignmentStudent">Student</label><select id="assignmentStudent" name="studentUid" required><option value="">Select student</option></select>
+            <button type="submit" class="primary-btn">ASSIGN STUDENT</button>
+          </form>
+        </div>
+        <h2>Current Batches</h2><div id="currentBatchGrid" class="batch-grid"></div><p id="currentBatchEmpty" class="empty-state">No active batches.</p>
+        <h2>Previous Batches</h2><div id="previousBatchGrid" class="batch-grid"></div><p id="previousBatchEmpty" class="empty-state">No graduated batches.</p>
+      </section>
+
+      <section data-view="batch-detail" data-nav-view="batches" data-transient-view hidden>
+        <div class="page-head"><div><p class="eyebrow">BATCH DETAILS</p><h1 id="batchDetailLabel">Batch</h1><p id="batchDetailSummary" class="muted"></p></div><button type="button" class="secondary-btn" data-open-view="batches">BACK TO BATCHES</button></div>
+        <div class="card-title-row"><h2 id="batchMemberHeading">Current Students</h2><span id="batchMemberCount"></span></div>
+        <div class="responsive-table"><table><thead><tr><th>Name</th><th>Register Number</th><th>Department</th><th>Batch</th><th>Role</th><th>Actions</th></tr></thead><tbody id="batchMemberRows"></tbody></table></div><p id="batchMemberEmpty" class="empty-state">No students assigned.</p>
       </section>
 
       <section data-view="remove-batch-student" hidden>
@@ -113,6 +140,20 @@
       </section>
     </main>
   </div>
+  <dialog class="recovery-dialog" id="graduationDialog" aria-labelledby="graduationTitle">
+    <div class="recovery-panel"><h2 id="graduationTitle">Graduate Batch</h2>
+      <div class="confirmation-details"><p>Batch: <b id="confirmBatchLabel"></b></p><p>Department: <b id="confirmBatchDepartment"></b></p><p>Graduation year: <b id="confirmGraduationYear"></b></p><p>Remaining students: <b id="confirmStudentCount"></b></p></div>
+      <p>Graduation preserves each account and its documents. Converted students will use Alumni Login. This action cannot be undone.</p>
+      <div class="dialog-actions"><button type="button" class="secondary-btn" data-graduation-cancel>CANCEL</button><button type="button" class="primary-btn" id="confirmGraduationButton">GRADUATE BATCH</button></div>
+    </div>
+  </dialog>
+  <dialog class="recovery-dialog" id="studentConversionDialog" aria-labelledby="studentConversionTitle">
+    <div class="recovery-panel"><h2 id="studentConversionTitle">Convert to Alumni</h2>
+      <div class="confirmation-details"><p>Name: <b id="convertStudentName"></b></p><p>Register number: <b id="convertStudentRegNo"></b></p><p>Batch: <b id="convertStudentBatch"></b></p><p>Department: <b id="convertStudentDepartment"></b></p><p>Graduation year: <b id="convertStudentGraduationYear"></b></p></div>
+      <p>The account and documents will be preserved. This action cannot be undone.</p>
+      <div class="dialog-actions"><button type="button" class="secondary-btn" data-conversion-cancel>CANCEL</button><button type="button" class="primary-btn" id="confirmStudentConversionButton">CONVERT TO ALUMNI</button></div>
+    </div>
+  </dialog>
   <dialog class="recovery-dialog" id="removeBatchStudentDialog" aria-labelledby="removeBatchStudentDialogTitle">
     <div class="recovery-panel"><button class="dialog-close" type="button" data-remove-batch-student-cancel aria-label="Close remove batch student confirmation">×</button><h2 id="removeBatchStudentDialogTitle">REMOVE BATCH STUDENT</h2><div class="confirmation-details"><div><b>Name:</b> <span id="removeBatchStudentName"></span></div><div><b>Register Number:</b> <span id="removeBatchStudentRegNo"></span></div><div><b>Department:</b> <span id="removeBatchStudentDepartment"></span></div><div><b>Academic Year / Batch:</b> <span id="removeBatchStudentYear"></span></div><div><b>Current Batch:</b> <span id="removeBatchStudentBatch"></span></div></div><p class="muted">Remove this student from your current batch? The student account and documents will remain unchanged and the student can be assigned to another teacher.</p><div class="dialog-actions"><button type="button" class="secondary-btn" data-remove-batch-student-cancel>CANCEL</button><button type="button" class="primary-btn" id="confirmRemoveBatchStudentButton">REMOVE FROM BATCH</button></div></div>
   </dialog>

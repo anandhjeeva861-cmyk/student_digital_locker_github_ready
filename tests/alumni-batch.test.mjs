@@ -57,10 +57,9 @@ test("batch assignment uses an explicit unassigned marker", async () => {
 
 test("teacher and Alumni pages expose required workflow sections", async () => {
   const [teacher, alumni] = await Promise.all([read("teacher-dashboard.html"), read("alumni-dashboard.html")]);
-  for (const text of ["REMOVE BATCH STUDENT", "ALUMNI DETAILS", "REMOVE ACCOUNT"]) {
+  for (const text of ["BATCH MANAGEMENT", "Previous Batches", "REMOVE BATCH STUDENT", "ALUMNI DETAILS", "REMOVE ACCOUNT"]) {
     assert.ok(teacher.includes(text), `teacher dashboard missing ${text}`);
   }
-  assert.doesNotMatch(teacher, /BATCH MANAGEMENT|PREVIOUS BATCHES|TOTAL ALUMNI|ALUMNI LIST/i);
   for (const text of ["MY DOCUMENTS", "CAREER PROFILE", "ACHIEVEMENTS", "MY PROFILE", "LOGOUT"]) {
     assert.ok(alumni.includes(text), `Alumni dashboard missing ${text}`);
   }

@@ -15,5 +15,10 @@
   "dependencies": {
     "exceljs": "^4.4.0",
     "firebase": "^12.16.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "@playwright/test": "^1.63.0",
+    "firebase-tools": "^15.30.1"
   }
 }

@@ -10,6 +10,22 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data;
     }
 
+    function isTeacher() {
+      return signedIn() && request.auth.token.email_verified == true
+        && currentProfile().role == "teacher";
+    }
+
+    function approvedTeacher(data) {
+      let approval = get(/databases/$(database)/documents/approvedTeachers/$(request.auth.token.email)).data;
+      return approval.enabled == true && approval.departmentKey == data.departmentKey
+        && approval.teachingBatch == data.teachingBatch;
+    }
+
+    match /approvedTeachers/{email} {
+      allow get: if signedIn() && request.auth.token.email == email;
+      allow list, write: if false;
+    }
+
     function allowedDepartment(value) {
       return value in [
         "BSC CS",
@@ -75,21 +91,6 @@ service cloud.firestore {
       return profile.regNo == regNo || profile.reg_no == regNo;
     }
 
-    function validRecoveryData(data) {
-      return data.recoveryQuestion in [
-          "What was the name of your first school?",
-          "What is your favorite holiday destination?",
-          "What is the name of your favorite teacher?",
-          "In which city were you born?"
-        ]
-        && data.recoveryAnswerHash is string
-        && data.recoveryAnswerHash.matches("^[a-f0-9]{64}$")
-        && data.recoveryAnswerSalt is string
-        && data.recoveryAnswerSalt.matches("^[a-f0-9]{32}$")
-        && data.recoveryHashAlgorithm == "PBKDF2-SHA-256"
-        && data.recoveryHashIterations == 210000;
-    }
-
     function matchesCurrentProfileScope(data) {
       return profileDepartmentKeyMatches(currentProfile(), data.departmentKey)
         || data.department == currentProfile().department;
@@ -97,7 +98,7 @@ service cloud.firestore {
 
     function teacherAssignedToBatch(batchId) {
       return signedIn()
-        && currentProfile().role == "teacher"
+        && isTeacher()
         && batchId is string
         && batchId.size() > 0
         && exists(/databases/$(database)/documents/batches/$(batchId))
@@ -107,6 +108,11 @@ service cloud.firestore {
     function activeAssignedBatch(batchId) {
       return teacherAssignedToBatch(batchId)
         && get(/databases/$(database)/documents/batches/$(batchId)).data.status == "active";
+    }
+
+    function convertibleBatch(batchId) {
+      return teacherAssignedToBatch(batchId)
+        && get(/databases/$(database)/documents/batches/$(batchId)).data.status in ["active", "graduating"];
     }
 
     function graduationYearReached(batchId) {
@@ -131,16 +137,11 @@ service cloud.firestore {
         && ((request.resource.data.role == "student" && validAcademicYear(request.resource.data.year))
           || (request.resource.data.role == "teacher" && validAcademicYear(request.resource.data.teachingBatch)))
         && validDepartmentKey(request.resource.data)
-        && validRecoveryData(request.resource.data)
-        && existsAfter(/databases/$(database)/documents/passwordRecovery/$(request.resource.data.email))
-        && getAfter(/databases/$(database)/documents/passwordRecovery/$(request.resource.data.email)).data.recoveryQuestion == request.resource.data.recoveryQuestion
-        && getAfter(/databases/$(database)/documents/passwordRecovery/$(request.resource.data.email)).data.recoveryAnswerSalt == request.resource.data.recoveryAnswerSalt
-        && getAfter(/databases/$(database)/documents/passwordRecovery/$(request.resource.data.email)).data.recoveryHashAlgorithm == request.resource.data.recoveryHashAlgorithm
-        && getAfter(/databases/$(database)/documents/passwordRecovery/$(request.resource.data.email)).data.recoveryHashIterations == request.resource.data.recoveryHashIterations
+        && getAfter(/databases/$(database)/documents/uniqueMobileNumbers/$(request.resource.data.mobile)).data.uid == uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time
         && ((request.resource.data.role == "student"
-            && request.resource.data.keys().hasOnly(["uid", "role", "name", "regNo", "email", "year", "batch", "batchId", "admissionYear", "graduationYear", "studentStatus", "department", "departmentKey", "mobile", "recoveryQuestion", "recoveryAnswerHash", "recoveryAnswerSalt", "recoveryHashAlgorithm", "recoveryHashIterations", "createdAt", "updatedAt"])
+            && request.resource.data.keys().hasOnly(["uid", "role", "name", "regNo", "email", "year", "batch", "batchId", "admissionYear", "graduationYear", "studentStatus", "department", "departmentKey", "mobile", "createdAt", "updatedAt"])
             && request.resource.data.batch == request.resource.data.year
             && request.resource.data.batchId == ""
             && request.resource.data.admissionYear is int
@@ -149,9 +150,11 @@ service cloud.firestore {
             && request.resource.data.year == string(request.resource.data.admissionYear) + "-" + string(request.resource.data.graduationYear)
             && request.resource.data.studentStatus == "active"
             && request.resource.data.regNo is string
-            && request.resource.data.regNo.matches("^[0-9]{2}[A-Z]{3}[0-9]{3}$"))
+            && request.resource.data.regNo.matches("^[0-9]{2}[A-Z]{3}[0-9]{3}$")
+            && getAfter(/databases/$(database)/documents/uniqueRegisterNumbers/$(request.resource.data.regNo)).data.uid == uid)
           || (request.resource.data.role == "teacher"
-            && request.resource.data.keys().hasOnly(["uid", "role", "name", "email", "teachingBatch", "department", "departmentKey", "mobile", "recoveryQuestion", "recoveryAnswerHash", "recoveryAnswerSalt", "recoveryHashAlgorithm", "recoveryHashIterations", "createdAt", "updatedAt"])
+            && approvedTeacher(request.resource.data)
+            && request.resource.data.keys().hasOnly(["uid", "role", "name", "email", "teachingBatch", "department", "departmentKey", "mobile", "createdAt", "updatedAt"])
             && existsAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch))
             && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch)).data.uid == uid
             && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch)).data.departmentKey == request.resource.data.departmentKey
@@ -395,7 +398,7 @@ service cloud.firestore {
     function validTeacherBatchAssignment() {
       let batchId = request.resource.data.batchId;
       let batch = get(/databases/$(database)/documents/batches/$(batchId)).data;
-      return currentProfile().role == "teacher"
+      return isTeacher()
         && resource.data.role == "student"
         && request.resource.data.role == "student"
         && resource.data.get("batchId", "") == ""
@@ -413,7 +416,7 @@ service cloud.firestore {
     }
 
     function validTeacherBatchStudentRemoval() {
-      return currentProfile().role == "teacher"
+      return isTeacher()
         && resource.data.role == "student"
         && request.resource.data.role == "student"
         && resource.data.studentStatus == "active"
@@ -434,10 +437,10 @@ service cloud.firestore {
     function validTeacherAlumniConversion(uid) {
       let batchId = resource.data.batchId;
       let batch = get(/databases/$(database)/documents/batches/$(batchId)).data;
-      return currentProfile().role == "teacher"
+      return isTeacher()
         && resource.data.role == "student"
         && request.resource.data.role == "alumni"
-        && activeAssignedBatch(batchId)
+        && convertibleBatch(batchId)
         && graduationYearReached(batchId)
         && resource.data.departmentKey == batch.departmentKey
         && resource.data.graduationYear == batch.graduationYear
@@ -450,15 +453,13 @@ service cloud.firestore {
         && request.resource.data.convertedBy == request.auth.uid
         && request.resource.data.careerStatus == "not_updated"
         && request.resource.data.updatedAt == request.time
-        && ((existsAfter(/databases/$(database)/documents/batchGraduations/$(batchId))
-            && getAfter(/databases/$(database)/documents/batches/$(batchId)).data.status == "graduated")
-          || existsAfter(/databases/$(database)/documents/alumniConversions/$(batchId + "_" + uid)))
+        && getAfter(/databases/$(database)/documents/alumniConversions/$(batchId + "_" + uid)).data.studentUid == uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["role", "studentStatus", "alumniStatus", "graduationYear", "batchId", "batch", "graduatedAt", "convertedBy", "careerStatus", "updatedAt"]);
     }
 
     function isTeacherFor(data) {
       return signedIn()
-        && currentProfile().role == "teacher"
+        && isTeacher()
         && ((data.get("batchId", "") == ""
             && matchesCurrentProfileScope(data)
             && teacherTeachingBatch(currentProfile()) == data.year)
@@ -497,7 +498,7 @@ service cloud.firestore {
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.department == currentProfile().department
         && profileDepartmentKeyMatches(currentProfile(), request.resource.data.departmentKey)
-        && request.resource.data.year == currentProfile().year
+        && request.resource.data.year == teacherTeachingBatch(currentProfile())
         && allowedDepartment(request.resource.data.department)
         && allowedYear(request.resource.data.year)
         && validDepartmentKey(request.resource.data)
@@ -505,48 +506,12 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time;
     }
 
+    // Legacy recovery records can be removed by their owner; reset uses Firebase Auth email links.
     match /passwordRecovery/{email} {
-      allow get: if true;
-      allow list: if false;
-      allow create: if signedIn()
-        && request.auth.token.email == email
-        && request.resource.data.keys().hasOnly([
-          "recoveryQuestion",
-          "recoveryAnswerSalt",
-          "recoveryHashAlgorithm",
-          "recoveryHashIterations",
-          "createdAt",
-          "updatedAt"
-        ])
-        && request.resource.data.recoveryQuestion in [
-          "What was the name of your first school?",
-          "What is your favorite holiday destination?",
-          "What is the name of your favorite teacher?",
-          "In which city were you born?"
-        ]
-        && request.resource.data.recoveryAnswerSalt.matches("^[a-f0-9]{32}$")
-        && request.resource.data.recoveryHashAlgorithm == "PBKDF2-SHA-256"
-        && request.resource.data.recoveryHashIterations == 210000
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time
-        && existsAfter(/databases/$(database)/documents/profiles/$(request.auth.uid))
-        && getAfter(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.email == email
-        && getAfter(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.recoveryQuestion == request.resource.data.recoveryQuestion
-        && getAfter(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.recoveryAnswerSalt == request.resource.data.recoveryAnswerSalt;
-      allow update: if false;
+      allow read, create, update: if false;
       allow delete: if signedIn() && request.auth.token.email == email;
-
       match /verifiers/{answerHash} {
-        allow get: if true;
-        allow list: if false;
-        allow create: if signedIn()
-          && request.auth.token.email == email
-          && answerHash.matches("^[a-f0-9]{64}$")
-          && request.resource.data.keys().hasOnly(["createdAt"])
-          && request.resource.data.createdAt == request.time
-          && existsAfter(/databases/$(database)/documents/profiles/$(request.auth.uid))
-          && answerHash == getAfter(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.recoveryAnswerHash;
-        allow update: if false;
+        allow read, create, update: if false;
         allow delete: if signedIn() && request.auth.token.email == email;
       }
     }
@@ -557,7 +522,7 @@ service cloud.firestore {
         && validProfileCreate(uid);
       allow read: if signedIn()
         && (request.auth.uid == uid
-          || (currentProfile().role == "teacher"
+          || (isTeacher()
             && ((resource.data.role == "student" && isTeacherFor(resource.data))
               || (resource.data.role == "alumni" && teacherAssignedToBatch(resource.data.get("batchId", ""))))));
       allow update: if signedIn()
@@ -635,23 +600,25 @@ service cloud.firestore {
     match /academicTitles/{titleId} {
       allow read: if signedIn() && isSameScope(resource.data);
       allow create, update: if signedIn()
-        && currentProfile().role == "teacher"
+        && isTeacher()
         && validAcademicTitleWrite();
       allow delete: if signedIn()
-        && currentProfile().role == "teacher"
+        && isTeacher()
         && resource.data.createdBy == request.auth.uid
         && profileDepartmentKeyMatches(currentProfile(), resource.data.departmentKey)
         && resource.data.year == teacherTeachingBatch(currentProfile());
     }
 
     match /batches/{batchId} {
+      allow get: if isTeacher() && batchId == currentProfile().departmentKey + "_" + teacherTeachingBatch(currentProfile());
       allow read: if signedIn()
         && resource.data.assignedTeacherUid == request.auth.uid
-        && currentProfile().role == "teacher";
+        && isTeacher();
       allow create: if signedIn()
-        && currentProfile().role == "teacher"
+        && isTeacher()
         && request.resource.data.keys().hasOnly(["batchId", "department", "departmentKey", "courseName", "admissionYear", "graduationYear", "batchLabel", "status", "assignedTeacherUid", "createdAt", "updatedAt"])
         && request.resource.data.batchId == batchId
+        && request.resource.data.batchLabel == teacherTeachingBatch(currentProfile())
         && batchId == request.resource.data.departmentKey + "_" + request.resource.data.batchLabel
         && request.resource.data.department == currentProfile().department
         && request.resource.data.departmentKey == currentProfile().departmentKey
@@ -667,10 +634,17 @@ service cloud.firestore {
         && request.resource.data.assignedTeacherUid == request.auth.uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
-      allow update: if signedIn()
-        && currentProfile().role == "teacher"
+      allow update: if isTeacher()
         && resource.data.assignedTeacherUid == request.auth.uid
         && resource.data.status == "active"
+        && request.time >= timestamp.date(resource.data.graduationYear, 1, 1)
+        && request.resource.data.status == "graduating"
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "updatedAt"]);
+      allow update: if signedIn()
+        && isTeacher()
+        && resource.data.assignedTeacherUid == request.auth.uid
+        && resource.data.status == "graduating"
         && request.time >= timestamp.date(resource.data.graduationYear, 1, 1)
         && request.resource.data.status == "graduated"
         && request.resource.data.graduatedAt == request.time
@@ -685,17 +659,21 @@ service cloud.firestore {
       allow read: if signedIn()
         && (resource.data.studentUid == request.auth.uid || teacherAssignedToBatch(resource.data.batchId));
       allow create: if signedIn()
-        && currentProfile().role == "teacher"
+        && isTeacher()
         && request.resource.data.keys().hasOnly(["studentUid", "batchId", "previousRole", "newRole", "graduationYear", "convertedBy", "convertedAt"])
         && conversionId == request.resource.data.batchId + "_" + request.resource.data.studentUid
-        && activeAssignedBatch(request.resource.data.batchId)
+        && convertibleBatch(request.resource.data.batchId)
         && graduationYearReached(request.resource.data.batchId)
         && request.resource.data.studentUid is string
         && request.resource.data.previousRole == "student"
         && request.resource.data.newRole == "alumni"
         && request.resource.data.graduationYear == get(/databases/$(database)/documents/batches/$(request.resource.data.batchId)).data.graduationYear
         && request.resource.data.convertedBy == request.auth.uid
-        && request.resource.data.convertedAt == request.time;
+        && request.resource.data.convertedAt == request.time
+        && get(/databases/$(database)/documents/profiles/$(request.resource.data.studentUid)).data.role == "student"
+        && getAfter(/databases/$(database)/documents/profiles/$(request.resource.data.studentUid)).data.role == "alumni"
+        && getAfter(/databases/$(database)/documents/profiles/$(request.resource.data.studentUid)).data.batchId == request.resource.data.batchId
+        && getAfter(/databases/$(database)/documents/profiles/$(request.resource.data.studentUid)).data.graduatedAt == request.time;
       allow update, delete: if false;
     }
 
@@ -703,7 +681,7 @@ service cloud.firestore {
       allow read: if signedIn()
         && teacherAssignedToBatch(batchId);
       allow create: if signedIn()
-        && currentProfile().role == "teacher"
+        && isTeacher()
         && request.resource.data.keys().hasOnly(["batchId", "studentCount", "graduationYear", "graduatedBy", "graduatedAt"])
         && request.resource.data.batchId == batchId
         && teacherAssignedToBatch(batchId)
@@ -750,10 +728,14 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(["uid", "role", "createdAt"])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.role in ["student", "teacher"]
+        && mobile.matches("^[6-9][0-9]{9}$")
+        && getAfter(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.mobile == mobile
+        && getAfter(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == request.resource.data.role
         && request.resource.data.createdAt == request.time;
       allow update: if false;
       allow delete: if signedIn()
-        && resource.data.uid == request.auth.uid;
+        && resource.data.uid == request.auth.uid
+        && !existsAfter(/databases/$(database)/documents/profiles/$(request.auth.uid));
     }
 
     match /uniqueRegisterNumbers/{regNo} {
@@ -764,10 +746,12 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(["uid", "createdAt"])
         && request.resource.data.uid == request.auth.uid
         && regNo.matches("^[0-9]{2}[A-Z]{3}[0-9]{3}$")
+        && getAfter(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.regNo == regNo
         && request.resource.data.createdAt == request.time;
       allow update: if false;
       allow delete: if signedIn()
-        && resource.data.uid == request.auth.uid;
+        && resource.data.uid == request.auth.uid
+        && !existsAfter(/databases/$(database)/documents/profiles/$(request.auth.uid));
     }
 
     match /uniqueTeacherScopes/{scopeId} {
@@ -786,7 +770,8 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time;
       allow update: if false;
       allow delete: if signedIn()
-        && resource.data.uid == request.auth.uid;
+        && resource.data.uid == request.auth.uid
+        && !existsAfter(/databases/$(database)/documents/profiles/$(request.auth.uid));
     }
   }
 }

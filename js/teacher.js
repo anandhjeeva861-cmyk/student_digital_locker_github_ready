@@ -9,6 +9,8 @@ let statusDocumentCache = [];
 let statusReportRows = [];
 let selectedBatch = null;
 let selectedBatchMembers = [];
+let currentBatches = [];
+let previousBatches = [];
 let pendingGraduationBatchId = "";
 let pendingConversion = null;
 let pendingRemoveBatchStudent = null;
@@ -96,6 +98,8 @@ function fillProfile() {
   text("teacherScope", `${teacher.department} - Teaching Batch ${teachingBatch}`);
   const courseInput = document.getElementById("batchCourseName");
   if (courseInput && !courseInput.value) courseInput.value = teacher.department;
+  const batchInput = document.getElementById("batchLabel");
+  if (batchInput) batchInput.value = teachingBatch;
 }
 
 async function safeRender(label, task) {
@@ -146,7 +150,7 @@ function populateBatchSelect(select, batches, placeholder) {
 async function renderBatches() {
   const service = await loadFirebaseService();
   const batches = await service.listTeacherBatches(teacher);
-  currentBatches = batches.filter((batch) => batch.status === "active");
+  currentBatches = batches.filter((batch) => ["active", "graduating"].includes(batch.status));
   previousBatches = batches.filter((batch) => ["graduated", "archived"].includes(batch.status));
   const currentGrid = document.getElementById("currentBatchGrid");
   const previousGrid = document.getElementById("previousBatchGrid");
@@ -156,7 +160,7 @@ async function renderBatches() {
   const previousEmpty = document.getElementById("previousBatchEmpty");
   if (currentEmpty) currentEmpty.hidden = currentBatches.length > 0;
   if (previousEmpty) previousEmpty.hidden = previousBatches.length > 0;
-  populateBatchSelect(document.getElementById("assignmentBatch"), currentBatches, "Select batch");
+  populateBatchSelect(document.getElementById("assignmentBatch"), currentBatches.filter((batch) => batch.status === "active"), "Select batch");
   populateBatchSelect(document.getElementById("alumniBatchFilter"), [...currentBatches, ...previousBatches], "All authorized batches");
   await renderAssignableStudents(document.getElementById("assignmentBatch")?.value || "");
 }
@@ -227,14 +231,14 @@ async function renderAlumniDetail(uid) {
 async function openGraduationDialog(batchId) {
   const data = await (await loadFirebaseService()).getTeacherBatchStudents(teacher, batchId);
   if (!data.batch.eligibleForGraduation) throw new Error("This batch is not yet eligible for graduation.");
-  if (!data.students.length) throw new Error("No eligible students were found in this batch.");
+  if (!data.students.length && !data.alumni.length) throw new Error("Assign students before graduating this batch.");
   pendingGraduationBatchId = batchId;
   text("confirmBatchLabel", data.batch.batchLabel);
   text("confirmBatchDepartment", data.batch.department);
   text("confirmGraduationYear", displayValue(data.batch.graduationYear));
   text("confirmStudentCount", displayValue(data.students.length));
   const button = document.getElementById("confirmGraduationButton");
-  if (button) button.textContent = `GRADUATE ${data.students.length} STUDENTS`;
+  if (button) button.textContent = data.students.length ? `GRADUATE ${data.students.length} STUDENTS` : "COMPLETE GRADUATION";
   document.getElementById("graduationDialog")?.showModal();
 }
 
@@ -389,11 +393,14 @@ async function renderStatus() {
 
 async function renderViewData(view) {
   if (!teacher) return;
+  if (view === "dashboard") await safeRender("Teacher dashboard load", renderDashboard);
+  if (view === "batches") await safeRender("Batch load", renderBatches);
   if (view === "students") await safeRender("Student list load", renderStudents);
   if (view === "status") await safeRender("Submission status load", renderStatus);
   if (view === "add-title") await safeRender("Document title load", renderTitles);
   if (view === "remove-batch-student") await safeRender("Remove batch student load", renderRemoveBatchStudents);
   if (view === "alumni") {
+    await safeRender("Alumni batch filters", renderBatches);
     await safeRender("Alumni list load", renderAlumni);
   }
 }
@@ -444,6 +451,7 @@ document.addEventListener("DOMContentLoaded", () => {
         batchLabel: form.elements.batchLabel.value
       });
       form.reset();
+      fillProfile();
       await renderBatches();
       await renderDashboard();
       showMessage("Batch created and assigned to you.", "success");

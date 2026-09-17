@@ -2,6 +2,7 @@ import {
   createUserWithEmailAndPassword,
   deleteUser,
   onAuthStateChanged,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
@@ -28,9 +29,10 @@ import {
   documentMimeType,
   isAcademicYear,
   isDepartment,
-  isRecoveryQuestion,
   normalizeName,
-  photoMimeType
+  photoMimeType,
+  validateDocumentFile,
+  validatePhotoFile
 } from "./validation.js";
 
 const profileCollection = "profiles";
@@ -48,9 +50,6 @@ const documentCategories = ["online", "personal", "academic"];
 const fileChunksCollection = "fileChunks";
 const photoChunksCollection = "photoChunks";
 const firestoreChunkChars = 700000;
-const recoveryHashAlgorithm = "PBKDF2-SHA-256";
-const recoveryHashIterations = 210000;
-const legacyRecoveryQuestions = ["What is the name of your childhood best friend?"];
 
 function firestoreContext(profile, extra = {}) {
   return {
@@ -77,10 +76,6 @@ async function runFirestoreOperation(operation, context, task) {
   }
 }
 
-function bytesToHex(bytes) {
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
 function normalizeEmail(value) {
   const email = String(value || "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.includes("/")) {
@@ -89,99 +84,6 @@ function normalizeEmail(value) {
     throw error;
   }
   return email;
-}
-
-export function normalizeRecoveryAnswer(value) {
-  return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-export async function hashRecoveryAnswer(answer, salt, iterations = recoveryHashIterations) {
-  const normalized = normalizeRecoveryAnswer(answer);
-  if (normalized.length < 2 || normalized.length > 100) {
-    throw new Error("Recovery answer must contain between 2 and 100 characters.");
-  }
-  if (!/^[a-f0-9]{32}$/.test(String(salt || ""))) {
-    throw new Error("Recovery answer security data is invalid.");
-  }
-  if (!Number.isInteger(iterations) || iterations < recoveryHashIterations) {
-    throw new Error("Recovery answer security settings are invalid.");
-  }
-
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(normalized),
-    "PBKDF2",
-    false,
-    ["deriveBits"]
-  );
-  const bits = await crypto.subtle.deriveBits({
-    name: "PBKDF2",
-    hash: "SHA-256",
-    salt: encoder.encode(salt),
-    iterations
-  }, key, 256);
-  return bytesToHex(new Uint8Array(bits));
-}
-
-function createRecoverySalt() {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return bytesToHex(bytes);
-}
-
-async function prepareRecoveryData(question, answer) {
-  if (!isRecoveryQuestion(question)) throw new Error("Please select a valid recovery question.");
-  const salt = createRecoverySalt();
-  return {
-    recoveryQuestion: question,
-    recoveryAnswerHash: await hashRecoveryAnswer(answer, salt),
-    recoveryAnswerSalt: salt,
-    recoveryHashAlgorithm,
-    recoveryHashIterations
-  };
-}
-
-async function getRecoveryRecord(email) {
-  await authReady;
-  const normalizedEmail = normalizeEmail(email);
-  const snapshot = await getDoc(doc(db, passwordRecoveryCollection, normalizedEmail));
-  if (!snapshot.exists()) return null;
-  const data = snapshot.data();
-  if (!(isRecoveryQuestion(data.recoveryQuestion) || legacyRecoveryQuestions.includes(data.recoveryQuestion))
-    || !/^[a-f0-9]{32}$/.test(data.recoveryAnswerSalt || "")
-    || data.recoveryHashAlgorithm !== recoveryHashAlgorithm
-    || data.recoveryHashIterations !== recoveryHashIterations) {
-    return null;
-  }
-  return { email: normalizedEmail, ...data };
-}
-
-export async function getRecoveryQuestionByEmail(email) {
-  const record = await getRecoveryRecord(email);
-  return record?.recoveryQuestion || null;
-}
-
-export async function verifyRecoveryAnswer(email, answer) {
-  const normalizedEmail = normalizeEmail(email);
-  const record = await getRecoveryRecord(normalizedEmail);
-  const salt = record?.recoveryAnswerSalt || "00000000000000000000000000000000";
-  const normalizedAnswer = normalizeRecoveryAnswer(answer);
-  const answerIsValid = normalizedAnswer.length >= 2 && normalizedAnswer.length <= 100;
-  const answerHash = await hashRecoveryAnswer(
-    answerIsValid ? normalizedAnswer : "invalid recovery answer",
-    salt,
-    recoveryHashIterations
-  );
-  if (!record || !answerIsValid) return false;
-  const verifier = await getDoc(doc(
-    db,
-    passwordRecoveryCollection,
-    normalizedEmail,
-    "verifiers",
-    answerHash
-  ));
-  return verifier.exists();
 }
 
 export async function sendRecoveryPasswordReset(email) {
@@ -308,7 +210,7 @@ function currentAcademicYear(batch) {
 }
 
 function isBatchGraduationEligible(batch) {
-  return batch?.status === "active"
+  return ["active", "graduating"].includes(batch?.status)
     && Number.isInteger(batch?.graduationYear)
     && new Date().getFullYear() >= batch.graduationYear;
 }
@@ -491,15 +393,6 @@ async function requireCurrentUser(expectedUid) {
   return user;
 }
 
-function requireRecentAccountLogin(user) {
-  const lastSignIn = Date.parse(user?.metadata?.lastSignInTime || "");
-  if (!lastSignIn || Date.now() - lastSignIn > 4 * 60 * 1000) {
-    const error = new Error("For safety, log out and log in again, then remove the account within 4 minutes.");
-    error.code = "auth/requires-recent-login";
-    throw error;
-  }
-}
-
 async function getOwnedDocumentForReplace(docRef, ownerId) {
   try {
     const snapshot = await getDoc(docRef);
@@ -555,7 +448,6 @@ export function firebaseErrorMessage(error) {
 export async function registerStudent(payload) {
   await authReady;
   const email = normalizeEmail(payload.email);
-  const recovery = await prepareRecoveryData(payload.recoveryQuestion, payload.recoveryAnswer);
   const years = academicYears(payload.year);
   const credential = await createUserWithEmailAndPassword(auth, email, payload.password);
   try {
@@ -573,8 +465,7 @@ export async function registerStudent(payload) {
       studentStatus: "active",
       department: payload.department,
       departmentKey: payload.departmentKey,
-      mobile: payload.mobile,
-      ...recovery
+      mobile: payload.mobile
     });
     return getCurrentProfile();
   } catch (error) {
@@ -586,7 +477,6 @@ export async function registerStudent(payload) {
 export async function registerTeacher(payload) {
   await authReady;
   const email = normalizeEmail(payload.email);
-  const recovery = await prepareRecoveryData(payload.recoveryQuestion, payload.recoveryAnswer);
   const credential = await createUserWithEmailAndPassword(auth, email, payload.password);
   try {
     await updateProfile(credential.user, { displayName: payload.name });
@@ -597,13 +487,16 @@ export async function registerTeacher(payload) {
       teachingBatch: payload.teachingBatch,
       department: payload.department,
       departmentKey: payload.departmentKey,
-      mobile: payload.mobile,
-      ...recovery
+      mobile: payload.mobile
     });
-    return getCurrentProfile();
   } catch (error) {
     await deleteUser(credential.user).catch(() => {});
     throw error;
+  }
+  try {
+    await sendEmailVerification(credential.user);
+  } finally {
+    await signOut(auth);
   }
 }
 
@@ -613,18 +506,11 @@ async function createProfileWithUniqueKeys(uid, profile) {
   const profileYear = profile.role === "teacher" ? teachingBatch : profile.year;
   if (!isAcademicYear(profileYear)) throw new Error("Invalid academic year selected.");
   if (!profile.departmentKey) throw new Error("Invalid department selected.");
-  if (!isRecoveryQuestion(profile.recoveryQuestion)) throw new Error("Invalid recovery question selected.");
-  if (!/^[a-f0-9]{64}$/.test(profile.recoveryAnswerHash || "")) {
-    throw new Error("Recovery answer could not be secured.");
-  }
 
   await runTransaction(db, async (transaction) => {
     const mobileRef = doc(db, uniqueMobileCollection, profile.mobile);
     const mobileSnap = await transaction.get(mobileRef);
     if (mobileSnap.exists()) throw new Error("This mobile number is already registered.");
-    const recoveryRef = doc(db, passwordRecoveryCollection, profile.email);
-    const recoverySnap = await transaction.get(recoveryRef);
-    if (recoverySnap.exists()) throw new Error("Recovery details already exist for this email.");
 
     let regRef = null;
     let teacherScopeRef = null;
@@ -634,6 +520,12 @@ async function createProfileWithUniqueKeys(uid, profile) {
       if (regSnap.exists()) throw new Error("This register number is already registered.");
     }
     if (profile.role === "teacher") {
+      const approval = await transaction.get(doc(db, "approvedTeachers", profile.email));
+      const approved = approval.data();
+      if (!approval.exists() || approved.enabled !== true
+        || approved.departmentKey !== profile.departmentKey || approved.teachingBatch !== teachingBatch) {
+        throw new Error("This email is not approved for the selected department and teaching batch. Contact the college administrator.");
+      }
       teacherScopeRef = doc(db, uniqueTeacherScopeCollection, teacherScopeId(profile));
       const teacherScopeSnap = await transaction.get(teacherScopeRef);
       if (teacherScopeSnap.exists()) {
@@ -648,17 +540,6 @@ async function createProfileWithUniqueKeys(uid, profile) {
       ...profile,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-    });
-    transaction.set(recoveryRef, {
-      recoveryQuestion: profile.recoveryQuestion,
-      recoveryAnswerSalt: profile.recoveryAnswerSalt,
-      recoveryHashAlgorithm: profile.recoveryHashAlgorithm,
-      recoveryHashIterations: profile.recoveryHashIterations,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
-    transaction.set(doc(recoveryRef, "verifiers", profile.recoveryAnswerHash), {
-      createdAt: serverTimestamp()
     });
     transaction.set(mobileRef, { uid, role: profile.role, createdAt: serverTimestamp() });
     if (regRef) transaction.set(regRef, { uid, createdAt: serverTimestamp() });
@@ -682,6 +563,14 @@ export async function loginWithEmail(email, password) {
     await signOut(auth);
     throw new Error("Profile not found. Register again or check Firestore profiles collection.");
   }
+  if (profile.role === "teacher" && !credential.user.emailVerified) {
+    try {
+      await sendEmailVerification(credential.user);
+    } finally {
+      await signOut(auth);
+    }
+    throw new Error("Verify your teacher email before signing in. A verification link has been sent to your inbox.");
+  }
   return profile;
 }
 
@@ -689,10 +578,10 @@ export function logout() {
   return authReady.then(() => signOut(auth));
 }
 
-export async function deleteCurrentAccount(profile = null, password = "") {
+export async function deleteCurrentAccount(password = "") {
   await authReady;
-  const user = await requireCurrentUser(profile?.uid);
-  const accountProfile = profile || await getProfile(user.uid);
+  const user = await requireCurrentUser();
+  const accountProfile = await getProfile(user.uid);
   if (!accountProfile) throw new Error("Profile not found. Log in again before removing the account.");
 
   if (password) {
@@ -707,7 +596,14 @@ export async function deleteCurrentAccount(profile = null, password = "") {
       throw error;
     }
   } else {
-    requireRecentAccountLogin(user);
+    throw new Error("Enter your current password before removing the account.");
+  }
+
+  if (accountProfile.role === "teacher") {
+    const assignedBatches = await getDocs(query(collection(db, batchesCollection), where("assignedTeacherUid", "==", user.uid)));
+    if (!assignedBatches.empty) {
+      throw new Error("This teacher owns batch records. Ask the college administrator to transfer the batches before removing the account.");
+    }
   }
 
   if (["student", "alumni"].includes(accountProfile.role)) {
@@ -716,9 +612,7 @@ export async function deleteCurrentAccount(profile = null, password = "") {
       where("ownerId", "==", accountProfile.uid)
     ));
     for (const snapshot of ownedDocs.docs) {
-      await deleteChunks(snapshot.ref, fileChunksCollection).catch((error) => {
-        console.warn("Document file chunk cleanup failed", error);
-      });
+      await deleteChunks(snapshot.ref, fileChunksCollection);
       await deleteDoc(snapshot.ref);
     }
   }
@@ -731,50 +625,30 @@ export async function deleteCurrentAccount(profile = null, password = "") {
     ));
     const teacherTitles = titles.docs.filter((item) => item.data().createdBy === accountProfile.uid);
     await deleteSnapshots(teacherTitles);
-    await deleteDoc(doc(db, uniqueTeacherScopeCollection, teacherScopeId(accountProfile))).catch(() => {});
-    if (accountProfile.uid) {
-      const assignedStudents = await getDocs(query(
-        collection(db, profileCollection),
-        where("role", "==", "student"),
-        where("studentStatus", "==", "active"),
-        where("batchId", "!=" , "")
-      ));
-      for (const snapshot of assignedStudents.docs) {
-        const student = profileFromDoc(snapshot);
-        if (student && student.batchId && student.departmentKey === accountProfile.departmentKey && student.year === teacherTeachingBatch(accountProfile)) {
-          await updateDoc(snapshot.ref, {
-            batchId: "",
-            batch: "",
-            admissionYear: null,
-            graduationYear: null,
-            studentStatus: "active",
-            updatedAt: serverTimestamp()
-          }).catch(() => {});
-        }
-      }
-    }
+  }
+
+  if (accountProfile.role === "alumni") {
+    const achievements = await getDocs(query(collection(db, achievementsCollection), where("ownerUid", "==", user.uid)));
+    await deleteSnapshots(achievements.docs);
   }
 
   const profileRef = doc(db, profileCollection, accountProfile.uid);
-  await deleteChunks(profileRef, photoChunksCollection).catch((error) => {
-    console.warn("Profile photo chunk cleanup failed", error);
-  });
+  await deleteChunks(profileRef, photoChunksCollection);
+  const removal = writeBatch(db);
+  if (accountProfile.role === "teacher") removal.delete(doc(db, uniqueTeacherScopeCollection, teacherScopeId(accountProfile)));
   if (accountProfile.mobile) {
-    await deleteDoc(doc(db, uniqueMobileCollection, accountProfile.mobile)).catch((error) => {
-      console.warn("Mobile uniqueness cleanup failed", error);
-    });
+    removal.delete(doc(db, uniqueMobileCollection, accountProfile.mobile));
   }
   if (["student", "alumni"].includes(accountProfile.role) && accountProfile.regNo) {
-    await deleteDoc(doc(db, uniqueRegisterCollection, accountProfile.regNo)).catch((error) => {
-      console.warn("Register number uniqueness cleanup failed", error);
-    });
+    removal.delete(doc(db, uniqueRegisterCollection, accountProfile.regNo));
   }
   if (accountProfile.email && accountProfile.recoveryAnswerHash) {
     const recoveryRef = doc(db, passwordRecoveryCollection, accountProfile.email);
-    await deleteDoc(doc(recoveryRef, "verifiers", accountProfile.recoveryAnswerHash)).catch(() => {});
-    await deleteDoc(recoveryRef).catch(() => {});
+    removal.delete(doc(recoveryRef, "verifiers", accountProfile.recoveryAnswerHash));
+    removal.delete(recoveryRef);
   }
-  await deleteDoc(profileRef);
+  removal.delete(profileRef);
+  await removal.commit();
   await deleteUser(user);
 }
 
@@ -796,12 +670,18 @@ export async function getCurrentProfile() {
   await authReady;
   const user = auth.currentUser || await waitForUser();
   if (!user) return null;
-  return getProfile(user.uid);
+  const profile = await getProfile(user.uid);
+  if (profile?.role === "teacher" && !user.emailVerified) {
+    throw new Error("Verify your teacher email, then sign in again.");
+  }
+  return profile;
 }
 
 export async function uploadProfilePhoto(profile, file) {
   requireProfileScope(profile, null, "upload a profile photo");
   await requireCurrentUser(profile.uid);
+  const validation = validatePhotoFile(file);
+  if (!validation.ok) throw new Error(validation.message);
   const mimeType = photoMimeType(file);
   if (!mimeType) throw new Error("This file type is not supported.");
   const profileRef = doc(db, profileCollection, profile.uid);
@@ -871,7 +751,9 @@ export async function uploadStudentDocument(profile, category, title, file) {
   requireOwnedLockerProfile(profile, "upload documents");
   await requireCurrentUser(profile.uid);
   if (!documentCategories.includes(category)) throw new Error("Invalid document category.");
-  if (!file) throw new Error("Please select a file.");
+  const validation = validateDocumentFile(file);
+  if (!validation.ok) throw new Error(validation.message);
+  if (!String(title || "").trim() || title.length > 120) throw new Error("Document title must contain between 1 and 120 characters.");
   const mimeType = documentMimeType(file);
   if (!mimeType) throw new Error("This file type is not supported.");
   const id = documentId(profile.uid, category, title);
@@ -1062,6 +944,7 @@ export async function createTeacherBatch(profile, values) {
   requireProfileScope(profile, "teacher", "create a batch");
   await requireCurrentUser(profile.uid);
   const batchLabel = String(values?.batchLabel || "").trim();
+  if (batchLabel !== teacherTeachingBatch(profile)) throw new Error("You can create only your approved teaching batch.");
   const years = academicYears(batchLabel);
   if (!years || !isAcademicYear(batchLabel)) throw new Error("Batch must be a three-year range like 2023-2026.");
   const courseName = String(values?.courseName || profile.department).trim().replace(/\s+/g, " ").slice(0, 120);
@@ -1219,19 +1102,28 @@ export async function convertStudentToAlumni(profile, studentUid, batchId) {
 }
 
 export async function graduateBatch(profile, batchId) {
-  const batch = await requireAssignedBatch(profile, batchId, { activeOnly: true });
+  const batch = await requireAssignedBatch(profile, batchId);
   if (!isBatchGraduationEligible(batch)) throw new Error("This batch is not yet in its final graduation year.");
   const members = await getBatchMembers(batchId);
   const students = members.filter((item) => item.role === "student");
-  if (!students.length) throw new Error("No eligible students were found in this batch.");
+  if (!members.length) throw new Error("Assign students before graduating this batch.");
   students.forEach((student) => assertStudentEligibleForConversion(student, batch));
-  if (students.length > 200) {
-    throw new Error("This batch is too large for a safe client-side atomic conversion. Use the trusted graduation backend described in the setup guide.");
+  const batchRef = doc(db, batchesCollection, batchId);
+  if (batch.status === "active") {
+    await updateDoc(batchRef, { status: "graduating", updatedAt: serverTimestamp() });
   }
 
+  // Each group stays within Firestore's security-rule document access budget.
+  // Committed conversions are retained so a failed graduation can be resumed.
+  for (let offset = 0; offset < students.length; offset += 5) {
+    const conversionWrite = writeBatch(db);
+    students.slice(offset, offset + 5).forEach((student) => queueAlumniConversion(conversionWrite, profile, batch, student));
+    await conversionWrite.commit();
+  }
+  const remaining = await getBatchMembers(batchId);
+  if (remaining.some((member) => member.role === "student")) throw new Error("Graduation is incomplete. Refresh the batch and resume graduation.");
   const batchWrite = writeBatch(db);
-  students.forEach((student) => queueAlumniConversion(batchWrite, profile, batch, student));
-  batchWrite.update(doc(db, batchesCollection, batchId), {
+  batchWrite.update(batchRef, {
     status: "graduated",
     graduatedAt: serverTimestamp(),
     graduatedBy: profile.uid,
@@ -1239,7 +1131,7 @@ export async function graduateBatch(profile, batchId) {
   });
   batchWrite.set(doc(db, batchGraduationsCollection, batchId), {
     batchId,
-    studentCount: students.length,
+    studentCount: remaining.length,
     graduationYear: batch.graduationYear,
     graduatedBy: profile.uid,
     graduatedAt: serverTimestamp()

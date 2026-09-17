@@ -28,7 +28,12 @@ function resolveRequestPath(url) {
   } catch (_error) {
     return null;
   }
+  if (pathname.includes("\\") || pathname.includes(":")) return null;
   const relativePath = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+  const segments = relativePath.split("/");
+  if (segments.some((segment) => !segment || segment.startsWith("."))) return null;
+  const publicPages = ["index.html", "student-login.html", "student-register.html", "student-dashboard.html", "teacher-login.html", "teacher-register.html", "teacher-dashboard.html", "alumni-login.html", "alumni-dashboard.html", "robots.txt", "sitemap.xml"];
+  if (!publicPages.includes(relativePath) && !["css", "js", "images"].includes(segments[0])) return null;
   const fullPath = path.resolve(root, relativePath);
   if (!fullPath.startsWith(root + path.sep) && fullPath !== root) return null;
   return fullPath;
@@ -48,6 +53,7 @@ if (!fs.existsSync(configPath)) {
 }
 
 const server = http.createServer((request, response) => {
+  if (!["GET", "HEAD"].includes(request.method)) return sendText(response, 405, "Method not allowed");
   const fullPath = resolveRequestPath(request.url);
   if (!fullPath) return sendText(response, 403, "Forbidden");
 
@@ -56,12 +62,15 @@ const server = http.createServer((request, response) => {
 
     response.writeHead(200, {
       "content-type": mimeTypes[path.extname(fullPath).toLowerCase()] || "application/octet-stream",
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "same-origin",
       "cache-control": "no-store"
     });
-    fs.createReadStream(fullPath).pipe(response);
+    if (request.method === "HEAD") return response.end();
+    fs.createReadStream(fullPath).on("error", () => response.destroy()).pipe(response);
   });
 });
 
-server.listen(port, () => {
+server.listen(port, "127.0.0.1", () => {
   console.log(`Local site ready at http://localhost:${port}`);
 });

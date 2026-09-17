@@ -35,17 +35,7 @@
           <form data-recovery-email-form method="post" action="./alumni-login.html">
             <label for="alumniRecoveryEmail">Registered Email</label>
             <input id="alumniRecoveryEmail" type="email" name="recoveryEmail" placeholder="alumni@example.com" autocomplete="email" required>
-            <button class="primary-btn" type="submit">SHOW RECOVERY QUESTION</button>
-          </form>
-        </div>
-        <div data-recovery-step="answer" hidden>
-          <p class="recovery-label">Your recovery question</p>
-          <p class="recovery-question" data-recovery-question aria-live="polite"></p>
-          <form data-recovery-answer-form method="post" action="./alumni-login.html">
-            <label for="alumniRecoveryLoginAnswer">Recovery Answer</label>
-            <input id="alumniRecoveryLoginAnswer" type="password" name="recoveryAnswer" placeholder="Enter your answer" autocomplete="off" required minlength="2" maxlength="100">
             <button class="primary-btn" type="submit">SEND RESET LINK</button>
-            <button class="link-button" type="button" data-recovery-back>Use a different email</button>
           </form>
         </div>
       </div>
