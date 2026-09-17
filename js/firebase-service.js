@@ -1265,10 +1265,17 @@ async function listTeacherStudentProfiles(profile) {
     query(collection(db, profileCollection), where("role", "==", "student"), where("studentStatus", "==", "active"), where("departmentKey", "==", profile.departmentKey), where("year", "==", teachingBatch)),
     query(collection(db, profileCollection), where("role", "==", "student"), where("studentStatus", "==", "active"), where("department", "==", profile.department), where("year", "==", teachingBatch))
   ];
-  const results = await Promise.allSettled(queries.map((studentQuery) => getDocs(studentQuery)));
+  const assignedStudentTask = listTeacherBatches(profile)
+    .then((batches) => Promise.all(batches.map((batch) => getBatchMembers(batch.id))))
+    .then((memberGroups) => memberGroups.flat().filter((item) => item.role === "student"));
+  const results = await Promise.allSettled([
+    ...queries.map((studentQuery) => getDocs(studentQuery)),
+    assignedStudentTask
+  ]);
   const snapshots = results.filter((result) => result.status === "fulfilled").map((result) => result.value);
   if (!snapshots.length) throw results[0].reason;
-  return uniqueById(snapshots.flatMap((snapshot) => snapshot.docs.map(profileFromDoc)))
+  const students = snapshots.flatMap((snapshot) => Array.isArray(snapshot) ? snapshot : snapshot.docs.map(profileFromDoc));
+  return uniqueById(students)
     .filter((item) => item.role === "student" && (item.studentStatus || "active") === "active")
     .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 }

@@ -50,14 +50,18 @@ test("Firestore rules enforce assigned-batch role conversion and deny open acces
 test("batch assignment uses an explicit unassigned marker", async () => {
   const [service, rules] = await Promise.all([read("js/firebase-service.js"), read("firebase/firestore.rules")]);
   const assignment = service.slice(service.indexOf("export async function listAssignableStudents"), service.indexOf("export async function assignStudentToBatch"));
+  const teacherList = service.slice(service.indexOf("async function listTeacherStudentProfiles"), service.indexOf("export async function getTeacherDashboardSummary"));
   assert.match(service, /batchId:\s*""/);
   assert.match(assignment, /where\("batchId",\s*"==",\s*""\)/);
+  assert.match(teacherList, /listTeacherBatches\(profile\)/);
+  assert.match(teacherList, /getBatchMembers\(batch\.id\)/);
+  assert.match(teacherList, /uniqueById\(students\)/);
   assert.match(rules, /request\.resource\.data\.batchId == ""/);
 });
 
 test("teacher and Alumni pages expose required workflow sections", async () => {
   const [teacher, alumni] = await Promise.all([read("teacher-dashboard.html"), read("alumni-dashboard.html")]);
-  for (const text of ["BATCH MANAGEMENT", "Previous Batches", "REMOVE BATCH STUDENT", "ALUMNI DETAILS", "REMOVE ACCOUNT"]) {
+  for (const text of ["BATCH MANAGEMENT", "Previous Batches", "Current Batch", "REMOVE BATCH STUDENT", "ALUMNI DETAILS", "REMOVE ACCOUNT"]) {
     assert.ok(teacher.includes(text), `teacher dashboard missing ${text}`);
   }
   for (const text of ["MY DOCUMENTS", "CAREER PROFILE", "ACHIEVEMENTS", "MY PROFILE", "LOGOUT"]) {

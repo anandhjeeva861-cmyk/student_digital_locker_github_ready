@@ -270,6 +270,7 @@ async function renderStudents(filter = "") {
         <td>${escapeHtml(student.reg_no || "")}</td>
         <td>${escapeHtml(student.department)}</td>
         <td>${escapeHtml(student.year)}</td>
+        <td>${escapeHtml(student.batchId ? (student.batch || "Assigned") : "Not assigned")}</td>
         <td>${student.academic_count || 0}</td>
         <td><button type="button" class="small-btn" data-student-id="${escapeHtml(student.id)}">VIEW DATA</button></td>
       </tr>`);
@@ -281,7 +282,7 @@ async function renderRemoveBatchStudents() {
   const body = document.getElementById("removeBatchStudentRows");
   const empty = document.getElementById("removeBatchStudentEmpty");
   if (!body) return;
-  const students = await matchingStudents();
+  const students = (await matchingStudents()).filter((student) => student.batchId);
   body.innerHTML = students.map((student) => `
     <tr>
       <td><b>${escapeHtml(student.name)}</b></td>
