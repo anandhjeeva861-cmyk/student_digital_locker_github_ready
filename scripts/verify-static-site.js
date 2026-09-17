@@ -147,6 +147,7 @@ const adminJs = fs.readFileSync(path.join(process.cwd(), "js/admin.js"), "utf8")
 const styleCss = fs.readFileSync(path.join(process.cwd(), "css/style.css"), "utf8");
 const firestoreRules = fs.readFileSync(path.join(process.cwd(), "firebase/firestore.rules"), "utf8");
 const firebaseJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), "firebase.json"), "utf8"));
+const pagesArtifactScript = fs.readFileSync(path.join(process.cwd(), "scripts/prepare-pages-artifact.js"), "utf8");
 
 for (const [file, content] of [["js/student.js", studentJs], ["js/teacher.js", teacherJs], ["js/admin.js", adminJs]]) {
   if (/<button(?![^>]*\btype=)/i.test(content)) {
@@ -156,6 +157,12 @@ for (const [file, content] of [["js/student.js", studentJs], ["js/teacher.js", t
 
 if (firebaseJson.hosting || JSON.stringify(firebaseJson).includes("rewrites")) {
   failures.push("firebase.json must not contain Firebase Hosting rewrites for the GitHub Pages app.");
+}
+
+for (const expected of ["admin-login.html", "admin-dashboard.html"]) {
+  if (!pagesArtifactScript.includes(`"${expected}"`)) {
+    failures.push(`GitHub Pages artifact script must copy ${expected}.`);
+  }
 }
 
 if (/AIza[0-9A-Za-z_-]{20,}/.test(firebaseJs)) {

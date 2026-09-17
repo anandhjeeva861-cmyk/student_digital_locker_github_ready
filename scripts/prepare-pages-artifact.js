@@ -16,7 +16,9 @@ const files = [
   "alumni-dashboard.html",
   "teacher-login.html",
   "teacher-register.html",
-  "teacher-dashboard.html"
+  "teacher-dashboard.html",
+  "admin-login.html",
+  "admin-dashboard.html"
 ];
 
 const directories = ["css", "images", "js"];
