@@ -17,6 +17,7 @@ const requiredFiles = [
   "js/options.js",
   "js/auth.js",
   "js/student.js",
+  "js/admin.js",
   "js/alumni.js",
   "js/teacher.js",
   "scripts/local-server.js",
@@ -29,6 +30,8 @@ const requiredFiles = [
   "student-register.html",
   "teacher-login.html",
   "teacher-register.html",
+  "admin-login.html",
+  "admin-dashboard.html",
   "student-dashboard.html",
   "alumni-login.html",
   "alumni-dashboard.html",
@@ -49,13 +52,15 @@ const htmlFiles = [
   "student-register.html",
   "teacher-login.html",
   "teacher-register.html",
+  "admin-login.html",
+  "admin-dashboard.html",
   "student-dashboard.html",
   "alumni-login.html",
   "alumni-dashboard.html",
   "teacher-dashboard.html"
 ];
 
-const jsFiles = ["js/firebase.js", "js/firebase-service.js", "js/dashboard-nav.js", "js/options.js", "js/auth.js", "js/student.js", "js/teacher.js", "js/alumni.js", "js/validation.js"];
+const jsFiles = ["js/firebase.js", "js/firebase-service.js", "js/dashboard-nav.js", "js/options.js", "js/auth.js", "js/student.js", "js/teacher.js", "js/admin.js", "js/alumni.js", "js/validation.js"];
 const failures = [];
 
 const trackedFiles = execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" })
@@ -138,11 +143,12 @@ const firebaseServiceJs = fs.readFileSync(path.join(process.cwd(), "js/firebase-
 const authJs = fs.readFileSync(path.join(process.cwd(), "js/auth.js"), "utf8");
 const studentJs = fs.readFileSync(path.join(process.cwd(), "js/student.js"), "utf8");
 const teacherJs = fs.readFileSync(path.join(process.cwd(), "js/teacher.js"), "utf8");
+const adminJs = fs.readFileSync(path.join(process.cwd(), "js/admin.js"), "utf8");
 const styleCss = fs.readFileSync(path.join(process.cwd(), "css/style.css"), "utf8");
 const firestoreRules = fs.readFileSync(path.join(process.cwd(), "firebase/firestore.rules"), "utf8");
 const firebaseJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), "firebase.json"), "utf8"));
 
-for (const [file, content] of [["js/student.js", studentJs], ["js/teacher.js", teacherJs]]) {
+for (const [file, content] of [["js/student.js", studentJs], ["js/teacher.js", teacherJs], ["js/admin.js", adminJs]]) {
   if (/<button(?![^>]*\btype=)/i.test(content)) {
     failures.push(`${file} renders a button without an explicit type.`);
   }
@@ -160,7 +166,7 @@ if (!/import\((?:["']\.\/firebase-config\.js["']|firebaseConfigUrl)\)/.test(fire
   failures.push("js/firebase.js must load the generated Firebase browser config.");
 }
 
-for (const file of ["student-login.html", "teacher-login.html", "alumni-login.html"]) {
+for (const file of ["student-login.html", "teacher-login.html", "admin-login.html", "alumni-login.html"]) {
   const content = fs.readFileSync(path.join(process.cwd(), file), "utf8");
   if (!/<script\s+type="module"\s+src="\.\/js\/auth\.js"><\/script>/.test(content)) {
     failures.push(`${file} must load ./js/auth.js as a JavaScript module.`);
@@ -181,13 +187,13 @@ if (/from\s+["']\.\/firebase-service\.js["']/.test(authJs) || !authJs.includes("
   failures.push("js/auth.js must lazy-load Firebase service after submit handlers attach.");
 }
 
-for (const [file, content] of [["js/student.js", studentJs], ["js/teacher.js", teacherJs]]) {
+for (const [file, content] of [["js/student.js", studentJs], ["js/teacher.js", teacherJs], ["js/admin.js", adminJs]]) {
   if (/from\s+["']\.\/firebase-service\.js["']/.test(content) || !content.includes("loadFirebaseService")) {
     failures.push(`${file} must lazy-load Firebase service so dashboard click and submit handlers attach before Firebase data calls.`);
   }
 }
 
-for (const file of ["student-dashboard.html", "teacher-dashboard.html"]) {
+for (const file of ["student-dashboard.html", "teacher-dashboard.html", "admin-dashboard.html"]) {
   const content = fs.readFileSync(path.join(process.cwd(), file), "utf8");
   if (!/<script\s+type="module"\s+src="\.\/js\/dashboard-nav\.js"><\/script>/.test(content)) {
     failures.push(`${file} must load ./js/dashboard-nav.js before dashboard data scripts.`);
@@ -198,7 +204,7 @@ for (const file of ["student-dashboard.html", "teacher-dashboard.html"]) {
   if (/<a[^>]+data-open-view=/.test(content) || /<a[^>]+data-logout/.test(content)) {
     failures.push(`${file} dashboard controls must be buttons, not hash links.`);
   }
-  if (!content.includes("data-remove-account")) {
+  if (["student-dashboard.html", "teacher-dashboard.html"].includes(file) && !content.includes("data-remove-account")) {
     failures.push(`${file} must include a REMOVE ACCOUNT menu option.`);
   }
   if (!/<button[^>]+class="nav-link"[^>]+data-open-view="dashboard">DASHBOARD<\/button>/.test(content)) {

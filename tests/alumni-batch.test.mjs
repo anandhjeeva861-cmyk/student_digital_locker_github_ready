@@ -72,6 +72,26 @@ test("teacher dashboard supports multiple approved teaching batches", async () =
   assert.match(rules, /approval\.get\("teachingBatches"/);
 });
 
+test("admin portal exposes teacher approval workflow", async () => {
+  const [login, dashboard, auth, admin, service, rules] = await Promise.all([
+    read("admin-login.html"),
+    read("admin-dashboard.html"),
+    read("js/auth.js"),
+    read("js/admin.js"),
+    read("js/firebase-service.js"),
+    read("firebase/firestore.rules")
+  ]);
+  assert.match(login, /id="adminLoginForm"/);
+  assert.match(dashboard, /Teacher approvals/);
+  assert.match(dashboard, /id="approvalForm"/);
+  assert.match(auth, /admin:\s*"\.\/admin-dashboard\.html"/);
+  assert.match(admin, /protectPage\("admin"/);
+  assert.match(service, /export async function saveTeacherApproval/);
+  assert.match(service, /export async function updateTeacherTeachingBatches/);
+  assert.match(rules, /function isAdmin/);
+  assert.match(rules, /match \/approvedTeachers\/\{email\}/);
+});
+
 test("teacher and Alumni pages expose required workflow sections", async () => {
   const [teacher, alumni] = await Promise.all([read("teacher-dashboard.html"), read("alumni-dashboard.html")]);
   for (const text of ["BATCH MANAGEMENT", "Previous Batches", "Current Batch", "REMOVE BATCH STUDENT", "ALUMNI DETAILS", "REMOVE ACCOUNT"]) {

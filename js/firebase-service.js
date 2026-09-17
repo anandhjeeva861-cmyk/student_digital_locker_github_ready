@@ -208,6 +208,13 @@ function requireProfileScope(profile, expectedRole, action) {
   return profile;
 }
 
+function requireAdminProfile(profile, action) {
+  if (!profile?.uid || profile.role !== "admin") {
+    throw profileError(`Only admin accounts can ${action}.`);
+  }
+  return profile;
+}
+
 function requireOwnedLockerProfile(profile, action) {
   requireProfileScope(profile, null, action);
   if (!['student', 'alumni'].includes(profile.role)) {
@@ -594,6 +601,78 @@ export async function loginWithEmail(email, password) {
 
 export function logout() {
   return authReady.then(() => signOut(auth));
+}
+
+export async function listTeacherApprovals(adminProfile) {
+  requireAdminProfile(adminProfile, "load teacher approvals");
+  await requireCurrentUser(adminProfile.uid);
+  const snapshots = await getDocs(collection(db, "approvedTeachers"));
+  return snapshots.docs.map((snapshot) => {
+    const data = snapshot.data();
+    const teachingBatches = approvalTeachingBatches(data, data.teachingBatch);
+    return {
+      id: snapshot.id,
+      email: snapshot.id,
+      enabled: data.enabled === true,
+      department: data.department || "",
+      departmentKey: data.departmentKey || "",
+      teachingBatch: data.teachingBatch || teachingBatches[0] || "",
+      teachingBatches,
+      updatedAt: data.updatedAt || null
+    };
+  }).sort((a, b) => String(a.email).localeCompare(String(b.email)));
+}
+
+export async function saveTeacherApproval(adminProfile, values) {
+  requireAdminProfile(adminProfile, "save teacher approvals");
+  await requireCurrentUser(adminProfile.uid);
+  const email = normalizeEmail(values?.email);
+  const department = String(values?.department || "").trim().toUpperCase();
+  const departmentKeyValue = values?.departmentKey || departmentKey(department);
+  if (!isDepartment(department)) throw new Error("Select a valid department.");
+  const teachingBatches = uniqueAcademicYears(values?.teachingBatches || []);
+  if (!teachingBatches.length) throw new Error("Add at least one valid teaching batch like 2025-2028.");
+  await setDoc(doc(db, "approvedTeachers", email), {
+    enabled: values?.enabled !== false,
+    department,
+    departmentKey: departmentKeyValue,
+    teachingBatch: teachingBatches[0],
+    teachingBatches,
+    updatedBy: adminProfile.uid,
+    updatedAt: serverTimestamp()
+  });
+}
+
+export async function listAdminTeacherProfiles(adminProfile) {
+  requireAdminProfile(adminProfile, "load teacher profiles");
+  await requireCurrentUser(adminProfile.uid);
+  const snapshots = await getDocs(query(collection(db, profileCollection), where("role", "==", "teacher")));
+  return snapshots.docs.map(profileFromDoc)
+    .map((profile) => ({ ...profile, teachingBatches: teacherTeachingBatches(profile) }))
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+}
+
+export async function updateTeacherTeachingBatches(adminProfile, teacherUid, teachingBatches) {
+  requireAdminProfile(adminProfile, "update teacher teaching batches");
+  await requireCurrentUser(adminProfile.uid);
+  const batches = uniqueAcademicYears(teachingBatches || []);
+  if (!batches.length) throw new Error("Add at least one valid teaching batch like 2025-2028.");
+  const teacher = await getProfile(teacherUid);
+  if (!teacher || teacher.role !== "teacher") throw new Error("Teacher profile not found.");
+  await updateDoc(doc(db, profileCollection, teacherUid), {
+    teachingBatch: batches[0],
+    teachingBatches: batches,
+    updatedAt: serverTimestamp()
+  });
+  await setDoc(doc(db, "approvedTeachers", teacher.email), {
+    enabled: true,
+    department: teacher.department,
+    departmentKey: teacher.departmentKey,
+    teachingBatch: batches[0],
+    teachingBatches: batches,
+    updatedBy: adminProfile.uid,
+    updatedAt: serverTimestamp()
+  });
 }
 
 export async function deleteCurrentAccount(password = "") {

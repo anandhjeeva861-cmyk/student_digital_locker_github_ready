@@ -14,6 +14,10 @@ service cloud.firestore {
       return signedIn() && currentProfile().role == "teacher";
     }
 
+    function isAdmin() {
+      return signedIn() && currentProfile().role == "admin";
+    }
+
     function approvedTeacher(data) {
       let approval = get(/databases/$(database)/documents/approvedTeachers/$(request.auth.token.email)).data;
       let approvedBatches = approval.get("teachingBatches", [approval.get("teachingBatch", "")]);
@@ -22,8 +26,22 @@ service cloud.firestore {
     }
 
     match /approvedTeachers/{email} {
-      allow get: if signedIn() && request.auth.token.email == email;
-      allow list, write: if false;
+      allow get: if (signedIn() && request.auth.token.email == email) || isAdmin();
+      allow list: if isAdmin();
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(["enabled", "department", "departmentKey", "teachingBatch", "teachingBatches", "updatedBy", "updatedAt"])
+        && request.resource.data.enabled is bool
+        && allowedDepartment(request.resource.data.department)
+        && validDepartmentKey(request.resource.data)
+        && request.resource.data.teachingBatch is string
+        && validAcademicYear(request.resource.data.teachingBatch)
+        && request.resource.data.teachingBatches is list
+        && request.resource.data.teachingBatches.size() > 0
+        && request.resource.data.teachingBatches.size() <= 12
+        && request.resource.data.teachingBatch in request.resource.data.teachingBatches
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if isAdmin();
     }
 
     function allowedDepartment(value) {
@@ -530,6 +548,7 @@ service cloud.firestore {
         && validProfileCreate(uid);
       allow read: if signedIn()
         && (request.auth.uid == uid
+          || isAdmin()
           || (isTeacher()
             && ((resource.data.role == "student" && isTeacherFor(resource.data))
               || (resource.data.role == "alumni" && teacherAssignedToBatch(resource.data.get("batchId", ""))))));
@@ -537,6 +556,18 @@ service cloud.firestore {
         && ((request.auth.uid == uid
             && resource.data.role in ["student", "alumni"]
             && (validPhotoUpdate() || validAlumniSelfUpdate()))
+          || (isAdmin()
+            && resource.data.role == "teacher"
+            && request.resource.data.role == "teacher"
+            && request.resource.data.uid == resource.data.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["teachingBatch", "teachingBatches", "updatedAt"])
+            && request.resource.data.teachingBatch is string
+            && validAcademicYear(request.resource.data.teachingBatch)
+            && request.resource.data.teachingBatches is list
+            && request.resource.data.teachingBatches.size() > 0
+            && request.resource.data.teachingBatches.size() <= 12
+            && request.resource.data.teachingBatch in request.resource.data.teachingBatches
+            && request.resource.data.updatedAt == request.time)
           || (request.auth.uid != uid
             && (validTeacherBatchAssignment() || validTeacherBatchStudentRemoval() || validTeacherAlumniConversion(uid))));
       allow delete: if signedIn()

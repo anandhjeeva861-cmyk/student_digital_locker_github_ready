@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sign in to the Student Digital Locker admin portal.">
+  <meta name="robots" content="noindex, follow">
+  <link rel="canonical" href="https://anandhjeeva861-cmyk.github.io/student_digital_locker_github_ready/admin-login.html">
+  <link rel="icon" type="image/png" href="./images/sankara-logo.png">
+  <title>Admin Login | Student Digital Locker</title>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body class="teacher-theme">
+  <header class="auth-nav"><a class="college-brand" href="./index.html"><img src="./images/sankara-logo.png" alt="Sankara College logo"><span>SANKARA<small>COLLEGE OF SCIENCE &amp; COMMERCE</small></span></a><a class="back-link" href="./index.html">All portals &rarr;</a></header>
+  <section class="auth-wrap">
+    <aside class="auth-story"><p class="eyebrow">SANKARA DIGITAL CAMPUS</p><h2>Admin access.<br>Teacher scope.<br><span>Clear control.</span></h2><p>Approve teacher accounts and manage their authorized student batches.</p><div class="auth-story-foot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z"/><path d="m9 12 2 2 4-5"/></svg><span>Admin Portal &middot; Student Digital Locker</span></div></aside>
+    <form class="auth-card animate-pop" id="adminLoginForm" method="post" action="./admin-login.html">
+      <a href="./index.html" class="back-link">&larr; Back</a>
+      <img class="site-logo auth-logo" src="./images/sankara-logo.png" alt="Sankara Educational Institutions logo">
+      <p class="eyebrow">ADMIN PORTAL</p><h1>Admin sign in</h1><p class="auth-subtitle">Manage teacher approvals and batch access.</p>
+      <label for="adminLoginEmail">Email</label>
+      <input id="adminLoginEmail" type="email" name="email" placeholder="admin@example.com" autocomplete="username" required>
+      <label for="adminLoginPassword">Password</label>
+      <input id="adminLoginPassword" type="password" name="password" placeholder="Enter password" autocomplete="current-password" required>
+      <button class="primary-btn" type="submit">LOGIN</button>
+      <p class="portal-action" id="adminPortalAction" hidden></p>
+    </form>
+  </section>
+  <script type="module" src="./js/darkmode.js"></script>
+  <script type="module" src="./js/auth.js"></script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Student Digital Locker admin dashboard for approving teachers and assigning teaching batches.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://anandhjeeva861-cmyk.github.io/student_digital_locker_github_ready/admin-dashboard.html">
+  <link rel="icon" type="image/png" href="./images/sankara-logo.png">
+  <title>Admin Dashboard | Student Digital Locker</title>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body class="teacher-theme">
+  <div class="app-shell">
+    <aside class="sidebar teacher-side" id="dashboardSidebar">
+      <div class="brand"><img class="brand-logo" src="./images/sankara-logo.png" alt="Sankara College logo"><div><b>SANKARA</b><small>ADMIN PORTAL</small></div></div><p class="sidebar-label">ADMIN WORKSPACE</p>
+      <nav aria-label="Admin portal navigation">
+        <button type="button" class="nav-link" data-open-view="dashboard">DASHBOARD</button>
+        <button type="button" class="nav-link" data-open-view="approvals"><span class="nav-symbol" aria-hidden="true">&#9670;</span><span>Teacher approvals</span></button>
+        <button type="button" class="nav-link" data-open-view="teachers"><span class="nav-symbol" aria-hidden="true">&#9670;</span><span>Teacher batches</span></button>
+        <button type="button" class="nav-link danger-link" data-logout>LOGOUT</button>
+      </nav><div class="sidebar-foot"><span>&#9670;</span> Admin controls.<small>Sankara Digital Locker</small></div>
+    </aside>
+    <div class="menu-backdrop" data-menu-close></div>
+    <main class="main-panel">
+      <header class="topbar">
+        <button type="button" class="menu-toggle" data-menu-toggle aria-controls="dashboardSidebar" aria-expanded="false">MENU</button>
+        <button type="button" class="welcome" data-open-view="dashboard">WELCOME, <span id="welcomeName">ADMIN</span></button>
+        <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">Dark</button>
+      </header>
+
+      <section data-view="dashboard">
+        <div class="page-head"><div><p class="eyebrow">ADMIN PORTAL</p><h1>Dashboard</h1><p class="muted">Approve teacher access and assign the batches they can manage.</p></div></div>
+        <div class="stats-grid teacher-stats">
+          <button type="button" class="stat-card" data-open-view="approvals"><span>APPROVED TEACHERS</span><strong id="approvalCount">0</strong><small>Teacher email approvals</small></button>
+          <button type="button" class="stat-card" data-open-view="teachers"><span>REGISTERED TEACHERS</span><strong id="teacherCount">0</strong><small>Existing teacher profiles</small></button>
+        </div>
+      </section>
+
+      <section data-view="approvals" hidden>
+        <div class="page-head"><div><p class="eyebrow">TEACHER APPROVALS</p><h1>Approve Teacher Batches</h1><p class="muted">Add every batch this teacher can create and manage.</p></div></div>
+        <div class="workspace-grid">
+          <form class="stack-form" id="approvalForm">
+            <h2>Teacher Approval</h2>
+            <label for="approvalEmail">Teacher Email</label><input id="approvalEmail" name="email" type="email" placeholder="teacher@example.com" required>
+            <label for="approvalDepartment">Department</label><select id="approvalDepartment" name="department" data-options="departments" required></select>
+            <label for="approvalBatches">Teaching Batches</label><textarea id="approvalBatches" name="teachingBatches" rows="4" placeholder="2025-2028&#10;2026-2029" required></textarea>
+            <input id="approvalEnabled" type="checkbox" name="enabled" checked><label for="approvalEnabled">Enabled</label>
+            <button type="submit" class="primary-btn">SAVE APPROVAL</button>
+          </form>
+          <div class="table-card"><div class="card-title-row"><h2>Approved Teachers</h2></div><div class="responsive-table"><table><thead><tr><th>Email</th><th>Department</th><th>Batches</th><th>Status</th><th>Action</th></tr></thead><tbody id="approvalRows"></tbody></table></div><div class="empty-state" id="approvalEmpty">No teacher approvals yet.</div></div>
+        </div>
+      </section>
+
+      <section data-view="teachers" hidden>
+        <div class="page-head"><div><p class="eyebrow">TEACHER BATCHES</p><h1>Registered Teachers</h1><p class="muted">Update batches for teachers who already created accounts.</p></div></div>
+        <div class="table-card"><div class="card-title-row"><h2>Teacher Profiles</h2></div><div class="responsive-table"><table><thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Teaching Batches</th><th>Action</th></tr></thead><tbody id="teacherRows"></tbody></table></div><div class="empty-state" id="teacherEmpty">No teacher accounts found.</div></div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="./js/app.js"></script>
+  <script type="module" src="./js/darkmode.js"></script>
+  <script type="module" src="./js/dashboard-nav.js"></script>
+  <script type="module" src="./js/auth.js"></script>
+  <script type="module" src="./js/admin.js"></script>
+</body>
+</html>

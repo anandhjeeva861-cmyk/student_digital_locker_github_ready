@@ -13,13 +13,15 @@ const pages = {
   student: "./student-dashboard.html",
   teacher: "./teacher-dashboard.html",
   alumni: "./alumni-dashboard.html",
+  admin: "./admin-dashboard.html",
   login: "./index.html"
 };
 
 const portalLoginPages = {
   student: "./student-login.html",
   teacher: "./teacher-login.html",
-  alumni: "./alumni-login.html"
+  alumni: "./alumni-login.html",
+  admin: "./admin-login.html"
 };
 
 let firebaseServicePromise = null;
@@ -118,7 +120,10 @@ function wrongPortalMessage(actualRole, attemptedRole) {
   if (actualRole === "teacher" && attemptedRole !== "teacher") {
     return "This account belongs to the Teacher Portal. Please use Teacher Login.";
   }
-  const label = actualRole === "student" ? "Student" : actualRole === "alumni" ? "Alumni" : "Teacher";
+  if (actualRole === "admin" && attemptedRole !== "admin") {
+    return "This account belongs to the Admin Portal. Please use Admin Login.";
+  }
+  const label = actualRole === "student" ? "Student" : actualRole === "alumni" ? "Alumni" : actualRole === "admin" ? "Admin" : "Teacher";
   return `This account belongs to the ${label} Portal. Please use ${label} Login.`;
 }
 
@@ -213,6 +218,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const handlers = {
     studentLoginForm: (form) => login(form, "student"),
     teacherLoginForm: (form) => login(form, "teacher"),
+    adminLoginForm: (form) => login(form, "admin"),
     alumniLoginForm: (form) => login(form, "alumni"),
     studentRegisterForm: registerStudent,
     teacherRegisterForm: registerTeacher
