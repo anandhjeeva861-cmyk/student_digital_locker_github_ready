@@ -2,7 +2,6 @@ import {
   createUserWithEmailAndPassword,
   deleteUser,
   onAuthStateChanged,
-  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
@@ -493,11 +492,7 @@ export async function registerTeacher(payload) {
     await deleteUser(credential.user).catch(() => {});
     throw error;
   }
-  try {
-    await sendEmailVerification(credential.user);
-  } finally {
-    await signOut(auth);
-  }
+  await signOut(auth);
 }
 
 async function createProfileWithUniqueKeys(uid, profile) {
@@ -562,14 +557,6 @@ export async function loginWithEmail(email, password) {
   if (!profile) {
     await signOut(auth);
     throw new Error("Profile not found. Register again or check Firestore profiles collection.");
-  }
-  if (profile.role === "teacher" && !credential.user.emailVerified) {
-    try {
-      await sendEmailVerification(credential.user);
-    } finally {
-      await signOut(auth);
-    }
-    throw new Error("Verify your teacher email before signing in. A verification link has been sent to your inbox.");
   }
   return profile;
 }
@@ -671,9 +658,6 @@ export async function getCurrentProfile() {
   const user = auth.currentUser || await waitForUser();
   if (!user) return null;
   const profile = await getProfile(user.uid);
-  if (profile?.role === "teacher" && !user.emailVerified) {
-    throw new Error("Verify your teacher email, then sign in again.");
-  }
   return profile;
 }
 

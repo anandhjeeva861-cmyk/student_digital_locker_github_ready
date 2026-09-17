@@ -11,8 +11,7 @@ service cloud.firestore {
     }
 
     function isTeacher() {
-      return signedIn() && request.auth.token.email_verified == true
-        && currentProfile().role == "teacher";
+      return signedIn() && currentProfile().role == "teacher";
     }
 
     function approvedTeacher(data) {

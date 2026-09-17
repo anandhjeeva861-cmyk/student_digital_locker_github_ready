@@ -88,7 +88,7 @@ async function registerTeacher(form) {
   const { registerTeacher: firebaseRegisterTeacher } = await loadFirebaseService();
   await firebaseRegisterTeacher(teacherPayload(form));
   form.reset();
-  showMessage("Account created. Verify your email using the link in your inbox, then sign in through Teacher Login.", "success", { duration: 0 });
+  showMessage("Teacher account created. Sign in through Teacher Login.", "success", { duration: 0 });
 }
 
 async function login(form, role) {

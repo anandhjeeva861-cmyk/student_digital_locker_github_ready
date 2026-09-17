@@ -73,14 +73,7 @@ test("student registration, teacher approval, graduation and alumni account life
   await expect(page.getByRole("alert")).toContainText("not approved");
   await env.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), "approvedTeachers/teacher@college.test"), { enabled: true, departmentKey: "BSCCS", teachingBatch: "2023-2026" }));
   await page.locator("button[type=submit]").click();
-  await expect(page.getByRole("status")).toContainText("Verify your email");
-  await login(page, "teacher", "teacher@college.test");
-  await expect(page.getByRole("alert")).toContainText("Verify your teacher email");
-  const oob = await fetch(`http://127.0.0.1:9099/emulator/v1/projects/${projectId}/oobCodes`).then((r) => r.json());
-  const verification = oob.oobCodes.filter((code) => code.email === "teacher@college.test" && code.requestType === "VERIFY_EMAIL").at(-1);
-  expect(verification).toBeTruthy();
-  const verified = await fetch("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:update?key=demo-test-key", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ oobCode: verification.oobCode }) });
-  expect(verified.ok).toBeTruthy();
+  await expect(page.getByRole("status")).toContainText("Teacher account created");
   await login(page, "teacher", "teacher@college.test");
   await expect(page).toHaveURL(/teacher-dashboard.html/);
   await expect(page.locator("#studentCount")).toHaveText("1");

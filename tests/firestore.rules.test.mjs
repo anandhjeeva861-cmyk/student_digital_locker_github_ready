@@ -25,8 +25,8 @@ test("Firestore authorization and lifecycle", { skip: !enabled }, async (t) => {
       await assertSucceeds(setDoc(doc(staffDb, "academicTitles/BSCCS_2023-2026_TC"), { title: "TC", department: "BSC CS", departmentKey: "BSCCS", year: "2023-2026", createdBy: "teacher", createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
       await assertSucceeds(getDocs(query(collection(studentDb, "academicTitles"), where("departmentKey", "==", "BSCCS"), where("year", "==", "2023-2026"))));
     });
-    await t.test("unverified teachers and other departments cannot read student profiles", async () => {
-      await assertFails(getDoc(doc(dbFor("teacher", false), "profiles/student")));
+    await t.test("approved teachers can read their scope and other departments cannot read student profiles", async () => {
+      await assertSucceeds(getDoc(doc(dbFor("teacher", false), "profiles/student")));
       await assertFails(getDoc(doc(dbFor("outsider"), "profiles/student")));
       await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), "profiles/student")));
     });
