@@ -59,6 +59,19 @@ test("batch assignment uses an explicit unassigned marker", async () => {
   assert.match(rules, /request\.resource\.data\.batchId == ""/);
 });
 
+test("teacher dashboard supports multiple approved teaching batches", async () => {
+  const [service, teacher, rules] = await Promise.all([read("js/firebase-service.js"), read("js/teacher.js"), read("firebase/firestore.rules")]);
+  assert.match(service, /function approvalTeachingBatches/);
+  assert.match(service, /export function teacherTeachingBatches/);
+  assert.match(service, /approvedBatches\.includes\(teachingBatch\)/);
+  assert.match(service, /teacherTeachingBatches\(profile\)\.flatMap/);
+  assert.match(service, /teacherCanTeachBatch\(profile, batchLabel\)/);
+  assert.match(teacher, /function teacherTeachingBatches/);
+  assert.match(teacher, /batches\.map\(\(batch\) => `<option/);
+  assert.match(rules, /function teacherCanTeachBatch/);
+  assert.match(rules, /approval\.get\("teachingBatches"/);
+});
+
 test("teacher and Alumni pages expose required workflow sections", async () => {
   const [teacher, alumni] = await Promise.all([read("teacher-dashboard.html"), read("alumni-dashboard.html")]);
   for (const text of ["BATCH MANAGEMENT", "Previous Batches", "Current Batch", "REMOVE BATCH STUDENT", "ALUMNI DETAILS", "REMOVE ACCOUNT"]) {

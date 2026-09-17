@@ -87,19 +87,39 @@ function findClosestAction(target, selector) {
   return target instanceof Element ? target.closest(selector) : null;
 }
 
+function teacherTeachingBatches(profile) {
+  const values = [
+    ...(Array.isArray(profile?.teachingBatches) ? profile.teachingBatches : []),
+    ...(Array.isArray(profile?.assignedBatches) ? profile.assignedBatches : []),
+    profile?.teachingBatch,
+    profile?.year
+  ];
+  return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
+}
+
+function teacherBatchLabel(profile) {
+  const batches = teacherTeachingBatches(profile);
+  return batches.length ? batches.join(", ") : "Not available";
+}
+
 function fillProfile() {
   text("welcomeName", teacher.name);
   text("teacherName", teacher.name);
   text("teacherEmail", teacher.email);
   text("teacherDepartment", teacher.department);
-  const teachingBatch = teacher.teachingBatch || teacher.year || "Not available";
+  const batches = teacherTeachingBatches(teacher);
+  const teachingBatch = teacherBatchLabel(teacher);
   text("teacherYear", teachingBatch);
   text("teacherMobile", teacher.mobile);
-  text("teacherScope", `${teacher.department} - Teaching Batch ${teachingBatch}`);
+  text("teacherScope", `${teacher.department} - Teaching Batches ${teachingBatch}`);
   const courseInput = document.getElementById("batchCourseName");
   if (courseInput && !courseInput.value) courseInput.value = teacher.department;
   const batchInput = document.getElementById("batchLabel");
-  if (batchInput) batchInput.value = teachingBatch;
+  if (batchInput) {
+    batchInput.innerHTML = batches.length
+      ? batches.map((batch) => `<option value="${escapeHtml(batch)}">${escapeHtml(batch)}</option>`).join("")
+      : '<option value="">No approved batch</option>';
+  }
 }
 
 async function safeRender(label, task) {
@@ -260,7 +280,7 @@ async function renderStudents(filter = "") {
   if (!body) return;
   const students = await matchingStudents(filter);
   text("studentListDepartment", teacher.department);
-  text("studentListBatch", teacher.teachingBatch || teacher.year || "Not available");
+  text("studentListBatch", teacherBatchLabel(teacher));
   text("studentListTotal", String(students.length));
   body.innerHTML = "";
   for (const student of students) {
