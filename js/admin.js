@@ -6,6 +6,7 @@ let approvals = [];
 let teachers = [];
 let students = [];
 let classes = [];
+let studentFilters = { q: "", department: "", classId: "" };
 let firebaseServicePromise = null;
 
 function loadFirebaseService() {
@@ -106,7 +107,27 @@ function renderStudents() {
   const empty = document.getElementById("studentEmpty");
   if (!body) return;
   const classById = new Map(classes.map((item) => [item.id, item]));
-  body.innerHTML = students.map((student) => {
+  const departmentFilter = document.getElementById("studentDepartmentFilter");
+  const classFilter = document.getElementById("studentClassFilter");
+  if (departmentFilter) {
+    departmentFilter.innerHTML = `<option value="">All departments</option>${[...new Set(students.map((item) => item.department).filter(Boolean))]
+      .sort().map((department) => `<option value="${escapeHtml(department)}">${escapeHtml(department)}</option>`).join("")}`;
+    departmentFilter.value = studentFilters.department;
+  }
+  if (classFilter) {
+    const availableClasses = classes.filter((item) => !studentFilters.department || item.department === studentFilters.department);
+    classFilter.innerHTML = `<option value="">All classes</option>${availableClasses
+      .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(`${item.department} — ${item.batchLabel}`)}</option>`).join("")}`;
+    classFilter.value = studentFilters.classId;
+  }
+  const search = studentFilters.q.trim().toUpperCase();
+  const filteredStudents = students.filter((student) => {
+    const searchText = `${student.name || ""} ${student.reg_no || ""} ${student.email || ""}`.toUpperCase();
+    return (!search || searchText.includes(search))
+      && (!studentFilters.department || student.department === studentFilters.department)
+      && (!studentFilters.classId || student.batchId === studentFilters.classId);
+  });
+  body.innerHTML = filteredStudents.map((student) => {
     const assignedClass = classById.get(student.batchId);
     const classLabel = assignedClass?.batchLabel || student.batch || "Not assigned";
     return `<tr>
@@ -120,7 +141,7 @@ function renderStudents() {
       <td><span class="status-badge">${escapeHtml(student.studentStatus || "active")}</span></td>
     </tr>`;
   }).join("");
-  if (empty) empty.hidden = students.length > 0;
+  if (empty) empty.hidden = filteredStudents.length > 0;
 }
 
 function renderClasses() {
@@ -195,6 +216,17 @@ document.addEventListener("DOMContentLoaded", () => {
     } finally {
       button.disabled = false;
     }
+  });
+
+  document.getElementById("studentSearchForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    studentFilters = {
+      q: form.elements.q.value || "",
+      department: form.elements.department.value || "",
+      classId: form.elements.classId.value || ""
+    };
+    renderStudents();
   });
 
   document.addEventListener("click", async (event) => {

@@ -10,7 +10,7 @@ test("Alumni portal has login protection and no registration path", async () => 
   ]);
   assert.match(index, /ALUMNI LOGIN/);
   assert.match(login, /id="alumniLoginForm"/);
-  assert.doesNotMatch(login, /Register as (?:an )?Alumni/i);
+  assert.doesNotMatch(login, /alumni-register\.html/);
   assert.match(dashboard, /ALUMNI\s*<\/b><small>DIGITAL LOCKER/);
   assert.match(auth, /alumni:\s*"\.\/alumni-dashboard\.html"/);
   assert.match(alumni, /protectPage\("alumni"/);
