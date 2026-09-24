@@ -1,0 +1,49 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  emulator-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java (Firestore and Auth emulators)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Generate Firebase browser config (test values)
+        env:
+          FIREBASE_API_KEY: demo-api-key-for-verification
+        run: npm run config:firebase
+
+      - name: Verify static frontend
+        run: npm run build
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Run tests against Firebase emulators
+        run: npm run test:emulator

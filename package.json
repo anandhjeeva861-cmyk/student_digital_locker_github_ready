@@ -8,6 +8,7 @@
     "config:firebase": "node scripts/generate-firebase-config.js",
     "build": "node scripts/verify-static-site.js",
     "test": "node --test",
+    "test:emulator": "node scripts/run-emulator-tests.js",
     "pages:artifact": "node scripts/prepare-pages-artifact.js",
     "deploy:firebase": "npx firebase-tools deploy --only firestore:rules,firestore:indexes",
     "start": "npm run dev"
@@ -20,5 +21,13 @@
     "@firebase/rules-unit-testing": "^5.0.2",
     "@playwright/test": "^1.63.0",
     "firebase-tools": "^15.30.1"
+  },
+  "overrides": {
+    "exceljs": {
+      "uuid": "^11.1.1"
+    },
+    "gaxios": {
+      "uuid": "^11.1.1"
+    }
   }
 }

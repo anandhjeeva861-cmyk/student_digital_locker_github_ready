@@ -48,6 +48,10 @@ On Windows PowerShell, use `npm.cmd` if plain `npm` is blocked by the execution 
 
 See `.env.example`. Local real values belong in ignored `.env.local` and `.env.production`.
 
+## Privacy and Analytics
+
+Anonymous usage analytics are opt-in. Analytics starts only after a visitor accepts the consent banner, which appears on every portal page until a choice is made. No analytics run on the emulator or before consent.
+
 ## GitHub Pages
 
 The workflow `.github/workflows/pages.yml` generates `js/firebase-config.js`, verifies the static frontend, prepares a clean `dist/` artifact, and deploys only that artifact to GitHub Pages. It preserves every HTML page; it does not rewrite routes to `index.html`.
@@ -81,9 +85,14 @@ Teacher registration also reserves one department + teaching-batch scope, so a s
 
 ```bash
 npm run build
+npm run test:emulator
 npm run deploy:firebase
 npm run pages:artifact
 git add .
 git commit -m "Integrate Firebase for Student Digital Locker"
 git push
 ```
+
+## Testing
+
+`npm test` runs the unit and Firestore-authorization tests. The Firestore rules test and the Playwright browser flows need the Firebase Auth and Firestore emulators plus Java 17+, so they run through `npm run test:emulator` (requires `npx playwright install chromium` once). CI runs the full emulator suite on every push and pull request using `.github/workflows/tests.yml`.

@@ -1,5 +1,6 @@
 import { getApps, initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import { getAnalytics, isSupported as analyticsIsSupported } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-analytics.js";
+import { consentEvent, isAnalyticsConsentGranted } from "./consent.js";
 import {
   browserSessionPersistence,
   browserLocalPersistence,
@@ -58,9 +59,25 @@ export const authReady = setPersistence(auth, browserLocalPersistence)
     return setPersistence(auth, inMemoryPersistence);
   });
 
-export const analyticsReady = (firebaseEmulators ? Promise.resolve(false) : analyticsIsSupported())
-  .then((supported) => (supported ? getAnalytics(app) : null))
-  .catch((error) => {
+let analytics = null;
+
+export function analyticsEnabled() {
+  return Boolean(analytics);
+}
+
+export async function enableAnalytics() {
+  if (analytics || firebaseEmulators) return analytics;
+  if (!isAnalyticsConsentGranted()) return null;
+  try {
+    if (await analyticsIsSupported()) analytics = getAnalytics(app);
+  } catch (error) {
     console.warn("Firebase Analytics is not available in this browser.", error);
-    return null;
-  });
+  }
+  return analytics;
+}
+
+window.addEventListener(consentEvent, (event) => {
+  if (event.detail && event.detail.accepted) enableAnalytics();
+});
+
+export const analyticsReady = enableAnalytics();

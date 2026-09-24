@@ -1539,3 +1539,16 @@ html { scroll-behavior: smooth; }
 @media (max-width: 620px) {
     .public-nav,.auth-nav { width:calc(100% - 24px); min-height:68px; margin-top:12px; padding:8px 13px; border-radius:18px; }.college-brand { font-size:.88rem; }.college-brand img { width:39px;height:45px; }.college-brand small { font-size:.4rem; }.sign-in { padding:9px 11px;font-size:.72rem; }.sign-in span { display:none; }.landing-main { width:calc(100% - 28px); }.landing-hero { min-height:auto; }.hero-copy { padding-top:55px; }.hero-copy h1 { font-size:clamp(3.2rem,18vw,5rem); }.hero-description { font-size:.94rem;line-height:1.65; }.hero-assurance { flex-direction:column;gap:8px; }.locker-art { min-height:350px; transform:scale(.74); transform-origin:top center; margin-bottom:-80px; }.section-heading { align-items:start;flex-direction:column; }.section-heading > p { margin-top:8px; }.portal-grid { gap:12px; }.trust-strip { grid-template-columns:1fr; }.trust-strip > div { border-right:0;border-bottom:1px solid #dce9fa; }.public-footer { flex-direction:column;gap:7px;padding:22px 18px; }.auth-nav > .back-link { font-size:.68rem; }.auth-wrap { width:calc(100% - 24px); margin-top:12px; border-radius:22px; }.auth-card { padding:35px 23px; }.wide-card .form-grid { grid-template-columns:1fr; }.app-shell { padding:10px; }.topbar { top:10px; }.sidebar { top:10px;left:10px;width:min(292px,calc(100vw - 20px));height:calc(100vh - 20px); }
 }
+
+/* Consent banner */
+.consent-banner { position: fixed; z-index: 90; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 12px 20px; border-top: 1px solid rgba(255,255,255,.85); color: #eaf3ff; background: rgba(6,32,74,.96); backdrop-filter: blur(8px); box-shadow: 0 -12px 30px rgba(2,30,70,.25); }
+.consent-banner[hidden] { display: none; }
+.consent-banner p { margin: 0; max-width: 820px; font-size: .78rem; line-height: 1.55; }
+.consent-banner strong { color: #7fd0ff; }
+.consent-btn { border: 0; border-radius: 999px; padding: 9px 16px; color: #06306b; background: #fff; font-size: .72rem; font-weight: 800; letter-spacing: .05em; cursor: pointer; }
+.consent-accept { color: #fff; background: linear-gradient(135deg,#1686ff,#0347cf); box-shadow: 0 8px 18px rgba(4,85,222,.35); }
+.consent-btn:hover { filter: brightness(1.08); }
+.dark-mode .consent-banner { background: rgba(5,17,36,.97); border-color: rgba(255,255,255,.1); }
+@media (max-width: 620px) {
+  .consent-banner { flex-direction: column; align-items: stretch; text-align: center; gap: 10px; padding: 14px 16px; }
+}

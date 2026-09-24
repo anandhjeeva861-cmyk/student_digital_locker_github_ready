@@ -176,3 +176,29 @@ The student dashboard used to call `refreshProfilePhoto()` automatically during 
 - Live Firebase student/teacher/Alumni login, real profile upload/change/persistence, batch graduation, upload/view/download/delete, refresh persistence, and logout flows require valid owner-controlled accounts plus live Firestore test data. No fake accounts or records were created, so those external-state tests remain for the owner or an authorized test environment. The repository currently supports replacing a profile image but has no explicit remove-photo control.
 - `npm audit` reports two moderate findings for `uuid@8.3.2`, pulled transitively by the current latest `exceljs@4.4.0`. The advisory concerns UUID v3/v5/v6 calls with caller-provided buffers; this application uses ExcelJS only to create the submission workbook and does not expose those UUID APIs. npm's offered remediation is a breaking downgrade to `exceljs@3.4.0`, so it was not applied without a supported upstream fix.
 - The repository's configured production workflow and remote identify GitHub Pages, not Vercel. All application paths remain static and relative, but the canonical/sitemap URLs intentionally match the configured GitHub Pages site. If a different Vercel production domain is authoritative, the owner must provide it before those SEO URLs should be changed.
+
+## Audit Review (2026-09-24)
+
+Full audit of secrets, Firestore rules, client XSS, dependencies, tests, and docs against the current tree.
+
+### Findings
+
+- Secrets hygiene is clean: real Firebase browser config lives only in ignored `.env`, `.env.local`, `.env.production`, and generated ignored `js/firebase-config.js`. No real `AIza...` key, service account, or private key exists in tracked files or history. The browser API key is public by design.
+- Firestore rules are strong and self-consistent: no `allow if true`; field-restricted updates via `affectedKeys().hasOnly()`; atomic mobile/register-number uniqueness via `uniqueMobileNumbers`/`uniqueRegisterNumbers` with `getAfter`; graduation-to-alumni conversions are atomic (audit requires profile already `alumni` and vice versa, satisfiable only in one `writeBatch`); `passwordRecovery` is legacy-only (read/create/update denied, owner-only delete). `storage.rules` denies all.
+- Client code: no inline handlers, `javascript:` URLs, `eval`, or `document.write`; all interpolated `innerHTML` uses `escapeHtml` except one numeric counter (`teacher.js`); no `console.log`/`debugger` in app modules.
+- The bootstrap admin (uid + email) is hardcoded and public in `firebase/firestore.rules` and `js/firebase-service.js`; it remains the single trust anchor for the admin portal.
+- No Content-Security-Policy is published (GitHub Pages sends none and the dynamic gstatic imports/analytics make a restrictive meta-CSP impractical); documented as accepted with the consent-based analytics gate referenced below.
+
+### Changes implemented
+
+- Analytics are now consent-gated: `js/consent.js` shows a fixed opt-in banner on every page until a choice is stored in `localStorage`; `js/firebase.js` no longer initializes analytics unless consent is granted (also still off under emulators). No consent is collected or stored server-side.
+- `npm audit`: `uuid` forced to `^11.1.1` for `exceljs` and `gaxios` via npm `overrides` (clears GHSA-w5hq-g745-h8pq without the breaking `exceljs@3.4.0` downgrade), plus non-breaking dependency refresh (`firebase-tools` 15.31.0 clears `csv-parse`/`stream-json` advisories). Remaining three moderates are dev-only transitive advisories inside `@google-cloud/pubsub`/`@opentelemetry/core` whose only fix is a breaking `firebase-tools` major downgrade; accepted and monitored.
+- Vendored browser ExcelJS bundle is now integrity-pinned: two new unit tests in `tests/vendor-integrity.test.mjs` pin `js/vendor/exceljs/exceljs.min.js` to its exact size, SHA-256 (`7E49DA68588E250DBB8BBA190D2CAA8AB3787CC0284BDA1D8B2F805C4DF742C9`), and provenance marker (`/*! ExcelJS 19-10-2023 */`).
+- Emulator tests now actually run: new `npm run test:emulator` (via `scripts/run-emulator-tests.js`) starts the Firebase Auth + Firestore emulators against the `demo-digital-locker` project, then runs `node --test` (including the previously-skipped `tests/firestore.rules.test.mjs`) and Playwright. New `.github/workflows/tests.yml` runs it on every push/PR with Node 22, Java 17, and Chromium.
+
+### Validation (2026-09-24)
+
+- `npm test`: 12 tests, 11 pass, 1 skipped (the rules test needs the emulator + Java).
+- `npm run build`: `Static site verification passed` (includes new consent.js HTML/JS wiring).
+- `npm ls uuid`: exceljs/gaxios use uuid 11.1.1, universal-analytics keeps uuid 14.0.2; no install problems.
+- `npm run test:emulator`: runner verified to the Java gate; full emulator suite is exercised in CI (Java unavailable on this machine).
