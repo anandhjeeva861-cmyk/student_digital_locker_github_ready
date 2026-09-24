@@ -18,6 +18,8 @@
         <button type="button" class="nav-link" data-open-view="dashboard">DASHBOARD</button>
         <button type="button" class="nav-link" data-open-view="approvals"><span class="nav-symbol" aria-hidden="true">&#9670;</span><span>Teacher approvals</span></button>
         <button type="button" class="nav-link" data-open-view="teachers"><span class="nav-symbol" aria-hidden="true">&#9670;</span><span>Teacher batches</span></button>
+        <button type="button" class="nav-link" data-open-view="students"><span class="nav-symbol" aria-hidden="true">&#9670;</span><span>Student data</span></button>
+        <button type="button" class="nav-link" data-open-view="classes"><span class="nav-symbol" aria-hidden="true">&#9670;</span><span>Class list</span></button>
         <button type="button" class="nav-link danger-link" data-logout>LOGOUT</button>
       </nav><div class="sidebar-foot"><span>&#9670;</span> Admin controls.<small>Sankara Digital Locker</small></div>
     </aside>
@@ -30,10 +32,12 @@
       </header>
 
       <section data-view="dashboard">
-        <div class="page-head"><div><p class="eyebrow">ADMIN PORTAL</p><h1>Dashboard</h1><p class="muted">Approve teacher access and assign the batches they can manage.</p></div></div>
+        <div class="page-head"><div><p class="eyebrow">ADMIN PORTAL</p><h1>Dashboard</h1><p class="muted">Approve teacher access, review student data, and manage class assignments.</p></div></div>
         <div class="stats-grid teacher-stats">
           <button type="button" class="stat-card" data-open-view="approvals"><span>APPROVED TEACHERS</span><strong id="approvalCount">0</strong><small>Teacher email approvals</small></button>
           <button type="button" class="stat-card" data-open-view="teachers"><span>REGISTERED TEACHERS</span><strong id="teacherCount">0</strong><small>Existing teacher profiles</small></button>
+          <button type="button" class="stat-card" data-open-view="students"><span>REGISTERED STUDENTS</span><strong id="studentCount">0</strong><small>Student profile records</small></button>
+          <button type="button" class="stat-card" data-open-view="classes"><span>CLASS LISTS</span><strong id="classCount">0</strong><small>Created teaching batches</small></button>
         </div>
       </section>
 
@@ -55,6 +59,16 @@
       <section data-view="teachers" hidden>
         <div class="page-head"><div><p class="eyebrow">TEACHER BATCHES</p><h1>Registered Teachers</h1><p class="muted">Update batches for teachers who already created accounts.</p></div></div>
         <div class="table-card"><div class="card-title-row"><h2>Teacher Profiles</h2></div><div class="responsive-table"><table><thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Teaching Batches</th><th>Action</th></tr></thead><tbody id="teacherRows"></tbody></table></div><div class="empty-state" id="teacherEmpty">No teacher accounts found.</div></div>
+      </section>
+
+      <section data-view="students" hidden>
+        <div class="page-head"><div><p class="eyebrow">STUDENT DATA</p><h1>Registered Students</h1><p class="muted">View student profile and academic batch details across the college.</p></div></div>
+        <div class="table-card"><div class="card-title-row"><h2>Student Profiles</h2></div><div class="responsive-table"><table><thead><tr><th>Name</th><th>Register No.</th><th>Email</th><th>Mobile</th><th>Department</th><th>Academic Year</th><th>Class</th><th>Status</th></tr></thead><tbody id="studentRows"></tbody></table></div><div class="empty-state" id="studentEmpty">No student accounts found.</div></div>
+      </section>
+
+      <section data-view="classes" hidden>
+        <div class="page-head"><div><p class="eyebrow">CLASS LIST</p><h1>Teaching Classes</h1><p class="muted">Review every created class, its assigned teacher, and student count.</p></div></div>
+        <div class="table-card"><div class="card-title-row"><h2>Created Classes</h2></div><div class="responsive-table"><table><thead><tr><th>Class / Batch</th><th>Department</th><th>Course</th><th>Assigned Teacher</th><th>Students</th><th>Status</th></tr></thead><tbody id="classRows"></tbody></table></div><div class="empty-state" id="classEmpty">No classes have been created yet.</div></div>
       </section>
     </main>
   </div>

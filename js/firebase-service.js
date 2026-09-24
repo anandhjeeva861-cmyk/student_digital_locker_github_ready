@@ -672,6 +672,23 @@ export async function listAdminTeacherProfiles(adminProfile) {
     .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 }
 
+export async function listAdminStudentProfiles(adminProfile) {
+  requireAdminProfile(adminProfile, "load student profiles");
+  await requireCurrentUser(adminProfile.uid);
+  const snapshots = await getDocs(query(collection(db, profileCollection), where("role", "==", "student")));
+  return snapshots.docs.map(profileFromDoc)
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+}
+
+export async function listAdminClasses(adminProfile) {
+  requireAdminProfile(adminProfile, "load class lists");
+  await requireCurrentUser(adminProfile.uid);
+  const snapshots = await getDocs(collection(db, batchesCollection));
+  return snapshots.docs.map(batchFromDoc)
+    .sort((a, b) => String(a.department || "").localeCompare(String(b.department || ""))
+      || String(a.batchLabel || "").localeCompare(String(b.batchLabel || "")));
+}
+
 export async function updateTeacherTeachingBatches(adminProfile, teacherUid, teachingBatches) {
   requireAdminProfile(adminProfile, "update teacher teaching batches");
   await requireCurrentUser(adminProfile.uid);

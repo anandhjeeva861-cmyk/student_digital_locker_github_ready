@@ -639,8 +639,7 @@ service cloud.firestore {
         && currentProfile().role in ["student", "alumni"]
         && validOwnedDocumentId(documentId);
       allow delete: if signedIn()
-        && (resource.data.ownerId == request.auth.uid
-          || (resource.data.category == "academic" && isTeacherFor(resource.data)));
+        && resource.data.ownerId == request.auth.uid;
 
       match /fileChunks/{chunkId} {
         allow read: if canReadDocumentData(get(/databases/$(database)/documents/documents/$(documentId)).data);
@@ -667,10 +666,9 @@ service cloud.firestore {
     }
 
     match /batches/{batchId} {
-      allow get: if isTeacher() && batchId == currentProfile().departmentKey + "_" + teacherTeachingBatch(currentProfile());
+      allow get: if isAdmin() || (isTeacher() && batchId == currentProfile().departmentKey + "_" + teacherTeachingBatch(currentProfile()));
       allow read: if signedIn()
-        && resource.data.assignedTeacherUid == request.auth.uid
-        && isTeacher();
+        && (isAdmin() || (resource.data.assignedTeacherUid == request.auth.uid && isTeacher()));
       allow create: if signedIn()
         && isTeacher()
         && request.resource.data.keys().hasOnly(["batchId", "department", "departmentKey", "courseName", "admissionYear", "graduationYear", "batchLabel", "status", "assignedTeacherUid", "createdAt", "updatedAt"])

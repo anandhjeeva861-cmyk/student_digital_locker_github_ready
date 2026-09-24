@@ -338,7 +338,6 @@ async function renderStudentDetail(studentUid) {
       <td class="action-cell">
         <button type="button" class="small-btn" data-view-doc="${escapeHtml(item.id)}">VIEW</button>
         <button type="button" class="small-btn" data-download-doc="${escapeHtml(item.id)}">DOWNLOAD</button>
-        <button type="button" class="small-btn danger" data-remove-doc="${escapeHtml(item.id)}">REMOVE</button>
       </td>
     </tr>`;
   }).join("");
@@ -660,7 +659,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     const viewButton = findClosestAction(event.target, "[data-view-doc]");
     const downloadButton = findClosestAction(event.target, "[data-download-doc]");
-    const removeDocumentButton = findClosestAction(event.target, "[data-remove-doc]");
     const statusViewButton = findClosestAction(event.target, "[data-status-view-doc]");
     const statusDownloadButton = findClosestAction(event.target, "[data-status-download-doc]");
     if (statusViewButton || statusDownloadButton) {
@@ -685,24 +683,6 @@ document.addEventListener("DOMContentLoaded", () => {
         );
       } catch (error) {
         console.error("Teacher document open failed", error);
-        showMessage(await friendlyFirebaseError(error), "danger");
-      }
-      return;
-    }
-
-    if (removeDocumentButton) {
-      if (!confirm("Remove this academic document?")) return;
-      try {
-        const { deleteTeacherAcademicDocument } = await loadFirebaseService();
-        await deleteTeacherAcademicDocument(teacher, removeDocumentButton.dataset.removeDoc);
-        detailDocumentCache = detailDocumentCache.filter((item) => item.id !== removeDocumentButton.dataset.removeDoc);
-        statusDocumentCache = [];
-        statusReportRows = [];
-        if (selectedStudentUid) await renderStudentDetail(selectedStudentUid);
-        await renderDashboard();
-        showMessage("Academic document removed.", "success");
-      } catch (error) {
-        console.error("Teacher document remove failed", error);
         showMessage(await friendlyFirebaseError(error), "danger");
       }
       return;

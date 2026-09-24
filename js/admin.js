@@ -4,6 +4,8 @@ import { departmentKey, escapeHtml, parseDepartment, parseYear, showMessage } fr
 let admin = null;
 let approvals = [];
 let teachers = [];
+let students = [];
+let classes = [];
 let firebaseServicePromise = null;
 
 function loadFirebaseService() {
@@ -54,15 +56,19 @@ async function safeRender(label, task) {
 
 async function loadAdminData() {
   const service = await loadFirebaseService();
-  [approvals, teachers] = await Promise.all([
+  [approvals, teachers, students, classes] = await Promise.all([
     service.listTeacherApprovals(admin),
-    service.listAdminTeacherProfiles(admin)
+    service.listAdminTeacherProfiles(admin),
+    service.listAdminStudentProfiles(admin),
+    service.listAdminClasses(admin)
   ]);
 }
 
 function renderDashboard() {
   text("approvalCount", String(approvals.length));
   text("teacherCount", String(teachers.length));
+  text("studentCount", String(students.length));
+  text("classCount", String(classes.length));
 }
 
 function renderApprovals() {
@@ -95,11 +101,55 @@ function renderTeachers() {
   if (empty) empty.hidden = teachers.length > 0;
 }
 
+function renderStudents() {
+  const body = document.getElementById("studentRows");
+  const empty = document.getElementById("studentEmpty");
+  if (!body) return;
+  const classById = new Map(classes.map((item) => [item.id, item]));
+  body.innerHTML = students.map((student) => {
+    const assignedClass = classById.get(student.batchId);
+    const classLabel = assignedClass?.batchLabel || student.batch || "Not assigned";
+    return `<tr>
+      <td><b>${escapeHtml(student.name || "Not available")}</b></td>
+      <td>${escapeHtml(student.reg_no || "Not available")}</td>
+      <td>${escapeHtml(student.email || "Not available")}</td>
+      <td>${escapeHtml(student.mobile || "Not available")}</td>
+      <td>${escapeHtml(student.department || "Not available")}</td>
+      <td>${escapeHtml(student.year || "Not available")}</td>
+      <td>${escapeHtml(classLabel)}</td>
+      <td><span class="status-badge">${escapeHtml(student.studentStatus || "active")}</span></td>
+    </tr>`;
+  }).join("");
+  if (empty) empty.hidden = students.length > 0;
+}
+
+function renderClasses() {
+  const body = document.getElementById("classRows");
+  const empty = document.getElementById("classEmpty");
+  if (!body) return;
+  const teacherByUid = new Map(teachers.map((item) => [item.uid, item]));
+  body.innerHTML = classes.map((classItem) => {
+    const teacher = teacherByUid.get(classItem.assignedTeacherUid);
+    const totalStudents = students.filter((student) => student.batchId === classItem.id).length;
+    return `<tr>
+      <td><b>${escapeHtml(classItem.batchLabel || classItem.id)}</b></td>
+      <td>${escapeHtml(classItem.department || "Not available")}</td>
+      <td>${escapeHtml(classItem.courseName || "Not available")}</td>
+      <td>${escapeHtml(teacher?.name || "Not assigned")}</td>
+      <td>${totalStudents}</td>
+      <td><span class="status-badge">${escapeHtml(classItem.status || "active")}</span></td>
+    </tr>`;
+  }).join("");
+  if (empty) empty.hidden = classes.length > 0;
+}
+
 async function refreshAll() {
   await loadAdminData();
   renderDashboard();
   renderApprovals();
   renderTeachers();
+  renderStudents();
+  renderClasses();
 }
 
 async function renderViewData(view) {
@@ -107,6 +157,8 @@ async function renderViewData(view) {
   if (view === "dashboard") renderDashboard();
   if (view === "approvals") renderApprovals();
   if (view === "teachers") renderTeachers();
+  if (view === "students") renderStudents();
+  if (view === "classes") renderClasses();
 }
 
 document.addEventListener("DOMContentLoaded", () => {

@@ -211,8 +211,8 @@ for (const file of ["student-dashboard.html", "teacher-dashboard.html", "admin-d
   if (/<a[^>]+data-open-view=/.test(content) || /<a[^>]+data-logout/.test(content)) {
     failures.push(`${file} dashboard controls must be buttons, not hash links.`);
   }
-  if (["student-dashboard.html", "teacher-dashboard.html"].includes(file) && !content.includes("data-remove-account")) {
-    failures.push(`${file} must include a REMOVE ACCOUNT menu option.`);
+  if (["student-dashboard.html", "teacher-dashboard.html"].includes(file) && content.includes("data-remove-account")) {
+    failures.push(`${file} must not expose a REMOVE ACCOUNT menu option.`);
   }
   if (!/<button[^>]+class="nav-link"[^>]+data-open-view="dashboard">DASHBOARD<\/button>/.test(content)) {
     failures.push(`${file} must include one Dashboard sidebar button.`);

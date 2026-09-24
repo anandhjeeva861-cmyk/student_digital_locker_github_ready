@@ -96,7 +96,7 @@ test("admin portal exposes teacher approval workflow", async () => {
 
 test("teacher and Alumni pages expose required workflow sections", async () => {
   const [teacher, alumni] = await Promise.all([read("teacher-dashboard.html"), read("alumni-dashboard.html")]);
-  for (const text of ["BATCH MANAGEMENT", "Previous Batches", "Current Batch", "REMOVE BATCH STUDENT", "ALUMNI DETAILS", "REMOVE ACCOUNT"]) {
+  for (const text of ["BATCH MANAGEMENT", "Previous Batches", "Current Batch", "REMOVE BATCH STUDENT", "ALUMNI DETAILS"]) {
     assert.ok(teacher.includes(text), `teacher dashboard missing ${text}`);
   }
   for (const text of ["MY DOCUMENTS", "CAREER PROFILE", "ACHIEVEMENTS", "MY PROFILE", "LOGOUT"]) {
