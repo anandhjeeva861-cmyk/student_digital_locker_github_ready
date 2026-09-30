@@ -122,3 +122,9 @@ test("student graduation automatically routes an eligible student to Alumni", as
   assert.match(rules, /function validStudentAutomaticAlumniConversion/);
   assert.match(rules, /alumniConversions\/auto_\$\(uid\)/);
 });
+
+test("admins can read academic documents but never private student documents", async () => {
+  const rules = await read("firebase/firestore.rules");
+  assert.match(rules, /resource\.data\.category == "academic" && \(isAdmin\(\) \|\| isTeacherFor\(resource\.data\)\)/);
+  assert.match(rules, /data\.category == "academic" && \(isAdmin\(\) \|\| isTeacherFor\(data\)\)/);
+});

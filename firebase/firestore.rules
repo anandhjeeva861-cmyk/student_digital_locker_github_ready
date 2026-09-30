@@ -653,7 +653,7 @@ service cloud.firestore {
           || (request.resource.data.category in ["online", "personal"] && request.resource.data.accessLevel == "private"));
       allow read: if signedIn()
         && (resource.data.ownerId == request.auth.uid
-          || (resource.data.category == "academic" && isTeacherFor(resource.data)));
+          || (resource.data.category == "academic" && (isAdmin() || isTeacherFor(resource.data))));
       allow get: if signedIn()
         && currentProfile().role in ["student", "alumni"]
         && validOwnedDocumentId(documentId);
