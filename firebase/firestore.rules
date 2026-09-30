@@ -501,6 +501,25 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["role", "studentStatus", "alumniStatus", "graduationYear", "batchId", "batch", "graduatedAt", "convertedBy", "careerStatus", "updatedAt"]);
     }
 
+    function validStudentAutomaticAlumniConversion(uid) {
+      return request.auth.uid == uid
+        && resource.data.role == "student"
+        && request.resource.data.role == "alumni"
+        && resource.data.graduationYear is int
+        && request.time >= timestamp.date(resource.data.graduationYear, 1, 1)
+        && request.resource.data.studentStatus == "graduated"
+        && request.resource.data.alumniStatus == "active"
+        && request.resource.data.graduationYear == resource.data.graduationYear
+        && request.resource.data.batchId == resource.data.get("batchId", "")
+        && request.resource.data.batch == resource.data.get("batch", resource.data.year)
+        && request.resource.data.graduatedAt == request.time
+        && request.resource.data.convertedBy == request.auth.uid
+        && request.resource.data.careerStatus == "not_updated"
+        && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/alumniConversions/auto_$(uid)).data.studentUid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["role", "studentStatus", "alumniStatus", "graduatedAt", "convertedBy", "careerStatus", "updatedAt"]);
+    }
+
     function isTeacherFor(data) {
       return signedIn()
         && isTeacher()
@@ -573,7 +592,7 @@ service cloud.firestore {
       allow update: if signedIn()
         && ((request.auth.uid == uid
             && resource.data.role in ["student", "alumni"]
-            && (validPhotoUpdate() || validAlumniSelfUpdate()))
+            && (validPhotoUpdate() || validAlumniSelfUpdate() || validStudentAutomaticAlumniConversion(uid)))
           || (isAdmin()
             && resource.data.role == "teacher"
             && request.resource.data.role == "teacher"
@@ -714,20 +733,27 @@ service cloud.firestore {
       allow read: if signedIn()
         && (resource.data.studentUid == request.auth.uid || teacherAssignedToBatch(resource.data.batchId));
       allow create: if signedIn()
-        && isTeacher()
         && request.resource.data.keys().hasOnly(["studentUid", "batchId", "previousRole", "newRole", "graduationYear", "convertedBy", "convertedAt"])
-        && conversionId == request.resource.data.batchId + "_" + request.resource.data.studentUid
-        && convertibleBatch(request.resource.data.batchId)
-        && graduationYearReached(request.resource.data.batchId)
+        && ((isTeacher()
+          && conversionId == request.resource.data.batchId + "_" + request.resource.data.studentUid
+          && convertibleBatch(request.resource.data.batchId)
+          && graduationYearReached(request.resource.data.batchId)
+          && request.resource.data.graduationYear == get(/databases/$(database)/documents/batches/$(request.resource.data.batchId)).data.graduationYear
+          && request.resource.data.convertedBy == request.auth.uid
+          && getAfter(/databases/$(database)/documents/profiles/$(request.resource.data.studentUid)).data.batchId == request.resource.data.batchId)
+          || (currentProfile().role == "student"
+            && conversionId == "auto_" + request.auth.uid
+            && request.resource.data.studentUid == request.auth.uid
+            && request.resource.data.batchId == currentProfile().get("batchId", "")
+            && request.resource.data.graduationYear == currentProfile().graduationYear
+            && request.time >= timestamp.date(currentProfile().graduationYear, 1, 1)
+            && request.resource.data.convertedBy == request.auth.uid))
         && request.resource.data.studentUid is string
         && request.resource.data.previousRole == "student"
         && request.resource.data.newRole == "alumni"
-        && request.resource.data.graduationYear == get(/databases/$(database)/documents/batches/$(request.resource.data.batchId)).data.graduationYear
-        && request.resource.data.convertedBy == request.auth.uid
         && request.resource.data.convertedAt == request.time
         && get(/databases/$(database)/documents/profiles/$(request.resource.data.studentUid)).data.role == "student"
         && getAfter(/databases/$(database)/documents/profiles/$(request.resource.data.studentUid)).data.role == "alumni"
-        && getAfter(/databases/$(database)/documents/profiles/$(request.resource.data.studentUid)).data.batchId == request.resource.data.batchId
         && getAfter(/databases/$(database)/documents/profiles/$(request.resource.data.studentUid)).data.graduatedAt == request.time;
       allow update, delete: if false;
     }

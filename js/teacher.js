@@ -180,9 +180,7 @@ async function renderBatches() {
   const previousEmpty = document.getElementById("previousBatchEmpty");
   if (currentEmpty) currentEmpty.hidden = currentBatches.length > 0;
   if (previousEmpty) previousEmpty.hidden = previousBatches.length > 0;
-  populateBatchSelect(document.getElementById("assignmentBatch"), currentBatches.filter((batch) => batch.status === "active"), "Select batch");
   populateBatchSelect(document.getElementById("alumniBatchFilter"), [...currentBatches, ...previousBatches], "All authorized batches");
-  await renderAssignableStudents(document.getElementById("assignmentBatch")?.value || "");
 }
 
 async function renderAssignableStudents(batchId) {
@@ -477,29 +475,6 @@ document.addEventListener("DOMContentLoaded", () => {
       showMessage("Batch created and assigned to you.", "success");
     } catch (error) {
       console.error("Batch creation failed", error);
-      showMessage(await friendlyFirebaseError(error), "danger", { duration: 9000 });
-    } finally {
-      button.disabled = false;
-    }
-  });
-
-  document.getElementById("assignmentBatch")?.addEventListener("change", async (event) => {
-    await safeRender("Assignable students load", () => renderAssignableStudents(event.target.value));
-  });
-
-  document.getElementById("assignBatchForm")?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const button = form.querySelector("button[type='submit']");
-    button.disabled = true;
-    try {
-      await (await loadFirebaseService()).assignStudentToBatch(teacher, form.elements.studentUid.value, form.elements.batchId.value);
-      await renderBatches();
-      await renderStudents();
-      await renderDashboard();
-      showMessage("Student assigned to the batch.", "success");
-    } catch (error) {
-      console.error("Student batch assignment failed", error);
       showMessage(await friendlyFirebaseError(error), "danger", { duration: 9000 });
     } finally {
       button.disabled = false;

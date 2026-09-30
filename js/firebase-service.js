@@ -1183,6 +1183,35 @@ export async function removeStudentFromCurrentBatch(profile, studentUid) {
   return true;
 }
 
+export async function autoConvertEligibleStudent(profile) {
+  requireProfileScope(profile, "student", "complete automatic Alumni conversion");
+  await requireCurrentUser(profile.uid);
+  const graduationYear = Number(profile.graduationYear);
+  if (!Number.isInteger(graduationYear) || new Date().getFullYear() < graduationYear) return profile;
+
+  const conversionWrite = writeBatch(db);
+  conversionWrite.update(doc(db, profileCollection, profile.uid), {
+    role: "alumni",
+    studentStatus: "graduated",
+    alumniStatus: "active",
+    graduatedAt: serverTimestamp(),
+    convertedBy: profile.uid,
+    careerStatus: "not_updated",
+    updatedAt: serverTimestamp()
+  });
+  conversionWrite.set(doc(db, alumniConversionsCollection, `auto_${profile.uid}`), {
+    studentUid: profile.uid,
+    batchId: profile.batchId || "",
+    previousRole: "student",
+    newRole: "alumni",
+    graduationYear,
+    convertedBy: profile.uid,
+    convertedAt: serverTimestamp()
+  });
+  await conversionWrite.commit();
+  return { ...profile, role: "alumni", studentStatus: "graduated", alumniStatus: "active", careerStatus: "not_updated" };
+}
+
 export async function getTeacherBatchStudents(profile, batchId) {
   const batch = await requireAssignedBatch(profile, batchId);
   const members = await getBatchMembers(batchId);

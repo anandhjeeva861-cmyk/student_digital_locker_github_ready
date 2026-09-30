@@ -105,3 +105,20 @@ test("teacher and Alumni pages expose required workflow sections", async () => {
     assert.ok(alumni.includes(text), `Alumni dashboard missing ${text}`);
   }
 });
+
+test("student graduation automatically routes an eligible student to Alumni", async () => {
+  const [teacherDashboard, teacherScript, auth, service, rules] = await Promise.all([
+    read("teacher-dashboard.html"),
+    read("js/teacher.js"),
+    read("js/auth.js"),
+    read("js/firebase-service.js"),
+    read("firebase/firestore.rules")
+  ]);
+  assert.doesNotMatch(teacherDashboard, /id="assignBatchForm"/);
+  assert.doesNotMatch(teacherScript, /assignBatchForm/);
+  assert.match(service, /export async function autoConvertEligibleStudent/);
+  assert.match(auth, /autoConvertEligibleStudent/);
+  assert.match(auth, /converted=automatic/);
+  assert.match(rules, /function validStudentAutomaticAlumniConversion/);
+  assert.match(rules, /alumniConversions\/auto_\$\(uid\)/);
+});

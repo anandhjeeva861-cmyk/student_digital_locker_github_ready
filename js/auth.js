@@ -100,6 +100,15 @@ async function login(form, role) {
     value(form, "password")
   );
 
+  if (role === "student" && profile.role === "student") {
+    const { autoConvertEligibleStudent } = await loadFirebaseService();
+    const updatedProfile = await autoConvertEligibleStudent(profile);
+    if (updatedProfile.role === "alumni") {
+      location.replace(`${pages.alumni}?converted=automatic`);
+      return;
+    }
+  }
+
   if (profile.role !== role) {
     await logout();
     const error = new Error(wrongPortalMessage(profile.role, role));
@@ -192,6 +201,13 @@ export async function protectPage(role, callback) {
   try {
     service = await loadFirebaseService();
     profile = await service.getCurrentProfile();
+    if (profile?.role === "student") {
+      profile = await service.autoConvertEligibleStudent(profile);
+      if (profile.role === "alumni") {
+        location.replace(`${pages.alumni}?converted=automatic`);
+        return;
+      }
+    }
     if (!profile || profile.role !== role) {
       location.replace(pages[profile?.role] || portalLoginPages[role] || pages.login);
       return;

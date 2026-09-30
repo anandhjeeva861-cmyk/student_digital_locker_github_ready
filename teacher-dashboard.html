@@ -70,12 +70,6 @@
             <label for="batchLabel">Approved Teaching Batch</label><select id="batchLabel" name="batchLabel" required></select>
             <button type="submit" class="primary-btn">CREATE BATCH</button>
           </form>
-          <form class="stack-form" id="assignBatchForm">
-            <h2>Assign Student</h2>
-            <label for="assignmentBatch">Batch</label><select id="assignmentBatch" name="batchId" required><option value="">Select batch</option></select>
-            <label for="assignmentStudent">Student</label><select id="assignmentStudent" name="studentUid" required><option value="">Select student</option></select>
-            <button type="submit" class="primary-btn">ASSIGN STUDENT</button>
-          </form>
         </div>
         <h2>Current Batches</h2><div id="currentBatchGrid" class="batch-grid"></div><p id="currentBatchEmpty" class="empty-state">No active batches.</p>
         <h2>Previous Batches</h2><div id="previousBatchGrid" class="batch-grid"></div><p id="previousBatchEmpty" class="empty-state">No graduated batches.</p>

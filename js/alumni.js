@@ -168,6 +168,10 @@ async function runAction(label, action) {
 document.addEventListener("DOMContentLoaded", () => {
   protectPage("alumni", async (_currentUser, currentProfile) => {
     profile = currentProfile;
+    if (new URLSearchParams(window.location.search).get("converted") === "automatic") {
+      showMessage("Your academic year has ended. Your account has been automatically converted to Alumni and all documents are preserved.", "success", { duration: 9000 });
+      window.history.replaceState(null, "", window.location.pathname);
+    }
     fillProfile();
     await runAction("Alumni documents load", refreshDocuments);
     if (document.querySelector("[data-view]:not([hidden])")?.dataset.view === "achievements") {
