@@ -26,7 +26,8 @@ service cloud.firestore {
     }
 
     function approvedTeacher(data) {
-      let approval = get(/databases/$(database)/documents/approvedTeachers/$(request.auth.token.email)).data;
+      let approvalEmail = request.auth.token.email;
+      let approval = get(/databases/$(database)/documents/approvedTeachers/$(approvalEmail)).data;
       let approvedBatches = approval.get("teachingBatches", [approval.get("teachingBatch", "")]);
       return approval.enabled == true && approval.departmentKey == data.departmentKey
         && data.teachingBatch in approvedBatches;
@@ -159,6 +160,7 @@ service cloud.firestore {
     }
 
     function validProfileCreate(uid) {
+      let teacherScopeId = request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch;
       return request.resource.data.uid == uid
         && request.resource.data.role in ["student", "teacher"]
         && request.resource.data.name is string
@@ -188,10 +190,10 @@ service cloud.firestore {
           || (request.resource.data.role == "teacher"
             && approvedTeacher(request.resource.data)
             && request.resource.data.keys().hasOnly(["uid", "role", "name", "email", "teachingBatch", "teachingBatches", "department", "departmentKey", "mobile", "createdAt", "updatedAt"])
-            && existsAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch))
-            && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch)).data.uid == uid
-            && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch)).data.departmentKey == request.resource.data.departmentKey
-            && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch)).data.get("teachingBatch", getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(request.resource.data.departmentKey + "_" + request.resource.data.teachingBatch)).data.get("year", "")) == request.resource.data.teachingBatch));
+            && existsAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(teacherScopeId))
+            && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(teacherScopeId)).data.uid == uid
+            && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(teacherScopeId)).data.departmentKey == request.resource.data.departmentKey
+            && getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(teacherScopeId)).data.get("teachingBatch", getAfter(/databases/$(database)/documents/uniqueTeacherScopes/$(teacherScopeId)).data.get("year", "")) == request.resource.data.teachingBatch));
     }
 
     function validBootstrapAdminProfile(uid) {
@@ -480,6 +482,7 @@ service cloud.firestore {
 
     function validTeacherAlumniConversion(uid) {
       let batchId = resource.data.batchId;
+      let conversionId = batchId + "_" + uid;
       let batch = get(/databases/$(database)/documents/batches/$(batchId)).data;
       return isTeacher()
         && resource.data.role == "student"
@@ -497,11 +500,12 @@ service cloud.firestore {
         && request.resource.data.convertedBy == request.auth.uid
         && request.resource.data.careerStatus == "not_updated"
         && request.resource.data.updatedAt == request.time
-        && getAfter(/databases/$(database)/documents/alumniConversions/$(batchId + "_" + uid)).data.studentUid == uid
+        && getAfter(/databases/$(database)/documents/alumniConversions/$(conversionId)).data.studentUid == uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["role", "studentStatus", "alumniStatus", "graduationYear", "batchId", "batch", "graduatedAt", "convertedBy", "careerStatus", "updatedAt"]);
     }
 
     function validStudentAutomaticAlumniConversion(uid) {
+      let conversionId = "auto_" + uid;
       return request.auth.uid == uid
         && resource.data.role == "student"
         && request.resource.data.role == "alumni"
@@ -516,7 +520,7 @@ service cloud.firestore {
         && request.resource.data.convertedBy == request.auth.uid
         && request.resource.data.careerStatus == "not_updated"
         && request.resource.data.updatedAt == request.time
-        && getAfter(/databases/$(database)/documents/alumniConversions/auto_$(uid)).data.studentUid == uid
+        && getAfter(/databases/$(database)/documents/alumniConversions/$(conversionId)).data.studentUid == uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["role", "studentStatus", "alumniStatus", "graduatedAt", "convertedBy", "careerStatus", "updatedAt"]);
     }
 
