@@ -82,7 +82,9 @@ test("admin portal exposes teacher approval workflow", async () => {
     read("firebase/firestore.rules")
   ]);
   assert.match(login, /id="adminLoginForm"/);
-  assert.match(dashboard, /Teacher approvals/);
+  const adminNavigation = dashboard.match(/<nav aria-label="Admin portal navigation">[\s\S]*?<\/nav>/)?.[0] || "";
+  assert.doesNotMatch(adminNavigation, /data-open-view="approvals"/);
+  assert.match(dashboard, /data-open-view="approvals"/);
   assert.match(dashboard, /id="approvalForm"/);
   assert.match(auth, /admin:\s*"\.\/admin-dashboard\.html"/);
   assert.match(admin, /protectPage\("admin"/);

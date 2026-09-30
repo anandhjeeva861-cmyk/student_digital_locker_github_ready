@@ -1,25 +1,47 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const toggle = document.getElementById("themeToggle");
-  let theme = "light";
+const themeStorageKey = "lockerTheme";
+
+function savedTheme() {
   try {
-    theme = localStorage.getItem("lockerTheme") === "dark" ? "dark" : "light";
+    const value = localStorage.getItem(themeStorageKey);
+    if (value === "dark" || value === "light") return value;
   } catch (_error) {
-    // Storage can be unavailable in privacy-restricted browsing contexts.
+    // Storage may be unavailable in privacy-restricted browsing contexts.
   }
-  const apply = () => {
-    const dark = theme === "dark";
-    document.body.classList.toggle("dark-mode", dark);
-    if (toggle) toggle.textContent = dark ? "\u2600\uFE0F" : "\uD83C\uDF19";
+  return "light";
+}
+
+function initialiseThemeToggle() {
+  const toggle = document.getElementById("themeToggle");
+  let theme = savedTheme();
+
+  const applyTheme = () => {
+    const isDark = theme === "dark";
+    document.body.classList.toggle("dark-mode", isDark);
+    document.documentElement.dataset.theme = theme;
+    if (!toggle) return;
+    toggle.textContent = isDark ? "☀" : "☾";
+    toggle.setAttribute("aria-pressed", String(isDark));
+    toggle.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+    toggle.title = isDark ? "Light mode" : "Dark mode";
   };
 
-  apply();
+  applyTheme();
   toggle?.addEventListener("click", () => {
-    theme = document.body.classList.contains("dark-mode") ? "light" : "dark";
+    theme = theme === "dark" ? "light" : "dark";
     try {
-      localStorage.setItem("lockerTheme", theme);
+      localStorage.setItem(themeStorageKey, theme);
     } catch (_error) {
-      // The selected theme still applies for the current page.
+      // The selection still works for the current page when storage is unavailable.
     }
-    apply();
+    applyTheme();
   });
-});
+
+  window.addEventListener("storage", (event) => {
+    if (event.key !== themeStorageKey || !event.newValue) return;
+    theme = event.newValue === "dark" ? "dark" : "light";
+    applyTheme();
+  });
+}
+
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initialiseThemeToggle, { once: true });
+else initialiseThemeToggle();
