@@ -517,7 +517,7 @@ service cloud.firestore {
     function canReadDocumentData(data) {
       return signedIn()
         && (data.ownerId == request.auth.uid
-          || (data.category == "academic" && isTeacherFor(data)));
+          || (data.category == "academic" && (isAdmin() || isTeacherFor(data))));
     }
 
     function isSameScope(data) {

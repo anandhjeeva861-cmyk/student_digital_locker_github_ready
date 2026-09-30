@@ -7,6 +7,7 @@ let teachers = [];
 let students = [];
 let classes = [];
 let studentFilters = { q: "", department: "", classId: "" };
+let detailDocumentCache = [];
 let firebaseServicePromise = null;
 
 function loadFirebaseService() {
@@ -26,6 +27,11 @@ async function friendlyFirebaseError(error) {
 function text(id, value) {
   const element = document.getElementById(id);
   if (element) element.textContent = value || "";
+}
+
+function dateText(value) {
+  const date = value?.toDate?.() || (value ? new Date(value) : null);
+  return date && !Number.isNaN(date.getTime()) ? date.toLocaleString() : "Not available";
 }
 
 function parseBatchList(value) {
@@ -139,9 +145,61 @@ function renderStudents() {
       <td>${escapeHtml(student.year || "Not available")}</td>
       <td>${escapeHtml(classLabel)}</td>
       <td><span class="status-badge">${escapeHtml(student.studentStatus || "active")}</span></td>
+      <td><button type="button" class="small-btn" data-student-id="${escapeHtml(student.uid)}">VIEW DATA</button></td>
     </tr>`;
   }).join("");
   if (empty) empty.hidden = filteredStudents.length > 0;
+}
+
+async function renderStudentDetail(studentUid) {
+  const { getAdminStudentDetail } = await loadFirebaseService();
+  const { student, documents } = await getAdminStudentDetail(admin, studentUid);
+  text("detailName", student.name || "Student");
+  text("detailRegNo", student.reg_no || "Not available");
+  text("detailEmail", student.email || "Not available");
+  text("detailDepartment", student.department || "Not available");
+  text("detailYear", student.year || "Not available");
+  text("detailMobile", student.mobile || "Not available");
+  detailDocumentCache = documents || [];
+  const body = document.getElementById("academicRows");
+  if (body) body.innerHTML = detailDocumentCache.map((item) => `
+    <tr>
+      <td><b>${escapeHtml(item.title || "Untitled")}</b></td>
+      <td>${escapeHtml(item.file_name || "Not available")}</td>
+      <td>${escapeHtml(dateText(item.uploaded_at))}</td>
+      <td class="action-cell"><button type="button" class="small-btn" data-view-doc="${escapeHtml(item.id)}">VIEW</button><button type="button" class="small-btn" data-download-doc="${escapeHtml(item.id)}">DOWNLOAD</button></td>
+    </tr>`).join("");
+  text("academicEmpty", detailDocumentCache.length ? "" : "No academic certificates uploaded.");
+  const empty = document.getElementById("academicEmpty");
+  if (empty) empty.hidden = detailDocumentCache.length > 0;
+  document.dispatchEvent(new CustomEvent("dashboard:navigate", { detail: { view: "student-detail" } }));
+}
+
+async function openStoredDocument(documentId, mode) {
+  const item = detailDocumentCache.find((documentItem) => documentItem.id === documentId);
+  if (!item) throw new Error("Document not found.");
+  const previewWindow = mode === "view" ? window.open("about:blank", "_blank") : null;
+  if (mode === "view" && !previewWindow) throw new Error("Document preview was blocked. Allow pop-ups for this site and try again.");
+  if (previewWindow) previewWindow.opener = null;
+  let url = "";
+  try {
+    const { getDocumentObjectUrl } = await loadFirebaseService();
+    url = await getDocumentObjectUrl(item);
+    if (previewWindow) previewWindow.location.replace(url);
+    else {
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = item.file_name || "document";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+  } catch (error) {
+    previewWindow?.close();
+    if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+    throw error;
+  }
+  if (url.startsWith("blob:")) window.setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 function renderClasses() {
@@ -179,6 +237,7 @@ async function renderViewData(view) {
   if (view === "approvals") renderApprovals();
   if (view === "teachers") renderTeachers();
   if (view === "students") renderStudents();
+  if (view === "student-detail") return;
   if (view === "classes") renderClasses();
 }
 
@@ -234,6 +293,18 @@ document.addEventListener("DOMContentLoaded", () => {
     if (editButton) {
       const approval = approvals.find((item) => item.email === editButton.dataset.editApproval);
       if (approval) setApprovalForm(approval);
+      return;
+    }
+
+    const studentButton = event.target instanceof Element ? event.target.closest("[data-student-id]") : null;
+    if (studentButton) {
+      await safeRender("Student details load", () => renderStudentDetail(studentButton.dataset.studentId));
+      return;
+    }
+
+    const documentButton = event.target instanceof Element ? event.target.closest("[data-view-doc], [data-download-doc]") : null;
+    if (documentButton) {
+      await safeRender("Academic document open", () => openStoredDocument(documentButton.dataset.viewDoc || documentButton.dataset.downloadDoc, documentButton.hasAttribute("data-view-doc") ? "view" : "download"));
       return;
     }
 

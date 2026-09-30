@@ -680,6 +680,21 @@ export async function listAdminStudentProfiles(adminProfile) {
     .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 }
 
+export async function getAdminStudentDetail(adminProfile, studentUid) {
+  requireAdminProfile(adminProfile, "load student details");
+  await requireCurrentUser(adminProfile.uid);
+  const student = await getProfile(studentUid);
+  if (!student || student.role !== "student") throw new Error("Student not found.");
+  const snapshots = await getDocs(query(
+    collection(db, documentsCollection),
+    where("ownerId", "==", studentUid),
+    where("category", "==", "academic")
+  ));
+  const documents = snapshots.docs.map(documentFromDoc)
+    .sort((a, b) => String(b.uploaded_at).localeCompare(String(a.uploaded_at)));
+  return { student, documents };
+}
+
 export async function listAdminClasses(adminProfile) {
   requireAdminProfile(adminProfile, "load class lists");
   await requireCurrentUser(adminProfile.uid);
